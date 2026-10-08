@@ -14,14 +14,21 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this
 document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
 they appear in all capitals.
 
 The terms "Mainnet" and "Testnet" are to be interpreted as described in section 3.12 of
 the Zcash Protocol Specification. [#protocol-networks]_
 
+The term "Regtest" refers to a local, non-public regression-test network whose consensus
+parameters, including network upgrade activation heights, are implementation-configured.
+
 The term "network upgrade" is to be interpreted as described in ZIP 200. [#zip-0200]_
+
+The *current epoch* of a node is the epoch, in the sense of ZIP 200 [#zip-0200]_, whose
+block height interval contains the height of the tip of the node's best valid block
+chain; before any block is known, it is the epoch containing height 0.
 
 The term "block chain" in this document is to be interpreted as described in section 3.3
 of the Zcash Protocol Specification. [#protocol-blockchain]_
@@ -43,6 +50,12 @@ protocol version
   A 32-bit integer identifying the set of protocol features supported by a node. Higher
   values indicate support for more recent features.
 
+reject
+  To reject a message is to discard it without acting on any part of its contents.
+  Unless stated otherwise, a node that rejects a message MAY also send a ``reject``
+  message (see `reject`_), assign a misbehavior penalty to the sending peer (see
+  `Misbehavior and Banning`_), or disconnect the peer.
+
 
 Abstract
 ========
@@ -56,17 +69,23 @@ Motivation
 ==========
 
 There is currently no single document that specifies the full Zcash P2P network
-protocol. While Bitcoin protocol documentation exists, the Zcash protocol has diverged
-in several significant ways: network magic bytes differ, protocol version numbers follow
-an independent numbering scheme, inventory types include ``MSG_WTX`` [#zip-0239]_,
-and network upgrade activation drives protocol versioning and peer management
-[#zip-0200]_ [#zip-0201]_.
+protocol. While Bitcoin protocol documentation exists [#bitcoin-protocol]_, the Zcash
+protocol has diverged in several significant ways: network magic bytes differ, protocol
+version numbers follow an independent numbering scheme, inventory types include
+``MSG_WTX`` [#zip-0239]_, and network upgrade activation drives protocol versioning and
+peer management [#zip-0200]_ [#zip-0201]_.
 
 This ZIP consolidates the protocol specification into a single normative reference,
 enabling independent implementations and protocol analysis.
 
-This ZIP does not specify the encoding of transactions and blocks; for those, refer to
-the Zcash Protocol Specification [#protocol-txnencoding]_ [#protocol-blockencoding]_.
+Values given for the zcashd implementation are historical reference values: zcashd does
+not implement the consensus changes for NU6.3, and Zebra is the only full-validator
+implementation able to follow the Zcash block chain from NU6.3 activation onward
+[#zip-0258]_.
+
+This ZIP does not specify the encoding of transactions and block headers; for those,
+refer to the Zcash Protocol Specification [#protocol-txnencoding]_
+[#protocol-blockheader]_.
 
 
 Specification
@@ -108,20 +127,22 @@ Default Ports
 DNS Seeds
 `````````
 
-The following DNS seed hostnames are used for initial peer discovery.
+The seed list is implementation-defined and not normative. The Zebra implementation uses
+the following DNS seed hostnames for initial peer discovery.
 
 **Mainnet:**
 
-- ``dnsseed.z.cash``
 - ``dnsseed.str4d.xyz``
+- ``dnsseed.z.cash``
+- ``mainnet.seeder.shieldedinfra.net``
 - ``mainnet.seeder.zfnd.org``
-- ``mainnet.is.yolo.money``
+- ``seeder.zec.rocks``
 
 **Testnet:**
 
 - ``dnsseed.testnet.z.cash``
+- ``seeder.testnet.zec.rocks``
 - ``testnet.seeder.zfnd.org``
-- ``testnet.is.yolo.money``
 
 Regtest does not use DNS seeds or hardcoded seed nodes.
 
@@ -219,12 +240,16 @@ The ``command`` field MUST contain only printable ASCII characters (bytes in the
 byte, all remaining bytes MUST be ``0x00``. A message that violates these constraints
 MUST be ignored.
 
-The following command strings are currently used on the Zcash network:
+The following command strings are specified in this document:
 
 ``version``, ``verack``, ``ping``, ``pong``, ``reject``, ``addr``, ``addrv2``,
 ``getaddr``, ``inv``, ``getdata``, ``notfound``, ``getblocks``, ``getheaders``,
 ``headers``, ``block``, ``tx``, ``mempool``, ``filterload``, ``filteradd``,
 ``filterclear``, ``alert``.
+
+Of these, ``addrv2`` is specified by ZIP 155 [#zip-0155]_ but not yet deployed (see
+`addrv2`_), and ``alert`` is obsolete (see `alert`_). The ``merkleblock`` message of
+BIP 37 [#bip-0037]_ is not served by any deployed node (see `Bloom Filter Messages`_).
 
 Maximum Message Size
 ````````````````````
@@ -375,15 +400,18 @@ depends on the type:
 | ``MSG_BLOCK``          | 2    | 36 bytes   | Block identified by block hash.           |
 |                        |      |            | 4-byte type code + 32-byte block hash.    |
 +------------------------+------+------------+-------------------------------------------+
-| ``MSG_FILTERED_BLOCK`` | 3    | 36 bytes   | Filtered block (``getdata`` only).        |
+| ``MSG_FILTERED_BLOCK`` | 3    | 36 bytes   | Filtered block (BIP 37 [#bip-0037]_).     |
 |                        |      |            | 4-byte type code + 32-byte block hash.    |
+|                        |      |            | Has no useful purpose in ``inv``          |
+|                        |      |            | messages (see below).                     |
 +------------------------+------+------------+-------------------------------------------+
 | ``MSG_WTX``            | 5    | 68 bytes   | Transaction identified by wtxid.          |
 |                        |      |            | 4-byte type code + 32-byte txid +         |
 |                        |      |            | 32-byte authorizing data commitment       |
-|                        |      |            | (``auth_digest``). Requires negotiated    |
-|                        |      |            | protocol version ≥ 170014                 |
-|                        |      |            | (``CINV_WTX_VERSION``).                   |
+|                        |      |            | (``auth_digest``; see ZIP 244             |
+|                        |      |            | [#zip-0244]_ and ZIP 229 [#zip-0229]_).   |
+|                        |      |            | Requires negotiated protocol version      |
+|                        |      |            | ≥ 170014 (``CINV_WTX_VERSION``).          |
 |                        |      |            | See ZIP 239 [#zip-0239]_.                 |
 +------------------------+------+------------+-------------------------------------------+
 
@@ -392,8 +420,17 @@ respectively), they may be mixed in a single ``inv`` or ``getdata`` message. The
 message size is therefore not determined solely by the entry count and MUST be determined
 by parsing each entry individually.
 
-A node MUST reject inventory vectors with unrecognized type codes. A node MUST reject
-``MSG_WTX`` inventory vectors if the negotiated protocol version is less than 170014.
+A node MUST NOT send ``MSG_WTX`` inventory vectors on a connection whose negotiated
+protocol version is less than 170014; on such a connection ``MSG_WTX`` is an
+unrecognized type code [#zip-0239]_.
+
+A node SHOULD parse an ``inv`` or ``getdata`` message completely, and SHOULD reject the
+message if it contains any inventory vector with an unrecognized type code (including
+type code 0). This is the behavior recommended by ZIP 239 [#zip-0239]_.
+
+``MSG_FILTERED_BLOCK`` is a recognized type code in both ``inv`` and ``getdata``
+messages. A node SHOULD NOT include ``MSG_FILTERED_BLOCK`` entries in an ``inv``
+message, and a node receiving one in an ``inv`` message SHOULD ignore it.
 
 
 Connection Handshake
@@ -415,7 +452,7 @@ peer's ``version`` message. A peer MUST NOT send any message other than ``verack
 sending its ``version`` and before receiving the remote peer's ``verack``.
 
 If validation of the ``version`` message received from a peer fails, the node
-MUST disconnect the peer. See (see `Version Validation`_) below for additional
+MUST disconnect the peer. See `Version Validation`_ below for additional
 details.
 
 Protocol Version Negotiation
@@ -435,8 +472,8 @@ particular, the negotiated protocol version determines:
 - Whether ``CAddress`` structures include a ``time`` field (version ≥ 31402).
 - Whether ``MSG_WTX`` inventory vectors are permitted (version ≥ 170014).
 - Whether ``addrv2`` messages are supported (see `addrv2`_).
-- Whether the peer meets the minimum version requirements for the current network
-  epoch (see `Network Upgrade Epoch Enforcement`_).
+- Whether the peer meets the minimum version requirements for the current epoch
+  (see `Network Upgrade Epoch Enforcement`_).
 
 Note that "the protocol version" as used in this document refers to the negotiated
 protocol version unless otherwise specified. A node's *advertised* protocol version
@@ -486,7 +523,7 @@ that send a longer user agent.
 
 The ``relay`` field is optional; if not present, its value MUST be interpreted as true.
 A node SHOULD reject ``version`` messages in which the ``relay`` field is present with
-a value other than 0 or 1. Nodes SHOULD create `version` messages with this field
+a value other than 0 or 1. Nodes SHOULD create ``version`` messages with this field
 present.
 
 Version Validation
@@ -498,14 +535,18 @@ A receiving node MUST validate the ``version`` message as follows:
 - On Testnet, the ``version`` field MUST be at least 170040
   (``MIN_TESTNET_PEER_PROTO_VERSION``).
 - The ``version`` field MUST be at least the protocol version associated with
-  the current network epoch (see `Network Upgrade Peer Management`_).
+  the current epoch (see `Network Upgrade Epoch Enforcement`_).
 - The ``nonce`` MUST NOT match the local node's nonce (self-connection detection).
-- A peer MUST NOT send more than one ``version`` message per connection. Duplicate
-  ``version`` messages incur a misbehavior penalty.
+- A peer MUST NOT send more than one ``version`` message per connection.
 
-If any of these checks fail, the node MUST disconnect the peer. A ``reject`` message
-with code ``REJECT_OBSOLETE`` (``0x11``) SHOULD be sent before disconnecting for
-version-related failures.
+If any of these checks fail, the node MUST disconnect the peer. If the ``version``
+field fails one of the protocol version checks above, a ``reject`` message with code
+``REJECT_OBSOLETE`` (``0x11``) SHOULD be sent before disconnecting. If a ``reject``
+message is sent for a duplicate ``version`` message, its code SHOULD be
+``REJECT_DUPLICATE`` (``0x12``).
+
+Likewise, a peer MUST NOT send more than one ``verack`` message per connection, and a
+node receiving a duplicate ``verack`` message MUST disconnect the peer.
 
 Protocol Versioning
 -------------------
@@ -521,31 +562,32 @@ Protocol versions are 32-bit integers. The following versions are significant:
 |         |                                     | completes.                               |
 +---------+-------------------------------------+------------------------------------------+
 | 31402   | ``CADDR_TIME_VERSION``              | Adds the ``time`` field to ``CAddress``  |
-|         |                                     | in ``addr`` messages. Also affects       |
-|         |                                     | encoding of the ``addr_from`` field in   |
-|         |                                     | ``version`` messages.                    |
+|         |                                     | in ``addr`` messages. Not applied to     |
+|         |                                     | ``addr_recv`` and ``addr_from`` in       |
+|         |                                     | ``version`` messages, which are          |
+|         |                                     | serialized at ``INIT_PROTO_VERSION``     |
+|         |                                     | (see `Version Message`_).                |
 +---------+-------------------------------------+------------------------------------------+
 | 60000   | ``BIP0031_VERSION``                 | ``ping`` messages include a ``uint64``   |
 |         |                                     | nonce and expect a ``pong`` response.    |
 |         |                                     | For protocol versions ≤ 60000, ``ping``  |
 |         |                                     | has an empty payload.                    |
 +---------+-------------------------------------+------------------------------------------+
-| 170002  | ``MIN_PEER_PROTO_VERSION``          | Minimum protocol version for Mainnet     |
-|         |                                     | peers.                                   |
+| 170002  | ``MIN_PEER_PROTO_VERSION``          | Minimum protocol version for peers on    |
+|         |                                     | all networks (Testnet additionally       |
+|         |                                     | requires 170040).                        |
 +---------+-------------------------------------+------------------------------------------+
 | 170004  | ``NO_BLOOM_VERSION``                | Bloom filter commands (``filterload``,   |
 |         |                                     | ``filteradd``, ``filterclear``) are      |
 |         |                                     | disabled unless the node advertises      |
 |         |                                     | ``NODE_BLOOM``.                          |
 +---------+-------------------------------------+------------------------------------------+
-| 170014  | ``CINV_WTX_VERSION``                | Adds ``MSG_WTX`` inventory type for v5   |
-|         |                                     | transaction relay. See ZIP 239           |
-|         |                                     | [#zip-0239]_.                            |
+| 170014  | ``CINV_WTX_VERSION``                | Adds ``MSG_WTX`` inventory type for      |
+|         |                                     | relay of v5 [#zip-0225]_ and later       |
+|         |                                     | transactions. See ZIP 239 [#zip-0239]_.  |
 +---------+-------------------------------------+------------------------------------------+
 | 170040  | ``MIN_TESTNET_PEER_PROTO_VERSION``  | Minimum protocol version for Testnet     |
 |         |                                     | peers.                                   |
-+---------+-------------------------------------+------------------------------------------+
-| 170160  | ``PROTOCOL_VERSION``                | Current protocol version.                |
 +---------+-------------------------------------+------------------------------------------+
 
 Network Upgrade Epoch Enforcement
@@ -584,6 +626,8 @@ The following protocol versions are associated with network upgrades on Mainnet:
 +-------------------+------------------+-------------------+
 | NU6.3             | 170160           | 3,428,143         |
 +-------------------+------------------+-------------------+
+| NU7               | 170190           | TBD               |
++-------------------+------------------+-------------------+
 
 The following protocol versions are associated with network upgrades on Testnet:
 
@@ -612,9 +656,14 @@ The following protocol versions are associated with network upgrades on Testnet:
 +-------------------+------------------+-------------------+
 | NU6.3             | 170160           | 4,134,000         |
 +-------------------+------------------+-------------------+
+| NU7               | 170180           | 4,465,026         |
++-------------------+------------------+-------------------+
+
+The NU7 values are those assigned by ZIP 259 [#zip-0259]_, which has not yet set the
+Mainnet activation height.
 
 Note that Testnet protocol versions differ from Mainnet for several upgrades
-(Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, and NU6.1), but coincide for
+(Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, NU6.1, and NU7), but coincide for
 Sapling, NU6.2, and NU6.3. The coincidences for NU6.2 and NU6.3 are a consequence of
 the ad hoc assignment used through NU6.3; see `Assigning Protocol Versions to Network
 Upgrades`_ for the rule adopted to prevent such coincidences from NU7 onward.
@@ -625,8 +674,8 @@ Assigning Protocol Versions to Network Upgrades
 When a new network upgrade is defined, it is assigned a protocol version for each network
 on which it will activate. In the tables above, the *Mainnet protocol version* and
 *Testnet protocol version* of an upgrade are the values in the Mainnet and Testnet tables
-respectively; Regtest uses the Testnet protocol version. These assignments MUST satisfy
-the following invariants:
+respectively; Regtest uses the Testnet protocol version, except that its Sapling protocol
+version is 170006. These assignments MUST satisfy the following invariants:
 
 1. **Zcash range.** Every assigned protocol version is of the form ``170000 + n`` with
    ``0 ≤ n ≤ 999``. The leading ``170`` distinguishes Zcash protocol versions from those
@@ -651,7 +700,7 @@ protocol version is ever assigned to more than one (network, upgrade) pair:
   ``M``. Then the Testnet protocol version of the new upgrade is ``base``, and its
   Mainnet protocol version is ``base + 10``.
 
-Equivalently, from NU7 onward Testnet protocol versions are congruent to 0 modulo 20 and
+Consequently, from NU7 onward Testnet protocol versions are congruent to 0 modulo 20 and
 Mainnet protocol versions are congruent to 10 modulo 20, so the two never coincide.
 
 For example, the preceding Mainnet protocol version at NU7 is NU6.3's ``170160``; the
@@ -659,6 +708,12 @@ least ``170000 + 20·k`` strictly greater than ``170160`` is ``170180``, so NU7 
 assigned Testnet protocol version ``170180`` and Mainnet protocol version ``170190``.
 The upgrade following NU7 would then be assigned ``170200`` (Testnet) and ``170210``
 (Mainnet).
+
+This procedure assigns protocol versions only to network upgrades. Some protocol versions
+instead signal support for a single peer-protocol feature, such as ``NO_BLOOM_VERSION``
+and ``CINV_WTX_VERSION`` (see `Protocol Versioning`_) and the ``addrv2`` deployment
+version (see ZIP 155 [#zip-0155]_). How such feature versions are to be assigned from
+NU7 onward, and how they relate to the invariants above, is not yet specified.
 
 
 Message Types
@@ -819,11 +874,9 @@ Notifies the peer of a rejected message. This message is informational; receipt 
   |         |                  | string, max 256 bytes).                        |
   +---------+------------------+------------------------------------------------+
 
-The ``alert`` message is deprecated. It is documented here for completeness, as it
-remains part of the zcashd implementation but has been proposed for removal
-[#zcashd-remove-alert]_, and implementations MAY choose not to
-support it. Nodes that do support ``alert`` messages SHOULD validate the alert
-signature against the network's alert public key before processing or relaying alerts.
+The ``alert`` message is obsolete and is documented here for completeness. The zcashd
+implementation removed alert handling [#zcashd-remove-alert]_, and the Zebra
+implementation ignores the command. Implementations SHOULD ignore ``alert`` messages.
 
 
 Address Messages
@@ -853,7 +906,8 @@ The ``count`` MUST NOT exceed 1000. A node receiving an ``addr`` message with mo
 '''''''''''
 
 :Command: ``getaddr``
-:Direction: Both (but typically only sent to inbound peers)
+:Direction: Both (but typically sent only on outbound connections, i.e. to peers the
+            sending node connected to)
 :Payload: Empty (0 bytes).
 
 Requests peer addresses from the remote node. The remote node responds by sending one or
@@ -931,8 +985,9 @@ The following network IDs are defined:
 Network ID ``0x03`` is reserved (it was assigned to Tor v2 in BIP 155 [#bip-0155]_, but
 Tor v2 addresses are no longer supported and MUST NOT be used).
 
-A node MUST reject addresses whose length does not match the expected length for the
-given network ID. A node MUST NOT gossip addresses with unrecognized network IDs.
+A node MUST reject messages that contain an address whose length does not match the
+length specified above for its network ID (see ZIP 155 [#zip-0155]_). A node MUST NOT
+gossip addresses with unrecognized network IDs.
 
 ``IPV4`` and ``IPV6`` addresses are encoded in network byte order (big-endian). ``TORV3``
 addresses consist of the 32-byte Ed25519 master public key of the onion service.
@@ -992,7 +1047,7 @@ The ``count`` MUST NOT exceed 50,000. A node receiving an ``inv`` message with m
   +---------+---------------+------------------------------------------------+
 
 Requests one or more objects from the remote peer. The ``count`` MUST NOT exceed 50,000.
-A node receiving a ``getdata`` message with more than 50,000 entries MUST assign a
+A node receiving a ``getdata`` message with more than 50,000 entries SHOULD assign a
 misbehavior penalty of 20 points.
 
 If the requested object is not available, the receiving node SHOULD respond with a
@@ -1031,7 +1086,7 @@ Block Messages
   +---------+---------------------------+------------------------------------------+
   | Size    | Field                     | Description                              |
   +=========+===========================+==========================================+
-  | 4       | ``version``               | Protocol version (``uint32``).           |
+  | 4       | ``version``               | Protocol version (``int32``).            |
   +---------+---------------------------+------------------------------------------+
   | varies  | ``block_locator_count``   | Number of block locator hashes           |
   |         |                           | (CompactSize).                           |
@@ -1058,7 +1113,7 @@ locator hash found in the responder's best chain, up to and including ``hash_sto
   +---------+---------------------------+------------------------------------------+
   | Size    | Field                     | Description                              |
   +=========+===========================+==========================================+
-  | 4       | ``version``               | Protocol version (``uint32``).           |
+  | 4       | ``version``               | Protocol version (``int32``).            |
   +---------+---------------------------+------------------------------------------+
   | varies  | ``block_locator_count``   | Number of block locator hashes           |
   |         |                           | (CompactSize).                           |
@@ -1106,10 +1161,12 @@ For the encoding of block headers, see the Zcash Protocol Specification
 
 :Command: ``block``
 :Direction: Both
-:Payload: A single serialized block.
+:Payload: A single serialized block: the block header, followed by the number of
+          transactions (CompactSize), followed by that many serialized transactions.
 
 Sent in response to a ``getdata`` request for a ``MSG_BLOCK`` inventory entry. For the
-encoding of blocks, see the Zcash Protocol Specification [#protocol-blockencoding]_.
+encoding of block headers and transactions, see the Zcash Protocol Specification
+[#protocol-blockheader]_ [#protocol-txnencoding]_.
 
 
 Transaction Messages
@@ -1132,9 +1189,16 @@ Bloom Filter Messages
 
 These messages implement BIP 37 [#bip-0037]_ Bloom filtering. As of protocol
 version 170004, a node MUST NOT send Bloom filter commands to a peer that does
-not advertise ``NODE_BLOOM`` in its service flags. Sending Bloom filter
+not advertise ``NODE_BLOOM`` [#bip-0111]_ in its service flags. Sending Bloom filter
 commands to a peer that does not advertise ``NODE_BLOOM`` SHOULD incur a
 misbehavior penalty of 100 points (immediate ban).
+
+In BIP 37, a node with a loaded filter answers a ``getdata`` request for a
+``MSG_FILTERED_BLOCK`` entry with a ``merkleblock`` message followed by a ``tx``
+message for each matched transaction. No deployed node serves filtered blocks, and
+this document does not specify the ``merkleblock`` message. A node that does not serve
+filtered blocks SHOULD answer a ``getdata`` request for a ``MSG_FILTERED_BLOCK`` entry
+with a ``notfound`` message, or ignore the entry.
 
 ``filterload``
 ''''''''''''''
@@ -1192,25 +1256,31 @@ one or more ``inv`` messages listing the transactions in its mempool.
 Block Relay
 -----------
 
-Headers-First Synchronization
-`````````````````````````````
+Block Synchronization
+`````````````````````
 
-Nodes MAY synchronize the block chain using a headers-first approach. The Zebra
-implementation uses headers-first synchronization; zcashd does not [#zcashd-6292]_.
+Nodes MAY synchronize the block chain using either of the following approaches. In
+both, the steps repeat until the node is synchronized with the network.
 
-1. The synchronizing node sends a ``getheaders`` message with a block locator.
-2. The remote peer responds with a ``headers`` message containing up to 160 headers.
-3. The synchronizing node validates the headers and requests full blocks via ``getdata``
-   with ``MSG_BLOCK`` inventory entries.
-4. Steps 1–3 repeat until the node is synchronized with the network.
+- **Block locator.** The synchronizing node sends a ``getblocks`` message with a block
+  locator; the remote peer responds with an ``inv`` message listing up to 500 block
+  hashes; the synchronizing node requests the blocks via ``getdata`` with ``MSG_BLOCK``
+  inventory entries. The Zebra implementation uses this approach.
+- **Headers-first.** The synchronizing node sends a ``getheaders`` message with a block
+  locator; the remote peer responds with a ``headers`` message containing up to 160
+  headers; the synchronizing node validates the headers and requests full blocks via
+  ``getdata`` with ``MSG_BLOCK`` inventory entries. The zcashd implementation used this
+  approach.
 
 Block Download Parameters
 `````````````````````````
 
 - **Download window:** A node SHOULD NOT request blocks more than 1024 blocks ahead
-  of its current validated tip (``BLOCK_DOWNLOAD_WINDOW``).
-- **Per-peer limit:** A node SHOULD NOT have more than 16 blocks in transit from a
-  single peer simultaneously (``MAX_BLOCKS_IN_TRANSIT_PER_PEER``).
+  of its current validated tip (``BLOCK_DOWNLOAD_WINDOW``), or more than 3072 blocks
+  ahead once NU7 has activated [#zip-0218-constants]_.
+- **Per-peer limit:** A node SHOULD NOT have more than 16 blocks (48 blocks once NU7 has
+  activated [#zip-0218-constants]_) in transit from a single peer simultaneously
+  (``MAX_BLOCKS_IN_TRANSIT_PER_PEER``).
 - **Stalling timeout:** If a peer has not delivered a requested block within 2 seconds
   (``BLOCK_STALLING_TIMEOUT``) and there are other peers available with the same
   block, the node MAY request the block from an alternative peer.
@@ -1237,8 +1307,11 @@ Transaction relay follows an inventory-based protocol:
 
 Transactions with version ≤ 4 MUST be announced using ``MSG_TX`` inventory vectors.
 Transactions with version ≥ 5 MUST be announced using ``MSG_WTX`` inventory vectors.
-Using the wrong inventory type for a transaction version SHOULD incur a misbehavior
-penalty. See ZIP 239 [#zip-0239]_.
+An ``inv`` or ``getdata`` message MUST NOT use ``MSG_WTX`` for a transaction with
+version ≤ 4 [#zip-0239]_. Using the wrong inventory type for a transaction version
+SHOULD incur a misbehavior penalty. ZIP 239 specifies no penalty; the zcashd
+implementation assigned one only when a ``getdata`` request used the wrong type (see
+`Misbehavior and Banning`_).
 
 Trickling
 `````````
@@ -1253,36 +1326,59 @@ following values:
   (2 seconds on average).
 - At most 35 inventory entries (``INVENTORY_BROADCAST_MAX``) are sent per trickle
   interval.
-- Broadcast times follow a Poisson distribution centered on the broadcast interval.
+- Broadcasts form a Poisson process: each delay until the next broadcast is drawn
+  independently from an exponential distribution whose mean is the broadcast interval.
 
 The Zebra implementation uses a 7-second gossip delay (``PEER_GOSSIP_DELAY``).
 
 Transaction Expiry
 ``````````````````
 
-A node SHOULD NOT relay a transaction that will expire within 3 blocks of its view of
-the current chain tip (``TX_EXPIRING_SOON_THRESHOLD``).
+Transaction expiry (``nExpiryHeight``) is specified in ZIP 203 [#zip-0203]_. Let ``h``
+be the height of the tip of the node's best valid block chain. A non-coinbase transaction
+with ``0 < nExpiryHeight ≤ h + 3`` is unlikely to be mined before it expires, and a node
+MAY decline to accept it into its mempool or to relay it. The zcashd implementation did
+so (``TX_EXPIRING_SOON_THRESHOLD`` = 3); the Zebra implementation accepts and relays a
+transaction until it expires.
 
 Orphan Transactions
 ```````````````````
 
 An orphan transaction is one that references inputs from unknown parent transactions.
+Orphan handling is implementation-defined.
 
-- A node SHOULD store at most 100 orphan transactions
-  (``DEFAULT_MAX_ORPHAN_TRANSACTIONS``).
-- Orphan transactions expire and are removed after 1200 seconds (20 minutes,
-  ``ORPHAN_TX_EXPIRE_TIME``).
-- Only fully transparent transactions are eligible for orphan storage.
-- When the orphan pool is full, the oldest orphan transactions are evicted.
+The Zebra implementation keeps no orphan pool. When verifying a transaction that spends
+an output of a transaction not yet in its mempool, it waits up to 60 seconds for that
+output to appear in its mempool before verification fails.
+
+The zcashd implementation stored orphan transactions subject to the following limits:
+
+- At most 100 orphan transactions were stored (``DEFAULT_MAX_ORPHAN_TRANSACTIONS``).
+- Orphan transactions of 100,000 bytes or more were not stored.
+- Orphan transactions expired after 1200 seconds (20 minutes,
+  ``ORPHAN_TX_EXPIRE_TIME``), and expired orphans were removed by a sweep at most every
+  5 minutes (``ORPHAN_TX_EXPIRE_INTERVAL``).
+- Only fully transparent transactions were eligible for orphan storage.
+- When the orphan pool exceeded its limit, a randomly chosen orphan was evicted.
 
 Relay Fee
 `````````
 
-Transactions are subject to a minimum relay fee. Both the zcashd and Zebra
+Transaction relay is subject to the fee-based rules of ZIP 317 [#zip-0317-relaying]_:
+nodes that relay transactions are expected to relay those that pay at least the
+conventional fee, and MAY drop a transaction with more unpaid actions than a limit. The
+Zebra implementation uses a limit of 0 (as did the zcashd implementation by default), so
+it neither accepts into its mempool nor relays a transaction that pays less than the
+conventional fee. Under ZIP 317 the conventional fee is at least 10,000 zatoshis; the
+Zebra implementation computes it with a marginal fee of 1000 zatoshis per logical action,
+as proposed in ZIP 2009 [#zip-2009]_, giving at least 2,000 zatoshis.
+
+Transactions are also subject to a minimum relay fee. Both the zcashd and Zebra
 implementations use a base rate of 100 zatoshis per 1000 bytes
-(``DEFAULT_MIN_RELAY_TX_FEE``), though the zcashd implementation applies additional
-logic for low-fee and free transactions [#zcashd-relay-fee]_. A node SHOULD NOT relay
-transactions with fees below its minimum relay fee threshold.
+(``DEFAULT_MIN_RELAY_TX_FEE``), capped at 1000 zatoshis [#zcashd-relay-fee]_; the Zebra
+implementation also requires at least 100 zatoshis. With an unpaid-action limit of 0,
+this minimum is always below the conventional fee. A node SHOULD NOT relay transactions
+with fees below its minimum relay fee threshold.
 
 
 Address Relay
@@ -1301,9 +1397,9 @@ rate-limiting mechanism uses a token-bucket algorithm:
 - Rate: 0.1 address records per second per peer (``MAX_ADDR_RATE_PER_SECOND``).
 - Bucket capacity: 1000 (``MAX_ADDR_PROCESSING_TOKEN_BUCKET``), replenished at 0.1
   tokens per second.
-- Upon receiving a ``getaddr`` response, 1000 tokens (``MAX_ADDR_TO_SEND``) are added
-  to the bucket, exempt from the soft limit.
-- Whitelisted peers bypass address rate limiting.
+- When a node sends ``getaddr`` to a peer, it adds 1000 tokens (``MAX_ADDR_TO_SEND``)
+  to that peer's bucket, exempt from the soft limit.
+- Address records whose address lies in a whitelisted subnet are not rate-limited.
 
 Address Broadcasting
 ````````````````````
@@ -1320,17 +1416,21 @@ uses the following values:
 Misbehavior and Banning
 -----------------------
 
-Nodes SHOULD track misbehavior scores for each connected peer. The zcashd
-implementation bans a peer when its cumulative score reaches or exceeds 100
-(``DEFAULT_BANSCORE_THRESHOLD``), with bans lasting 24 hours
-(``DEFAULT_MISBEHAVING_BANTIME``). The Zebra implementation also uses a threshold of
-100 (``MAX_PEER_MISBEHAVIOR_SCORE``) but bans persist indefinitely. The ban threshold
+Nodes SHOULD track misbehavior scores for each connected peer. The ban threshold
 and duration are implementation-defined.
 
-Whitelisted peers accumulate misbehavior scores but are exempt from banning.
+The zcashd implementation banned a peer when its cumulative score reached or exceeded
+100 (``DEFAULT_BANSCORE_THRESHOLD``), with bans lasting 24 hours
+(``DEFAULT_MISBEHAVING_BANTIME``). Whitelisted peers accumulated misbehavior scores but
+were exempt from banning.
 
-The following table lists the misbehavior penalties assigned for specific protocol
-violations:
+The Zebra implementation assigns a score of either 0 or 100
+(``MAX_PEER_MISBEHAVIOR_SCORE``) to each incident, without accumulation, and bans the
+peer's group (the IPv4 address, or the IPv6 /64 prefix) for 24 hours
+(``BAN_DURATION``).
+
+The zcashd implementation assigned the following misbehavior penalties for specific
+protocol violations:
 
 +--------+-------------------------------------------------------------------+
 | Points | Violation                                                         |
@@ -1340,8 +1440,6 @@ violations:
 | 1      | Message received before ``version`` handshake.                    |
 +--------+-------------------------------------------------------------------+
 | 1      | Duplicate ``verack`` message.                                     |
-+--------+-------------------------------------------------------------------+
-| 10     | Alert processing failure.                                         |
 +--------+-------------------------------------------------------------------+
 | 20     | ``addr`` message with more than 1000 entries.                     |
 +--------+-------------------------------------------------------------------+
@@ -1361,9 +1459,9 @@ violations:
 +--------+-------------------------------------------------------------------+
 | 100    | ``filteradd`` data exceeding 520 bytes.                           |
 +--------+-------------------------------------------------------------------+
-| 100    | Using ``MSG_TX`` to announce a v5 transaction, or ``MSG_WTX``     |
-|        | to announce a v4-or-earlier transaction (see ZIP 239              |
-|        | [#zip-0239]_).                                                    |
+| 100    | Requesting (``getdata``) a transaction using ``MSG_TX`` when it   |
+|        | is v5 or later, or ``MSG_WTX`` when it is v4 or earlier (see      |
+|        | ZIP 239 [#zip-0239]_).                                            |
 +--------+-------------------------------------------------------------------+
 | varies | Transaction, block, or header validation failure. The penalty is  |
 |        | determined by the severity of the validation error.               |
@@ -1379,16 +1477,23 @@ summarizes the key behaviors.
 Pre-Activation
 ``````````````
 
-In the 1728-block window (``NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD``) before a
-network upgrade activation height, a node SHOULD preferentially connect to peers that
-advertise a protocol version at or above the version required by the upcoming upgrade.
-This period corresponds to approximately 1.5 days at the post-Blossom block interval.
+ZIP 201 aims for nodes that support an upcoming network upgrade to connect
+preferentially to each other. Its mechanism applies in the 1728 blocks
+(``NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD``) before the upgrade's activation
+height: when a new inbound connection arrives and the node already has its maximum
+number of inbound peers, the candidates for eviction are narrowed to those peers that
+advertise a protocol version below the one required by the upcoming upgrade, if there
+are any. The zcashd implementation did this; the Zebra implementation does not.
+
+This period is approximately 1.5 days at the 75-second block target spacing, and
+approximately 12 hours at the 25-second spacing that applies after NU7 activation
+[#zip-0218-constants]_.
 
 Post-Activation
 ```````````````
 
 After a network upgrade activates, a node MUST disconnect any peer whose negotiated
-protocol version is below the version required by the active epoch. The node SHOULD send
+protocol version is below the version required by the current epoch. The node SHOULD send
 a ``reject`` message with code ``REJECT_OBSOLETE`` (``0x11``) before disconnecting.
 
 
@@ -1436,20 +1541,24 @@ References
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
-.. [#protocol-blockencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.6: Block Encoding <protocol/protocol.pdf#blockencoding>`_
-.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.5: Block Header Encoding <protocol/protocol.pdf#blockheader>`_
+.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.6: Block Header Encoding and Consensus <protocol/protocol.pdf#blockheader>`_
 .. [#zip-0155] `ZIP 155: addrv2 message <zip-0155.rst>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
+.. [#zip-0218-constants] `ZIP 218: 25-second Block Target Spacing — Block-count-based constants <zip-0218.md#block-count-based-constants>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
+.. [#zip-0317-relaying] `ZIP 317: Proportional Transfer Fee Mechanism — Transaction relaying <zip-0317.rst#transaction-relaying>`_
+.. [#zip-2009] `ZIP 2009: Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10 <zip-2009.md>`_
 .. [#bip-0031] `BIP 31: Pong Message <https://github.com/bitcoin/bips/blob/master/bip-0031.mediawiki>`_
 .. [#bip-0037] `BIP 37: Connection Bloom filtering <https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki>`_
 .. [#bip-0111] `BIP 111: NODE_BLOOM service bit <https://github.com/bitcoin/bips/blob/master/bip-0111.mediawiki>`_
-.. [#bip-0130] `BIP 130: sendheaders message <https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki>`_
 .. [#bip-0155] `BIP 155: addrv2 message <https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki>`_
-.. [#zcashd-6292] `zcashd issue 6292: zcashd does not use headers-first sync <https://github.com/zcash/zcash/issues/6292>`_
 .. [#zcashd-relay-fee] `zcashd relay fee policy (policy.h) <https://github.com/zcash/zcash/blob/cfcfcd93b06d2ee897f1d24eb62692c9e9e0e66d/src/policy/policy.h#L65-L77>`_
 .. [#zcashd-remove-alert] `zcashd PR 7039: Remove alert handling <https://github.com/zcash/zcash/pull/7039>`_
 .. [#bitcoin-protocol] `Bitcoin Developer Reference: P2P Network <https://developer.bitcoin.org/reference/p2p_networking.html>`_

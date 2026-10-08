@@ -19,7 +19,7 @@ as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capital
 Abstract
 ========
 
-This proposal specifies a change to the behaviour of `zcashd` nodes intended to
+This proposal specifies a change to the behaviour of Zcash full nodes intended to
 mitigate denial-of-service from transaction flooding.
 
 
@@ -70,11 +70,12 @@ does not preclude changes in fee policy.
 Specification
 =============
 
-This specification describes the intended behaviour of `zcashd` nodes. Other node
+This specification describes the intended behaviour of full-node implementations
+that adopt it (currently `zebrad`; previously `zcashd`). Other node
 implementations MAY implement the same or similar behaviour, but this is not a
 requirement of the network protocol. Thus, RFC 2119 conformance keywords below are
-to be interpreted only as placing requirements on the `zcashd` implementation (and
-potentially other implementations that have adopted this specification in full).
+to be interpreted only as placing requirements on implementations that have
+adopted this specification.
 
 The mempool of a node holds a set of transactions. Each transaction has a *cost*,
 which is an integer defined as:
@@ -92,8 +93,8 @@ ZIP 317 [#zip-0317]_.
 
 Each node also MUST hold a FIFO queue RecentlyEvicted of pairs (txid, time), where
 the time indicates when the transaction with the given txid was evicted. The txid
-(rather than the wtxid as defined in [#zip-0239]_) is used even for version 5
-transactions after activation of NU5 [#zip-0252]_.
+(rather than the wtxid as defined in [#zip-0239]_) is used for all transaction
+versions, including version 5 and later transactions that also have a wtxid.
 
 The RecentlyEvicted queue SHOULD be empty on node startup. The size of RecentlyEvicted
 SHOULD never exceed ``eviction_memory_entries`` entries, which is the constant 40000.
@@ -103,6 +104,11 @@ to 80000000.
 
 There MUST be a configuration option ``mempoolevictionmemoryminutes``, which
 SHOULD default to 60.
+
+An implementation MAY provide equivalent options with different names or units in
+place of ``mempooltxcostlimit`` and ``mempoolevictionmemoryminutes``. For example,
+`zebrad` provides ``tx_cost_limit`` and ``eviction_memory_time``, the latter
+being a duration rather than a number of minutes.
 
 On receiving a transaction:
 
@@ -119,7 +125,10 @@ EvictTransaction MUST do the following:
 * Add the txid and the current time to RecentlyEvicted, dropping the oldest entry
   in RecentlyEvicted if necessary to keep it to at most ``eviction_memory_entries``
   entries.
-* Remove it from the mempool.
+* Remove it from the mempool, together with every mempool transaction that
+  directly or indirectly spends a transparent output of it. The costs of all
+  removed transactions are deducted from the total cost of transactions in the
+  mempool. Only the selected transaction is added to RecentlyEvicted.
 
 Nodes SHOULD remove transactions from RecentlyEvicted that were evicted more than
 ``mempoolevictionmemoryminutes`` minutes ago. This MAY be done periodically,
@@ -214,16 +223,16 @@ An attacker’s transactions cannot be relied on to expire.
 Deployment
 ==========
 
-This specification was implemented in `zcashd` v2.1.0-1. It is independent of
-the Blossom network upgrade.
+This specification was implemented in `zcashd` v2.1.0-1 and in `zebrad`
+v1.0.0-beta.0. It is independent of the Blossom network upgrade.
 
 The fee threshold for applying the *low_fee_penalty* was reduced from 10000 to
 1000 zatoshis as part of the deployment of ZIP 313 in `zcashd` v4.2.0.
 
 The fee threshold for applying the *low_fee_penalty* changed again in `zcashd`
-v5.5.0 and `zebrad` v1.0.0-rc.7 to match the ZIP 317 conventional fee. At the
-same time, the minimum cost threshold and the *low_fee_penalty* constant was
-increased as proposed in [#constants-update]_.
+v5.5.0 and `zebrad` v1.0.0-rc.2 to match the ZIP 317 conventional fee. The
+minimum cost threshold and the *low_fee_penalty* constant were increased as
+proposed in [#constants-update]_ in `zcashd` v5.5.0 and `zebrad` v1.0.0-rc.7.
 
 
 Reference implementation
@@ -233,6 +242,10 @@ Reference implementation
 * `zcashd PR 4166: Use same type when calling max (macOS compilation fix) <https://github.com/zcash/zcash/pull/4166>`_
 * `zcashd PR 4916: Reduce default fee to 1000 zatoshis <https://github.com/zcash/zcash/pull/4916>`_
 * `zcashd PR 6564: Change ZIP 401 mempool limiting to use conventional fee and new constants <https://github.com/zcash/zcash/pull/6564>`_
+* `zebrad PR 2889: ZIP-401: weighted random mempool eviction <https://github.com/ZcashFoundation/zebra/pull/2889>`_
+* `zebrad PR 2932: Limit the size and age of the ZIP-401 rejected transaction ID list <https://github.com/ZcashFoundation/zebra/pull/2932>`_
+* `zebrad PR 5703: Evict transactions from the mempool using the ZIP-317 conventional fee <https://github.com/ZcashFoundation/zebra/pull/5703>`_
+* `zebrad PR 6521: Increase ZIP-401 mempool cost thresholds for Orchard transactions <https://github.com/ZcashFoundation/zebra/pull/6521>`_
 
 
 References
@@ -243,7 +256,6 @@ References
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
 .. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
-.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
 .. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
 .. [#constants-update] `zcash/zips issue #565 - ZIP 401: Increase the minimum eviction cost to avoid penalizing Orchard <https://github.com/zcash/zips/issues/565>`_
 .. [#size-ambiguity] `zcash/zips issue #673 - ZIP 401 uses serialized size to calculate cost but the zcashd implementation uses RecursiveDynamicUsage <https://github.com/zcash/zips/issues/673>`_

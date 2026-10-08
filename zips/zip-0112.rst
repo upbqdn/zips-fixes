@@ -35,8 +35,8 @@ scripts to make decisions based on this field.
 
 By making the ``nSequence`` field accessible to script, it becomes possible to construct code
 pathways that only become accessible some minimum time after proof-of-publication. This enables
-a wide variety of applications in phased protocols such as escrow, payment channels, or
-bidirectional pegs.
+a wide variety of applications in phased protocols such as escrow, payment channels
+[#micropayments]_, or bidirectional pegs.
 
 
 Specification
@@ -46,6 +46,7 @@ Specification
 following conditions are true, the script interpreter MUST terminate with an error:
 
 * the stack is empty; or
+* the top item on the stack, interpreted as a script number, is longer than 5 bytes; or
 * the top item on the stack is less than 0; or
 * the top item on the stack has the disable flag (1 << 31) unset; and any of the following hold:
 
@@ -53,14 +54,26 @@ following conditions are true, the script interpreter MUST terminate with an err
   * the transaction input sequence number disable flag (1 << 31) is set; or
   * the relative lock-time type is not the same; or
   * the top stack item is greater than the transaction input sequence (when masked according to
-    [#zip-0068]_;
+    [#zip-0068]_);
 
 Otherwise, script execution MUST continue as if a ``NOP`` had been executed.
+
+The top stack item is interpreted as a script number: a little-endian integer whose most
+significant bit is the sign bit (sign-magnitude), as for other numeric operands of the scripting
+system. Numeric operands are otherwise limited to 4 bytes; ``CHECKSEQUENCEVERIFY`` accepts up to
+5 bytes so that every value of the 32-bit sequence number, including those with the disable flag
+set, can be represented. Whether an operand that is not minimally encoded is rejected is decided
+by the general minimal-encoding rule for script numbers where that rule applies, not by this ZIP.
+
+The relative lock-time type is given by the type flag (1 << 22) of ZIP 68, and the relative
+lock-time value by the low 22 bits (mask ``0x003FFFFF``). Masking according to ZIP 68 retains
+both: the top stack item and the transaction input sequence number are each ANDed with
+``0x007FFFFF`` before they are compared.
 
 ZIP 68 prevents a non-final transaction from being selected for inclusion in a block until the
 corresponding input has reached the specified age, as measured in block-height or block-time. By
 comparing the argument to ``CHECKSEQUENCEVERIFY`` against the ``nSequence`` field, we indirectly
-verify a desired minimum age of the the output being spent; until that relative age has been
+verify a desired minimum age of the output being spent; until that relative age has been
 reached any script execution pathway including the ``CHECKSEQUENCEVERIFY`` will fail to validate,
 causing the transaction not to be selected for inclusion in a block.
 
@@ -135,8 +148,8 @@ the event of a noncooperative counterparty.
 Lightning Network
 '''''''''''''''''
 
-The lightning network protocol [#lightning]_ extends the bidirectional payment channel idea to
-allow for payments to be routed over multiple bidirectional payment channel hops.
+The lightning network protocol [#lightning]_ [#scaling]_ extends the bidirectional payment channel
+idea to allow for payments to be routed over multiple bidirectional payment channel hops.
 
 These channels are based on an anchor transaction that requires a 2-of-2 multisig from Alice and
 Bob, and a series of revocable commitment transactions that spend the anchor transaction. The
@@ -193,7 +206,7 @@ pay either Alice or Bob, depending on whether Alice discovers a secret R, or a t
 but the same principle applies -- the branch paying Alice in Alice's commitment transaction gets a
 delay, and the entire output can be claimed by the other party if the revocation secret is known.
 With ``CHECKSEQUENCEVERIFY``, a HTLC payable to Alice might look like the following in Alice's
-commitment transaction::
+commitment transaction [#HTLCs]_::
 
    HASH160 DUP <R-HASH> EQUAL
    IF
@@ -248,7 +261,7 @@ time has passed since the return peg was posted to publish a reorg proof::
 Reference Implementation
 ========================
 
-.. highlight::c++
+.. code:: cpp
 
    /* Below flags apply in the context of ZIP 68 */
    /* If this flag set, CTxIn::nSequence is NOT interpreted as a
@@ -256,13 +269,13 @@ Reference Implementation
    static const uint32_t SEQUENCE_LOCKTIME_DISABLE_FLAG = (1 << 31);
 
    /* If CTxIn::nSequence encodes a relative lock-time and this flag
-    * is set, the relative lock-time has units of 512 seconds,
+    * is set, the relative lock-time has units of 64 seconds,
     * otherwise it specifies blocks with a granularity of 1. */
    static const uint32_t SEQUENCE_LOCKTIME_TYPE_FLAG = (1 << 22);
 
    /* If CTxIn::nSequence encodes a relative lock-time, this mask is
     * applied to extract that lock-time from the sequence field. */
-   static const uint32_t SEQUENCE_LOCKTIME_MASK = 0x0000ffff;
+   static const uint32_t SEQUENCE_LOCKTIME_MASK = 0x003fffff;
 
    case OP_NOP3:
    {
@@ -359,7 +372,7 @@ Deployment
 At the time of writing it has not been decided which network upgrade (if any) will implement this
 proposal.
 
-This ZIP must be deployed simultaneously with ZIP 68 [#zip-0068]_.
+This ZIP MUST be deployed simultaneously with ZIP 68 [#zip-0068]_ and ZIP 113 [#zip-0113]_.
 
 
 Acknowledgements
@@ -371,16 +384,17 @@ Mark Friedenbach invented the application of sequence numbers to achieve relativ
 wrote the reference implementation of ``CHECKSEQUENCEVERIFY`` for Bitcoin.
 
 The Bitcoin reference implementation and BIP 112 was based heavily on work done by Peter Todd for
-the closely related BIP 65. Eric Lombrozo and Anthony Towns contributed example use cases.
+the closely related BIP 65 [#bip-0065]_. Eric Lombrozo and Anthony Towns contributed example use
+cases.
 
 
 References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2019.0.1 or later [Overwinter+Sapling] <https://github.com/zcash/zips/blob/master/protocol/protocol.pdf>`_
 .. [#bip-0065] `BIP 65: OP_CHECKLOCKTIMEVERIFY <https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki>`_
-.. [#zip-0068] `ZIP 68: Relative lock-time through consensus-enforced sequence numbers <https://github.com/zcash/zips/blob/op-csv/zip-0068.rst>`_
+.. [#zip-0068] `ZIP 68: Relative lock-time using consensus-enforced sequence numbers <zip-0068.rst>`_
+.. [#zip-0113] `ZIP 113: Median Time Past as endpoint for lock-time calculations <zip-0113.rst>`_
 .. [#deployable-lightning] `Deployable Lightning <https://github.com/ElementsProject/lightning/blob/master/doc/deployable-lightning.pdf>`_
 .. [#lightning] `Lightning Network paper <http://lightning.network/lightning-network-paper.pdf>`_
 .. [#HTLCs] `HTLCs using OP_CHECKSEQUENCEVERIFY/OP_LOCKTIMEVERIFY and revocation hashes <http://lists.linuxfoundation.org/pipermail/lightning-dev/2015-July/000021.html>`_

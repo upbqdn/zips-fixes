@@ -17,9 +17,9 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", "MAY", and "RECOMMENDED" in this
-document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
-when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "MAY", and
+"RECOMMENDED" in this document are to be interpreted as described in BCP 14
+[#BCP14]_ when, and only when, they appear in all capitals.
 
 
 Abstract
@@ -160,9 +160,11 @@ We define two nonce parts:
 
 The nonce in the block header is the concatenation of ``NONCE_1`` and
 ``NONCE_2`` in hex. This means that a miner using bignum representations of nonce
-MUST increment by ``1 << len(NONCE_1)`` to avoid altering ``NONCE_1`` (because
+MUST increment by ``1 << (8 * len(NONCE_1))`` (equivalently,
+``1 << (4 * lenHex(NONCE_1))``) to avoid altering ``NONCE_1``. This is because
 the encoding of the nonce in the block header is little endian, in line with the
-other 32-byte fields [#Bitcoin-Block]_ [#protocol-blockheader]_).
+other 32-byte fields [#Bitcoin-Block]_ [#protocol-blockheader]_, so ``NONCE_1``
+occupies the low-order ``8 * len(NONCE_1)`` bits of the nonce.
 
 Session Resuming
 ~~~~~~~~~~~~~~~~
@@ -272,10 +274,12 @@ Server message:
 
 ``TARGET`` (hex)
   The server target for the next received job and all subsequent jobs (until the
-  next time this message is sent). The miner compares proposed block hashes with
-  this target as a 256-bit big-endian integer, and valid blocks MUST NOT have
-  hashes larger than (above) the current target (in accordance with the Zcash
-  network consensus rules [#protocol-difficulty]_).
+  next time this message is sent), as a 256-bit integer encoded big-endian in hex.
+  The miner compares the hash of each proposed block header, interpreted as in
+  [#protocol-difficulty]_, with this target; a submission meets the target if its
+  hash is less than or equal to (not above) the target. Meeting the server target
+  does not make a submission a valid block, and a valid block need not meet a
+  server target that is below the network target threshold.
 
   Miners SHOULD NOT submit work above this target. Miners SHOULD validate their
   solutions before submission (to avoid both unnecessary network traffic and
@@ -286,16 +290,18 @@ Server message:
   this message, but MUST check them against the previous target.
 
 When displaying the current target in the UI to users, miners MAY convert the
-target to an integer difficulty as used in Bitcoin miners. When doing so, miners
-SHOULD use ``powLimit`` (as defined in ``src/chainparams.cpp``) as the basis for
-conversion.
+target to a numerical difficulty as used in Bitcoin miners. When doing so, miners
+SHOULD compute the difficulty as ``ToTarget(ToCompact(PoWLimit)) / TARGET``, where
+``PoWLimit``, ``ToCompact`` and ``ToTarget`` are as defined in the Zcash Protocol
+Specification [#protocol-constants]_ [#protocol-nbits]_. This matches the
+difficulty reported by node RPC methods.
 
 ``mining.notify()``
 -------------------
 
 Server message:
 
-    {"id": null, "method": "mining.notify", "params": ["*JOB_ID*", "*VERSION*", "*PREVHASH*", "*MERKLEROOT*", "*RESERVED*", "*TIME*", "*BITS*", *CLEAN_JOBS*]} ``\n``
+    {"id": null, "method": "mining.notify", "params": ["*JOB_ID*", "*VERSION*", "*PREVHASH*", "*MERKLEROOT*", "*HASH_BLOCK_COMMITMENTS*", "*TIME*", "*BITS*", *CLEAN_JOBS*]} ``\n``
 
 ``JOB_ID`` (str)
   The id of this job.
@@ -320,9 +326,18 @@ The following parameters are only valid for ``VERSION == "04000000"``:
   The 32-byte Merkle root of the transactions in this block, encoded as in a
   block header.
 
-``RESERVED`` (hex)
-  A 32-byte reserved field, encoded as in a block header. Zero by convention (in
-  hex, ``0000000000000000000000000000000000000000000000000000000000000000``).
+``HASH_BLOCK_COMMITMENTS`` (hex)
+  The 32-byte field that follows ``hashMerkleRoot`` in the block header, encoded
+  as in a block header. From NU5 onward this is ``hashBlockCommitments``
+  [#protocol-blockheader]_; it was ``hashLightClientRoot`` for Heartwood and
+  Canopy, ``hashFinalSaplingRoot`` for Sapling and Blossom, and a reserved field,
+  zero by convention, before Sapling.
+
+  Servers MUST set this to the value that the consensus rules require for the
+  block being mined. The ``blockcommitmentshash`` field returned by the
+  ``getblocktemplate`` RPC method holds this value for the returned template, in
+  reversed (display) byte order; a server that uses it MUST reverse its bytes.
+  Miners MUST copy this value unchanged into the block header.
 
 ``TIME`` (hex)
   The block time suggested by the server, encoded as in a block header.
@@ -342,9 +357,10 @@ Request:
     {"id": 4, "method": "mining.submit", "params": ["*WORKER_NAME*", "*JOB_ID*", "*TIME*", "*NONCE_2*", "*EQUIHASH_SOLUTION*"]} ``\n``
 
 ``WORKER_NAME`` (str)
-  A previously-authenticated worker name.
+  A previously-authorized worker name (see ``mining.authorize``).
 
-  Servers MUST NOT accept submissions from unauthenticated workers.
+  Servers MUST NOT accept submissions from workers that have not been authorized
+  (see ``mining.authorize``).
 
 ``JOB_ID`` (str)
   The id of the job this submission is for.
@@ -413,8 +429,22 @@ Request (optional):
   The target suggested by the miner for the next received job and all subsequent
   jobs (until the next time this message is sent).
 
-The server SHOULD reply with ``mining.set_target``. The server MAY set the
-result id equal to the request id.
+Response:
+
+    {"id": 3, "result": *ACCEPTED*, "error": *ERROR*} ``\n``
+
+``ACCEPTED`` (bool)
+  ``true`` if the server will take the suggested target into account, otherwise
+  ``false``. Per [#JSON-RPC-1.0]_, it MUST be ``null`` if there was an error.
+
+``ERROR`` (obj)
+  An error object. This MUST be ``null`` if there was no error. See
+  `Error Objects`_ for the object format (for example, error code -32601 if the
+  server does not support this method [#JSON-RPC-2.0]_).
+
+The server is not required to follow the suggestion. If the server changes the
+target, it SHOULD send ``mining.set_target`` as a notification (with ``id`` set
+to ``null``).
 
 
 Rationale
@@ -425,7 +455,7 @@ Why does ``mining.subscribe`` include the host and port?
 - It has the same use cases as the ``Host:`` header in HTTP. Specifically, it
   enables virtual hosting, where virtual pools or private URLs might be used
   for DDoS protection, but that are aggregated on Stratum server backends.
-  As with HTTP, the server CANNOT trust the host string.
+  As with HTTP, the server cannot trust the host string.
 
 - The port is included separately to parallel the ``client.reconnect`` method;
   both are extracted from the server URL that the miner is connecting to (e.g.
@@ -442,8 +472,8 @@ Why use the 256-bit target instead of a numerical difficulty?
     over the conversion and the validity of resulting submissions.
 
 - The minimum numerical difficulty in Bitcoin's Stratum protocol is 1, which
-  corresponds to ``powLimit``. This makes it harder to test miners and servers.
-  A target can represent difficulties lower than the minimum.
+  corresponds to ``ToTarget(ToCompact(PoWLimit))``. This makes it harder to test
+  miners and servers. A target can represent difficulties lower than the minimum.
 
 Does a 256-bit target waste bandwidth?
 
@@ -490,8 +520,10 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2020.1.15. Section 7.3: Block Headers <protocol/protocol.pdf#blockheader>`_
-.. [#protocol-difficulty] `Zcash Protocol Specification, Version 2020.1.15. Section 7.6.2: Difficulty filter <protocol/protocol.pdf#difficulty>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.6: Block Header Encoding and Consensus <protocol/protocol.pdf#blockheader>`_
+.. [#protocol-difficulty] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.7.2: Difficulty filter <protocol/protocol.pdf#difficulty>`_
+.. [#protocol-nbits] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.7.4: nBits conversion <protocol/protocol.pdf#nbits>`_
 .. [#Slushpool-Stratum] `Stratum Mining Protocol. Slush Pool <https://slushpool.com/help/stratum-protocol/>`_
 .. [#Bitcointalk-Stratum] `Stratum protocol documentation. Bitcoin Forum <https://bitcointalk.org/index.php?topic=557866.0>`_
 .. [#P2Pool] `P2Pool. Bitcoin Wiki <https://en.bitcoin.it/wiki/P2Pool>`_

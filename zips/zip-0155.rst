@@ -174,11 +174,12 @@ Deployment
 TODO: change ${PLACEHOLDER} to a specific peer protocol version.
 
 Support for this specification is signalled by peer protocol version ${PLACEHOLDER}
-(on both Testnet and Mainnet). Note that this is the same peer protocol version that
-signals support for NU5 on Mainnet [#zip-0252]_.
+(on both Testnet and Mainnet).
 
 Nodes that have not negotiated peer protocol version ${PLACEHOLDER} or higher on a
-given connection, MUST NOT send ``addrv2`` messages on that connection.
+given connection, MUST NOT send ``addrv2`` messages on that connection. A node that
+receives an ``addrv2`` message on such a connection MAY either ignore it or process
+it as it would on a connection that had negotiated that version.
 
 A node that has negotiated peer protocol version ${PLACEHOLDER} or higher on a given
 connection, MAY still send ``addr`` messages on the connection, and MUST handle
@@ -243,7 +244,6 @@ References
 .. [#bip-0155] `BIP 155: addrv2 message <https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
-.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
 .. [#Bitcoin-addr-message] `Protocol documentation: addr. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#addr>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
 .. [#Tor-rendezvous-v3] `Tor Rendezvous Specification - Version 3 <https://gitweb.torproject.org/torspec.git/tree/rend-spec-v3.txt>`_
