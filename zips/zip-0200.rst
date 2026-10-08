@@ -15,6 +15,9 @@ Terminology
 The key words "MUST", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as
 described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
+The terms "Mainnet" and "Testnet" are to be interpreted as described in section 3.12 of the Zcash Protocol
+Specification [#protocol-networks]_.
+
 The terms below are to be interpreted as follows:
 
 Block chain
@@ -29,10 +32,10 @@ Consensus rule change
   follow a different block chain.
 
 Consensus branch
-  A block chain with a common consensus rule set, where the first block in the chain is either the genesis
-  block, or the child of a parent block created under an older set of consensus rules (i.e. the parent block
-  is a member of a different consensus branch). By definition, every block belongs to at most one consensus
-  branch.
+  A set of blocks consisting of a first block and those of its descendants that are validated under the same
+  consensus rule set as it, where the first block is either the genesis block, or the child of a parent block
+  created under an older set of consensus rules (i.e. the parent block is a member of a different consensus
+  branch). By definition, every block belongs to at most one consensus branch.
 
 Network upgrade
   An intentional consensus rule change undertaken by the community in order to improve the network.
@@ -54,10 +57,11 @@ implementation or a specific consensus branch of Zcash. [#consensual-currency]_ 
 sub-communities will always have the freedom to choose different variants or branches which offer different
 design trade-offs.
 
-The current Zcash software includes an *End-of-Service halt* feature, causing nodes running a particular version
-to automatically shut down approximately 16 weeks after that version was released (specifically, at the block
-height ``DEPRECATION_HEIGHT`` defined in the source code for that version). This was implemented for several
-reasons: [#release-lifecycle]_
+Zcash node software includes an *End-of-Service halt* feature, causing nodes running a particular release on
+Mainnet to automatically shut down at a block height fixed in that release (its *End-of-Service height*),
+which is expected to be reached a set period after the release. (When this ZIP was written, ``zcashd`` halted
+approximately 16 weeks after release, at the block height ``DEPRECATION_HEIGHT`` defined in the source code
+for that version.) This was implemented for several reasons: [#release-lifecycle]_
 
 - It gives the same systemic advantage of removing old software as auto-upgrade behavior.
 
@@ -84,34 +88,42 @@ Specification
 The following constants are defined for every network upgrade:
 
 CONSENSUS_BRANCH_ID
-  A globally-unique non-zero 32-bit identifier.
+  A globally-unique non-zero 32-bit identifier. The same value is used on every network.
 
   Implementations MAY use a value of zero in consensus branch ID fields to indicate the absence of any
   upgrade (i.e. that the Sprout consensus rules apply).
 
 ACTIVATION_HEIGHT
   The non-zero block height at which the network upgrade rules will come into effect, and be enforced as part
-  of the block chain consensus.
+  of the block chain consensus. It is defined separately for each network.
 
   For removal of ambiguity, the block at height ``ACTIVATION_HEIGHT - 1`` is subject to the pre-upgrade
   consensus rules, and would be the last common block in the event of a persistent pre-upgrade consensus
   branch.
 
-  It MUST be greater than the value of ``DEPRECATION_HEIGHT`` in the last software version that will not
-  contain support for the network upgrade. It SHOULD be chosen to be reached approximately three months after
-  the first software version containing support for the network upgrade is released, for the following reason:
+  On Mainnet, it MUST be greater than the End-of-Service height of the last release that does not support the
+  network upgrade, for each consensus node implementation named in the ZIP that specifies the deployment of
+  the network upgrade, unless that ZIP states that this requirement is not met and gives the rationale (for
+  example, an urgent fix for a vulnerability). This requirement does not apply on Testnet, where node releases
+  do not undergo End-of-Service halt.
 
-  - As of the time of writing (the 1.0.15 release), the release cycle is six weeks long, and nodes undergo
-    End-of-Service halt 16 weeks after release. Thus, if version ``X`` contains support for a network upgrade,
-    version ``X-1`` will be deprecated 10 weeks after the release of version ``X``, which is about 2.3 months.
-    A three-month window provides ample time for users to upgrade their nodes after End-of-Service halt, and
-    re-integrate into the network prior to activation of the network upgrade.
+  It SHOULD be chosen to be reached approximately three months after the first software version containing
+  support for the network upgrade is released, for the following reason:
 
-The relationship between ``CONSENSUS_BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is many-to-one: it is possible
-for many distinct consensus branches to descend from the same parent block (and thus have the same
-``ACTIVATION_HEIGHT``), but a specific consensus branch can only have one parent block. Concretely, this
-means that if the ``ACTIVATION_HEIGHT`` of a network upgrade is changed for any reason (e.g. security
-vulnerabilities or consensus bugs are discovered), the ``CONSENSUS_BRANCH_ID`` MUST also be changed.
+  - Historical note: when this ZIP was written (the ``zcashd`` 1.0.15 release), the release cycle was six weeks
+    long, and nodes underwent End-of-Service halt 16 weeks after release. Thus, if version ``X`` contained
+    support for a network upgrade, version ``X-1`` would be deprecated 10 weeks after the release of version
+    ``X``, which is about 2.3 months. A three-month window provided ample time for users to upgrade their
+    nodes after End-of-Service halt, and re-integrate into the network prior to activation of the network
+    upgrade.
+
+On a given network, the relationship between ``CONSENSUS_BRANCH_ID`` and ``ACTIVATION_HEIGHT`` is
+many-to-one: it is possible for many distinct consensus branches to descend from the same parent block (and
+thus have the same ``ACTIVATION_HEIGHT``), but a specific consensus branch can only have one parent block.
+Concretely, this means that if the ``ACTIVATION_HEIGHT`` of a network upgrade on Mainnet or Testnet is changed
+for any reason (e.g. security vulnerabilities or consensus bugs are discovered), the ``CONSENSUS_BRANCH_ID``
+MUST also be changed. (Test networks with configurable activation heights, such as Regtest, can use any
+activation heights with the same ``CONSENSUS_BRANCH_ID``.)
 
 Activation mechanism
 --------------------
@@ -166,11 +178,19 @@ and if there are a significant number of invalid blocks it SHOULD shut down and 
 Memory pool
 -----------
 
-While the current chain tip height is below ``ACTIVATION_HEIGHT``, nodes SHOULD NOT accept transactions that
+Transactions in the memory pool are candidates for the next block, so these rules refer to the height of the
+next block to be mined, i.e. the current chain tip height plus one.
+
+While the height of the next block is below ``ACTIVATION_HEIGHT``, nodes SHOULD NOT accept transactions that
 will only be valid on the post-upgrade consensus branch.
 
-When the current chain tip height reaches ``ACTIVATION_HEIGHT``, the node's local transaction memory pool
-SHOULD be cleared of transactions that will never be valid on the post-upgrade consensus branch.
+When the height of the next block reaches ``ACTIVATION_HEIGHT`` (that is, when the current chain tip height
+reaches ``ACTIVATION_HEIGHT - 1``), the node's local transaction memory pool SHOULD be cleared of transactions
+that will never be valid on the post-upgrade consensus branch.
+
+If a chain reorganization causes the height of the next block to fall below ``ACTIVATION_HEIGHT``,
+transactions that will only be valid on the post-upgrade consensus branch SHOULD be removed from the memory
+pool.
 
 Two-way replay protection
 -------------------------
@@ -181,7 +201,10 @@ the transactions will have a negative version number, which is invalid under the
 Enforcing this rule trivially makes old transactions invalid on the Overwinter consensus branch.
 
 After the Overwinter network upgrade, two-way replay protection is ensured by transaction signatures
-committing to a specific ``CONSENSUS_BRANCH_ID``. [#zip-0143]_
+committing to a specific ``CONSENSUS_BRANCH_ID``. [#zip-0143]_ [#zip-0243]_ [#zip-0244]_ [#zip-0229]_ From the
+NU5 network upgrade onward, version 5 and later transactions also contain an ``nConsensusBranchId`` field that
+MUST match the consensus branch ID used for signature hashing [#protocol-txnconsensus]_, and their transaction
+identifiers commit to it. [#zip-0244]_ [#zip-0229]_
 
 Wipe-out protection
 -------------------
@@ -194,9 +217,27 @@ Care must be taken, however, to account for possible edge cases where the old an
 differ. For example, if the non-upgraded chain only contained empty blocks from ``ACTIVATION_HEIGHT``, and the
 coinbase transactions were valid under both the old and new consensus rules, a wipe-out could occur. The
 Overwinter network upgrade is not susceptible to this because all previous transaction versions will become
-invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, this
-issue could be addressed in a future network upgrade by modifying the block header to include a commitment to
-the ``CONSENSUS_BRANCH_ID``.
+invalid, meaning that the coinbase transactions must use the newer transaction version. More generally, from
+the Heartwood network upgrade onward this issue is addressed by ZIP 221 [#zip-0221]_: the block header commits
+(via ``hashLightClientRoot``, renamed to ``hashBlockCommitments`` in NU5 [#zip-0244]_) to a chain history tree
+that restarts at each ``ACTIVATION_HEIGHT``, and whose node hashes are personalized by ``CONSENSUS_BRANCH_ID``.
+A non-upgraded chain is therefore invalid under the new consensus rules from ``ACTIVATION_HEIGHT + 1``, even
+if it contains only empty blocks. From NU5, version 5 and later coinbase transactions also commit to the
+``CONSENSUS_BRANCH_ID`` directly, via their ``nConsensusBranchId`` field.
+
+Consensus changes without a new consensus branch
+------------------------------------------------
+
+A consensus change that only restricts which blocks and transactions are valid MAY take effect without a new
+``CONSENSUS_BRANCH_ID``, either from a specified block height or without an activation height. Such a change
+is not a network upgrade under this ZIP. Examples are the temporary prohibition of Orchard Action descriptions
+specified in ZIP 257 [#zip-0257]_, which took effect from a specified height, and the prohibition of a
+zero-point ``rk`` in Action descriptions specified in ZIP 256 [#zip-0256]_, which was enforced without an
+activation height.
+
+The `Memory pool`_ rules above refer to a post-upgrade consensus branch, which such a change does not have.
+Instead, nodes SHOULD NOT accept, and SHOULD remove from their memory pool, transactions that would not be
+valid under the change in the next block to be mined (at the current chain tip height plus one).
 
 
 Deployment
@@ -224,10 +265,18 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#consensual-currency] `Consensual Currency. Electric Coin Company blog <https://electriccoin.co/blog/consensual-currency/>`_
+.. [#consensual-currency] `Consensual Currency. Electric Coin Company blog <https://zodl.com/consensual-currency/>`_
 .. [#release-lifecycle]
-   - `Release Cycle and Lifetimes. Electric Coin Company blog <https://electriccoin.co/blog/release-cycle-and-lifetimes/>`_
-   - `Release Cycle Update. Electric Coin Company blog <https://electriccoin.co/blog/release-cycle-update/>`_
+   - `Release Cycle and Lifetimes. Electric Coin Company blog <https://zodl.com/release-cycle-and-lifetimes/>`_
+   - `Release Cycle Update. Electric Coin Company blog <https://zodl.com/release-cycle-update/>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
 .. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
 .. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
 .. [#zip-0202] `ZIP 202: Version 3 Transaction Format for Overwinter <zip-0202.rst>`_
+.. [#zip-0221] `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0256] `ZIP 256: Deployment of Consensus Bug Fixes Between NU6.1 and NU6.2 <zip-0256.md>`_
+.. [#zip-0257] `ZIP 257: Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade <zip-0257.md>`_

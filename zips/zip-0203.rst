@@ -10,12 +10,22 @@
   License: MIT
 
 
+Terminology
+===========
+
+The key words "MUST", "MUST NOT", and "SHOULD" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+
+The terms "network upgrade" and "consensus branch" are to be interpreted as described in
+ZIP 200 [#zip-0200]_.
+
+
 Abstract
 ========
 
-This is a Standards ZIP describing a new consensus rule to set an expiration time after
-which a transaction cannot be mined. If it is not mined within that time, the transaction
-will be removed from nodes' mempools.
+This ZIP specifies a consensus rule that sets an expiry height after which a transaction
+cannot be mined. If it is not mined by that height, the transaction will be removed from
+nodes' mempools.
 
 
 Motivation
@@ -44,12 +54,23 @@ Specification
 =============
 
 Transactions will have a new field, ``nExpiryHeight``, which will set the block height
-after which transactions will be removed from the mempool if they have not been mined.
+after which they cannot be mined.
 
 The data type for ``nExpiryHeight`` will be ``uint32_t``. ``nExpiryHeight`` will never
 be a UNIX timestamp, unlike ``nLockTime`` values, and thus the maximum expiry height
 will be 499999999 (but see the exception for coinbase transactions described in
 `Changes for NU5`_).
+
+The following consensus rules apply from Overwinter activation [#zip-0201]_, as also stated
+in Section 7.1.2 of the protocol specification [#protocol-txnconsensus]_:
+
+* ``nExpiryHeight`` MUST be less than or equal to 499999999 (from NU5 activation, for
+  non-coinbase transactions only).
+* If a transaction is not a coinbase transaction and its ``nExpiryHeight`` field is
+  nonzero, then it MUST NOT be mined at a block height greater than its ``nExpiryHeight``.
+
+Removal of expired transactions from the mempool, described below, is non-consensus node
+behavior.
 
 Note: a previous version of this ZIP incorrectly specified an interaction between
 ``nExpiryHeight`` and ``nLockTime`` that was never implemented.
@@ -64,9 +85,9 @@ included in is 3539. After that, it will be removed from the mempool.
     "locktime": 2089,
     "expiryheight": 3539,
 
-Default: (Before Blossom) 20 blocks from the current height, or about 50 minutes at
-2.5-minute target block spacing. A configuration option can be used to set the user's
-default.
+Default: (Before Blossom) 20 blocks after the height of the next block to be mined (the
+chain tip height plus one), or about 50 minutes at 2.5-minute target block spacing. A
+configuration option can be used to set the user's default.
 
 Minimum: No minimum
 
@@ -85,9 +106,10 @@ of its dependent transactions.
 Changes for Blossom
 -------------------
 
-On Blossom activation [#zip-0206]_, the default changes to 40 blocks from the current
-height, which still represents about 50 minutes at the revised 75-second target block
-spacing.
+On Blossom activation [#zip-0206]_, ZIP 208 [#zip-0208]_ recommends that ``zcashd`` RPC
+calls that create transactions change the default to 40 blocks after the height of the
+next block to be mined, which still represents about 50 minutes at the revised 75-second
+target block spacing.
 
 Changes for NU5
 ---------------
@@ -96,18 +118,44 @@ As mentioned above, ``nExpiryHeight`` is ignored for coinbase transactions. Howe
 NU5 activation [#zip-0252]_, the ``nExpiryHeight`` field of a coinbase transaction MUST
 be set equal to the block height. Also, for coinbase transactions only, the bound of
 499999999 on ``nExpiryHeight`` is removed. The motivation is to ensure that transaction
-IDs remain unique, as explained in more detail in a note in Section 7.1 of the protocol
-specification [#protocol-txnencoding]_.
+IDs remain unique, as explained in more detail in a note in Section 7.1.2 of the protocol
+specification [#protocol-txnconsensus]_.
 
 Changes for NU7
 ---------------
 
-At NU7 activation, ZIP 218 [#zip-0218]_ recommends that implementations
-creating transactions change the default expiry delta from 40 to 120 blocks,
-which remains approximately 50 minutes at the 25-second target spacing.
-An explicitly configured ``-txexpirydelta`` value continues to apply before
-and after activation. This changes neither the expiry consensus rule nor
-the maximum expiry height above.
+ZIP 218 [#zip-0218]_, which is a Draft, proposes that from NU7 activation
+[#zip-0259]_, implementations creating transactions change the default expiry
+delta from 40 to 120 blocks, which remains approximately 50 minutes at the
+25-second target spacing. An explicitly configured ``-txexpirydelta`` value
+would continue to apply before and after activation. This would change neither
+the expiry consensus rule nor the maximum expiry height above. The NU7 Mainnet
+activation height has not yet been set.
+
+Expiry across network upgrades
+------------------------------
+
+Transaction signatures commit to a consensus branch ID [#zip-0143]_ [#zip-0243]_
+[#zip-0244]_ [#zip-0229]_, and from NU5 activation, version 5 and later transactions also
+have an ``nConsensusBranchId`` field [#zip-0225]_ that MUST match the consensus branch ID
+used for signature hashing [#protocol-txnconsensus]_. A transaction bound in either way to
+the consensus branch preceding a network upgrade is therefore not valid in a block at or
+above that upgrade's ``ACTIVATION_HEIGHT`` [#zip-0200]_, whatever its ``nExpiryHeight``.
+
+When the ``ACTIVATION_HEIGHT`` of the next network upgrade is known, a wallet creating a
+transaction for the current consensus branch SHOULD set its ``nExpiryHeight`` to at most
+``ACTIVATION_HEIGHT - 1``.
+
+Nodes might not relay a transaction that will expire within 3 blocks of their view of the
+chain tip [#zip-0204]_. A transaction with ``nExpiryHeight`` equal to
+``ACTIVATION_HEIGHT - 1`` is in that range when the height of the next block to be mined
+is ``ACTIVATION_HEIGHT - 3`` or greater. In that case the wallet SHOULD wait until the
+height of the next block to be mined reaches ``ACTIVATION_HEIGHT``, and then create the
+transaction for the post-upgrade consensus branch.
+
+A wallet SHOULD treat a transaction that was created for the pre-upgrade consensus branch
+and has not been mined as expired once the height of the next block to be mined reaches
+``ACTIVATION_HEIGHT``, release its inputs, and notify the user.
 
 Wallet behavior and UI
 ----------------------
@@ -116,29 +164,26 @@ With the addition of this feature, zero-confirmation transactions with an expira
 height set will have even less guarantee of inclusion. This means that UIs and services
 must never rely on zero-confirmation transactions in Zcash.
 
-Wallet should notify the user of expired transactions that must be re-sent.
+Wallets SHOULD notify the user of expired transactions that need to be re-sent.
 
 RPC
 ---
 
-For Overwinter, transaction expiry will be set to a default that can be overridden by a
-flag `txexpirydelta` set in the config file.
+For Overwinter, transaction expiry will be set to a default that can be overridden by the
+``-txexpirydelta`` option.
 
-``-txexpirydelta=`` set the number of blocks after which a transaction that has not been
-mined will become invalid
+``-txexpirydelta=`` sets the number of blocks, counted from the height of the next block to
+be mined, after which a transaction that has not been mined will become invalid.
 
-To view: `listtransactions` has a new filter attribute, showing expired transactions only::
-
-    listtransactions "*" 10 0 "expired"
-
-WalletTxToJSON shows a boolean expired true/false.
+``zcashd`` (now retired) reported a string ``status`` field, with value ``mined``,
+``waiting``, ``expiringsoon``, or ``expired``, for each transaction in the results of
+``listtransactions`` and ``gettransaction``.
 
 Config
 ------
 
-The default will be user-configurable with the option `txexpirydelta`.
-
-`--txexpirydelta=100`
+The default will be user-configurable with the option ``-txexpirydelta``; for example,
+``-txexpirydelta=100`` on the command line, or ``txexpirydelta=100`` in the config file.
 
 Deployment
 ----------
@@ -156,8 +201,18 @@ https://github.com/zcash/zcash/pull/2874
 References
 ==========
 
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0204] `ZIP 204: Zcash P2P Network Protocol <zip-0204.rst>`_
 .. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <zip-0206.rst>`_
+.. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
 .. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
-.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
