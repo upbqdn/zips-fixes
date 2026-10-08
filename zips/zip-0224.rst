@@ -20,9 +20,6 @@ Terminology
 The key words "MUST" and "SHOULD" in this document are to be interpreted as described in
 BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
-The terms "Testnet" and "Mainnet" are to be interpreted as described in section 3.12 of
-the Zcash Protocol Specification [#protocol-networks]_.
-
 
 Abstract
 ========
@@ -41,7 +38,7 @@ Zcash currently has two active shielded protocols and associated shielded pools:
   fixes [#protocol-differences]_), which as of February 2021 is a "closing" shielded pool
   into which no new ZEC can be sent.
 - The Sapling shielded protocol, which consisted of numerous improvements to functionality
-  and improved performance by orders of magnitude, and as of Feburary 2021 is the "active"
+  and improved performance by orders of magnitude, and as of February 2021 is the "active"
   shielded pool.
 
 Both of these shielded protocols suffer from two issues:
@@ -88,9 +85,9 @@ The Orchard protocol uses the Pallas / Vesta curve cycle, in place of BLS12-381 
 embedded curve Jubjub:
 
 - Pallas is used as the "application curve", on which the Orchard protocol itself is
-  implemented (c/f Jubjub).
+  implemented (cf. Jubjub).
 - Vesta is used as the "circuit curve"; its scalar field (being the base field of Pallas)
-  is the "word" type over which the circuit is implemented (c/f BLS12-381).
+  is the "word" type over which the circuit is implemented (cf. BLS12-381).
 
 We use the "simplified SWU" algorithm to define an infallible $\mathsf{GroupHash}$,
 instead of the fallible BLAKE2s-based mechanism used for Sapling. It is intended to follow
@@ -180,9 +177,9 @@ derivation mechanism (similar to Sprout).
 Notes
 -----
 
-Orchard notes have the structure $(addr, v, \text{ρ}, \text{φ}, \mathsf{rcm})$. $\text{ρ}$
+Orchard notes have the structure $(addr, v, \text{ρ}, \text{ψ}, \mathsf{rcm})$. $\text{ρ}$
 is set to the nullifier of the spent note in the same action, which ensures it is unique.
-$\text{φ}$ and $\mathsf{rcm}$ are derived from a random seed (as with Sapling
+$\text{ψ}$ and $\mathsf{rcm}$ are derived from a random seed (as with Sapling
 after ZIP 212 [#zip-0212]_).
 
 - Orchard notes: [#protocol-notes]_
@@ -192,11 +189,14 @@ Nullifiers
 
 Nullifiers for Orchard notes are computed as:
 
-$\mathsf{nf} = [F_{\mathsf{nk}}(\text{ρ}) + \text{φ} \pmod{p}] \,\mathcal{G} + \mathsf{cm}$
+$\mathsf{nf} = \mathsf{Extract}_{\mathbb{P}}([(F_{\mathsf{nk}}(\text{ρ}) + \text{ψ}) \bmod q_{\mathbb{P}}] \,\mathcal{K}^{\mathsf{Orchard}} + \mathsf{cm})$
 
-where $F$ is instantiated with Poseidon, and $\mathcal{G}$ is a fixed
-independent base.
+where $F$ is instantiated with Poseidon, $q_{\mathbb{P}}$ is the order of the Pallas base
+field, $\mathcal{K}^{\mathsf{Orchard}}$ is a fixed independent base, and
+$\mathsf{Extract}_{\mathbb{P}}$ returns the $x$\ -coordinate of a Pallas point.
 
+- Nullifier derivation: [#protocol-rhoandnullifiers]_
+- Coordinate extractor: [#protocol-concreteextractorpallas]_
 - Poseidon: [#protocol-poseidonhash]_
 - Design rationale and considered alternatives: [#orchard-nullifiers]_
 
@@ -226,7 +226,7 @@ itself.
 
 The remainder of the changes we make relative to Sapling are motivated by simplifying the
 Sapling protocol (and fixing deficiencies), and using protocol primitives that are more
-efficient in the UltraPLONK arithmetization.
+efficient in the PLONKish arithmetization.
 
 
 Security and Privacy Considerations
@@ -234,33 +234,37 @@ Security and Privacy Considerations
 
 This ZIP defines a new shielded pool. As with Sapling, the Orchard protocol only supports
 spending Orchard notes, and moving ZEC into or out of the Orchard pool happens via the
-$\mathsf{valueBalanceOrchard}$ transaction field. This has the following
-considerations:
+$\mathsf{valueBalanceOrchard}$ transaction field. From NU6.3 activation, ZEC can only move
+out of the Orchard pool [#zip-0258]_. This has the following considerations:
 
 - The Orchard pool forms a separate anonymity set from the Sprout and Sapling pools. The
   new pool will start with zero notes (as Sapling did at its deployment), but transactions
   within Orchard will increase the size of the anonymity set more rapidly than Sapling,
-  due to the arity-hiding nature of Orchard actions.
+  due to the arity-hiding nature of Orchard actions. From NU6.3 activation, cross-address
+  transfers within the Orchard pool are disabled [#zip-0258]_.
 - The "transparent turnstile" created by the $\mathsf{valueBalanceOrchard}$ field,
   combined with the consensus checks that each pool's balance cannot be negative, together
   enforce that any potential counterfeiting bugs in the Orchard protocol or implementation
   are contained within the Orchard pool, and similarly any potential counterfeiting bugs
   in existing shielded pools cannot cause inflation of the Orchard pool.
 - Spending funds residing in the Orchard pool to a non-Orchard address will reveal the
-  value of the transaction. This is a necessary side-effect of the transparent turnstile,
-  but can be mitigated by migrating the majority of shielded activity to the Orchard pool
-  and making these transactions a minority. Wallets SHOULD convey within their transaction
-  creation UX that amounts are revealed in these situations.
+  value of the transaction. This is a necessary side-effect of the transparent turnstile.
+  Before NU6.3 activation, it could be mitigated by migrating the majority of shielded
+  activity to the Orchard pool and making these transactions a minority. Wallets SHOULD
+  convey within their transaction creation UX that amounts are revealed in these
+  situations.
 
-  - Wallets SHOULD take steps to migrate their user bases to store funds uniformly within
-    the Orchard pool. Best practices for wallet handling of multiple pools will be covered
-    in a subsequent ZIP. [#zip-0315]_
+  - Before NU6.3 activation, wallets SHOULD take steps to migrate their user bases to
+    store funds uniformly within the Orchard pool. From NU6.3 activation, no value may
+    enter the Orchard pool [#zip-0258]_; migration of Orchard funds to the Ironwood pool
+    is described in ZIP 318 [#zip-0318]_. Best practices for wallet handling of multiple
+    pools will be covered in a subsequent ZIP. [#zip-0315]_
 
 
 Test Vectors
 ============
 
-- https://github.com/zcash-hackworks/zcash-test-vectors/pull/14
+- https://github.com/zcash/zcash-test-vectors/tree/master/zcash_test_vectors/orchard
 
 
 Reference Implementation
@@ -273,7 +277,8 @@ Reference Implementation
 Deployment
 ==========
 
-This ZIP is proposed to activate with Network Upgrade 5.
+This ZIP was deployed with NU5 [#zip-0252]_. A corrected Orchard Action circuit was
+deployed with NU6.2 [#zip-0257]_.
 
 
 References
@@ -281,27 +286,28 @@ References
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zcash-paramgen] `Parameter Generation <https://z.cash/technology/paramgen/>`_
-.. [#bctv14-vuln] `Zcash Counterfeiting Vulnerability Successfully Remediated <https://electriccoin.co/blog/zcash-counterfeiting-vulnerability-successfully-remediated/>`_
-.. [#protocol-orchard] `Zcash Protocol Specification, Version 2021.2.16 or later [NU5 proposal] <protocol/protocol.pdf>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
-.. [#protocol-notes] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
-.. [#protocol-actions] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
-.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.17.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
-.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
-.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.1.9: Sinsemilla Hash Function <protocol/protocol.pdf#concretesinsemillahash>`_
-.. [#protocol-poseidonhash] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.1.10: PoseidonHash Function <protocol/protocol.pdf#poseidonhash>`_
-.. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
-.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
-.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
-.. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
-.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
-.. [#protocol-orchardinviewingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys <protocol/protocol.pdf#orchardinviewingkeyencoding>`_
-.. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
-.. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
-.. [#protocol-differences] `Zcash Protocol Specification, Version 2021.2.16. Section 8: Differences from the Zerocash paper <protocol/protocol.pdf#differences>`_
+.. [#bctv14-vuln] `Zcash Counterfeiting Vulnerability Successfully Remediated <https://zodl.com/zcash-counterfeiting-vulnerability-successfully-remediated/>`_
+.. [#protocol-orchard] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2] or later <protocol/protocol.pdf>`_
+.. [#protocol-addressesandkeys] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 3.1: Payment Addresses and Keys <protocol/protocol.pdf#addressesandkeys>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 3.2: Shielded Pools and Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-actionstatement] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 4.18.4: Action Statement (Orchard) <protocol/protocol.pdf#actionstatement>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-rhoandnullifiers] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 4.16: Computing ρ values and Nullifiers <protocol/protocol.pdf#rhoandnullifiers>`_
+.. [#protocol-concretesinsemillahash] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.1.9: Sinsemilla Hash Function <protocol/protocol.pdf#concretesinsemillahash>`_
+.. [#protocol-poseidonhash] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.1.10: PoseidonHash Function <protocol/protocol.pdf#poseidonhash>`_
+.. [#protocol-concretereddsa] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.7: RedDSA, RedJubjub, and RedPallas <protocol/protocol.pdf#concretereddsa>`_
+.. [#protocol-concretesinsemillacommit] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.8.4: Sinsemilla commitments <protocol/protocol.pdf#concretesinsemillacommit>`_
+.. [#protocol-pallasandvesta] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.9.6: Pallas and Vesta <protocol/protocol.pdf#pallasandvesta>`_
+.. [#protocol-concreteextractorpallas] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.9.7: Coordinate Extractor for Pallas <protocol/protocol.pdf#concreteextractorpallas>`_
+.. [#protocol-concretegrouphashpallasandvesta] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.4.9.8: Group Hash into Pallas and Vesta <protocol/protocol.pdf#concretegrouphashpallasandvesta>`_
+.. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
+.. [#protocol-orchardinviewingkeyencoding] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys <protocol/protocol.pdf#orchardinviewingkeyencoding>`_
+.. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
+.. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
+.. [#protocol-differences] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 8: Differences from the Zerocash paper <protocol/protocol.pdf#differences>`_
 .. [#halo2-arithmetization] `The halo2 Book: 1.2 PLONKish Arithmetization <https://zcash.github.io/halo2/concepts/arithmetization.html>`_
-.. [#halo2-proving-system] `The halo2 Book: 3.1. Proving system <https://zcash.github.io/halo2/design/proving-system.html>`_
+.. [#halo2-proving-system] `The halo2 Book: 4.1. Proving system <https://zcash.github.io/halo2/design/proving-system.html>`_
 .. [#orchard-keys] `The Orchard Book: 3.1. Keys and addresses <https://zcash.github.io/orchard/design/keys.html>`_
 .. [#orchard-actions] `The Orchard Book: 3.2. Actions <https://zcash.github.io/orchard/design/actions.html>`_
 .. [#orchard-commitments] `The Orchard Book: 3.3. Commitments <https://zcash.github.io/orchard/design/commitments.html>`_
@@ -309,7 +315,11 @@ References
 .. [#orchard-nullifiers] `The Orchard Book: 3.5. Nullifiers <https://zcash.github.io/orchard/design/nullifiers.html>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
-.. [#zip-0315] `ZIP 315: Best Practices for Wallet Handling of Multiple Pools <zip-0315.rst>`_
+.. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zip-0257] `ZIP 257: Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade <zip-0257.md>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
+.. [#zip-0315] `ZIP 315: Best Practices for Wallet Implementations <zip-0315.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-0318] `ZIP 318: Orchard to Ironwood Migration <zip-0318.md>`_
 .. [#ietf-hash-to-curve] `draft-irtf-cfrg-hash-to-curve-10: Hashing to Elliptic Curves <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html>`_
 .. [#pasta-evidence] `Pallas/Vesta supporting evidence <https://github.com/zcash/pasta>`_

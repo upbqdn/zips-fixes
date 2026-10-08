@@ -13,8 +13,8 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described
-in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key word "SHOULD" in this document is to be interpreted as described in BCP 14 [#BCP14]_ when, and
+only when, it appears in all capitals.
 
 The terms "consensus branch" and "network upgrade" in this document are to be interpreted as described in
 ZIP 200. [#zip-0200]_
@@ -47,9 +47,11 @@ consensus branch.
 Specification
 =============
 
+The code excerpts in this ZIP are from ``zcashd`` at the time of Overwinter, and are illustrative.
+
 When a new inbound connection is received or an outbound connection created, a CNode object is instantiated with the version field set to INIT_PROTO_VERSION which has a value of 209. This value is not transmitted across the network, but for legacy reasons and technical debt beyond the scope of this ZIP, this value will not be changed.
 
-Once the two nodes have connected and started the handshake to negotiate the protocol version, the version field of CNode will be updated.  The handshake [#bitcoin-version-handshake]_ involves "version" and "verack" messages being exchanged.::
+Once the two nodes have connected and started the handshake to negotiate the protocol version, the version field of CNode will be updated.  The handshake [#bitcoin-version-handshake]_ involves "version" and "verack" messages being exchanged::
 
     L -> R: Send version message with the local peer's version
     R -> L: Send version message back
@@ -58,7 +60,7 @@ Once the two nodes have connected and started the handshake to negotiate the pro
     L -> R: Send verack message after receiving version message from R
     L:      Sets version to the minimum of the 2 versions
 
-To send a version message, the node will invoke ``PushVersion()``::
+To send a version message [#bitcoin-version]_, the node will invoke ``PushVersion()``::
 
     void CNode::PushVersion() {
         ...
@@ -83,7 +85,13 @@ With rejection implemented as::
     
     if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
     {
-        // disconnect from old peers running protocol version we don't support.
+        // disconnect from peers older than this proto version
+        LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
+        pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
+                           strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
+        pfrom->fDisconnect = true;
+        return false;
+    }
 
 Activation of Overwinter will take place first on testnet, and if successful, followed by mainnet.
 
@@ -107,7 +115,7 @@ On mainnet, a pre-Overwinter node is defined to be a node for which the highest 
 
 These constants allow pre-Overwinter nodes that support protocol versions 170002 to 170004 inclusive, and Overwinter nodes (which support protocol versions 170002 to 170005 inclusive before Overwinter activation) to remain connected until the activation.
 
-As these constants cannot be changed at run-time, once Overwinter activates on testnet or mainnet, Overwinter nodes should take steps to:
+As these constants cannot be changed at run-time, once Overwinter activates on testnet or mainnet, Overwinter nodes SHOULD take steps to:
 
 - reject new connections from pre-Overwinter nodes;
 - disconnect any existing connections to pre-Overwinter nodes.
@@ -116,11 +124,11 @@ As these constants cannot be changed at run-time, once Overwinter activates on t
 Network Coalescence
 -------------------
 
-Prior to the activation of Overwinter, nodes running a pre-Overwinter protocol version (e.g. 170002) and the Overwinter protocol version (170003 for testnet; 170005 for mainnet) remain connected with the same consensus rules, but it is desirable for nodes supporting Overwinter to connect preferentially to other nodes supporting Overwinter.
+Prior to the activation of Overwinter, nodes running a pre-Overwinter protocol version (e.g. 170002) and the Overwinter protocol version (170003 for testnet; 170005 for mainnet) remain connected with the same consensus rules, but it is desirable for nodes supporting Overwinter to connect preferentially to other nodes supporting Overwinter. [#partition-discussion]_
 
-This is intended to help the network partition smoothly, since nodes should already be connected to (a majority of) peers running the same protocol version.  Otherwise an Overwinter node may find their connections to Sprout nodes dropped suddenly at the activation height, potentially leaving them isolated and susceptible to eclipse attacks. [#eclipse-attack]_
+This is intended to help the network partition smoothly, since nodes should already be connected to (a majority of) peers running the same protocol version.  Otherwise an Overwinter node may find their connections to pre-Overwinter nodes dropped suddenly at the activation height, potentially leaving them isolated and susceptible to eclipse attacks. [#eclipse-attack]_
 
-To assist network coalescence before the activation height, we update the eviction process to place a higher priority on evicting Sprout nodes.
+To assist network coalescence before the activation height, we update the eviction process to place a higher priority on evicting pre-Overwinter nodes.
 
 Currently, an eviction process takes place when new inbound connections arrive, but the node has already connected to the maximum number of inbound peers::
 
@@ -165,11 +173,11 @@ The eviction candidates can be modified as so::
         }
     }
 
-The existing method of disconnecting a candidate remains:
+The existing method of disconnecting a candidate remains::
 
     vEvictionCandidates[0]->fDisconnect = true;
 
-The existing eviction process will classify and divide eviction candidates into buckets called netgroups.  If a netgroup only has one peer, it will not be evicted.  This means at least one pre-Overwinter node will remain connected upto the activation block height, barring any network issues or a high ban score.
+The existing eviction process will classify and divide eviction candidates into buckets called netgroups.  If a netgroup only has one peer, it will not be evicted.  This means at least one pre-Overwinter node will remain connected up to the activation block height, barring any network issues or a high ban score.
 
 
 Disconnecting Existing Connections
@@ -254,7 +262,7 @@ References
 .. [#zip-0202] `ZIP 202: Version 3 Transaction Format for Overwinter <zip-0202.rst>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
 .. [#bip-0111] `BIP 111: NODE_BLOOM service bit <https://github.com/bitcoin/bips/blob/master/bip-0111.mediawiki>`_
-.. [#bitcoin-verson] https://en.bitcoin.it/wiki/Protocol_documentation#version
+.. [#bitcoin-version] https://en.bitcoin.it/wiki/Protocol_documentation#version
 .. [#bitcoin-version-handshake] https://en.bitcoin.it/wiki/Version_Handshake
 .. [#eclipse-attack] `Eclipse Attacks on Bitcoin’s Peer-to-Peer Network <https://eprint.iacr.org/2015/263>`_
 .. [#partition-discussion] `Partition nodes with old protocol version from network in advance of hard fork <https://github.com/zcash/zcash/issues/2775>`_

@@ -43,8 +43,8 @@ The primary sources of information about Canopy consensus protocol changes are:
 - The Zcash Protocol Specification [#protocol]_
 - ZIP 200: Network Upgrade Mechanism [#zip-0200]_
 - ZIP 207: Funding Streams [#zip-0207]_
-- ZIP 211: Disabling Addition of New Value to the Sprout Value Pool [#zip-0211]_
-- ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext [#zip-0212]_
+- ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool [#zip-0211]_
+- ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext [#zip-0212]_
 - ZIP 214: Consensus rules for a Zcash Development Fund [#zip-0214]_
 - ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules [#zip-0215]_
 - ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants [#zip-1014]_.
@@ -135,8 +135,8 @@ References
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
 .. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
-.. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Value Pool <zip-0211.rst>`_
-.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0214] `ZIP 214: Consensus rules for a Zcash Development Fund <zip-0214.rst>`_
 .. [#zip-0215] `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`_
 .. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_

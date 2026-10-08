@@ -14,8 +14,8 @@
 Terminology
 ===========
 
-The key word "MUST" in this document is to be interpreted as described in BCP 14 [#BCP14]_
-when, and only when, they appear in all capitals.
+The key words "MUST" and "MAY" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in
 ZIP 200. [#zip-0200]_
@@ -94,8 +94,8 @@ $256$ bits, $b$, such that $\mathsf{abst}_{\mathbb{J}}(b) \neq \bot$
 and $\mathsf{repr_{\mathbb{J}}}\big(\mathsf{abst}_{\mathbb{J}}(b)\big) \neq b$.
 
 Non‑normative note: There are two such bit sequences,
-$\mathsf{I2LEOSP}_{\ell_{\mathbb{J}}}(2^{255} + 1)$ and
-$\mathsf{I2LEOSP}_{\ell_{\mathbb{J}}}(2^{255} + q_{\mathbb{J}} - 1)$.
+$\mathsf{I2LEBSP}_{256}(2^{255} + 1)$ and
+$\mathsf{I2LEBSP}_{256}(2^{255} + q_{\mathbb{J}} - 1)$.
 The Sapling protocol uses little‑endian ordering when converting between bit and
 byte sequences, so the first of these sequences corresponds to a $\mathtt{0x01}$
 byte, followed by $30$ zero bytes, and then a $\mathtt{0x80}$ byte.
@@ -164,14 +164,15 @@ transaction IDs.
 In addition, Sapling addresses and full viewing keys MUST be considered invalid when
 imported if they contain non‑canonical Jubjub point encodings, or encodings of points
 that are not in the prime‑order subgroup $\mathbb{J}^{(r)}$. These requirements
-\MAY be enforced in advance of NU5 activation. This affects the fields listed below.
+MAY be enforced in advance of NU5 activation. This affects the fields listed below.
 
 In Sapling payment addresses [#protocol-saplingpaymentaddrencoding]_:
 
   - the encoding of $\mathsf{pk_d}$.
 
-In Sapling full viewing keys [#protocol-saplingfullviewingkeyencoding]_ and extended
-full viewing keys [#zip-0032-extfvk]_:
+In Sapling full viewing keys [#protocol-saplingfullviewingkeyencoding]_, extended
+full viewing keys [#zip-0032-extfvk]_, and Sapling FVK Encodings in Unified Full
+Viewing Keys [#zip-0316-ufvk]_:
 
   - the encoding of $\mathsf{ak}$
   - the encoding of $\mathsf{nk}$.
@@ -233,7 +234,7 @@ Jubjub point encoding could have been included in any block before NU5 activatio
 
 However, now that NU5 is a settled upgrade on the Zcash Mainnet and Testnet chains
 [#protocol-blockchain]_ [#protocol-networks]_, it can be observed that there were no such
-non‑canonical encodings in publically visible transaction fields before the Mainnet and
+non‑canonical encodings in publicly visible transaction fields before the Mainnet and
 Testnet NU5 activations. Therefore, a full validator MAY enforce the above specification
 retroactively.
 
@@ -319,7 +320,6 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later <protocol/protocol.pdf>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
@@ -343,6 +343,7 @@ References
 .. [#zip-0215] `ZIP 215: Explicitly Defining and Modifying Ed25519 Validation Rules <zip-0215.rst>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
+.. [#zip-0316-ufvk] `ZIP 316: Unified Addresses and Unified Viewing Keys. Encoding of Unified Full/Incoming Viewing Keys <zip-0316.rst#encoding-of-unified-full-incoming-viewing-keys>`_
 .. [#jubjub-crate] `jubjub Rust crate <https://github.com/zkcrypto/jubjub>`_
 .. [#zcashd-pr6000] `zcash/zcash PR 6000: Enable ZIP 216 for blocks prior to NU5 activation <https://github.com/zcash/zcash/pull/6000>`_
 .. [#zcashd-pr6399] `zcash/zcash PR 6399: Retroactively enable ZIP 216 before NU5 activation <https://github.com/zcash/zcash/pull/6399>`_

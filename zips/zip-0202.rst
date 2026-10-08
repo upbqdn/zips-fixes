@@ -44,9 +44,11 @@ Version  Field                  Description                 Type
 >= 1     ``lock_time``          block height or timestamp   ``uint32``
 >= 2     ``nJoinSplit``         variable-length integer     ``compactSize``
 >= 2     ``vJoinSplit``         list of joinsplits          ``vector``
->= 2     ``joinSplitPubKey``    joinsplit_sig public key    32 bytes
->= 2     ``joinSplitSig``       signature                   64 bytes
+>= 2 †   ``joinSplitPubKey``    joinsplit_sig public key    32 bytes
+>= 2 †   ``joinSplitSig``       signature                   64 bytes
 ======== ====================== =========================== ===============
+
+† Present if and only if ``nJoinSplit`` > 0.
 
 A new transaction format is required to:
 
@@ -89,12 +91,14 @@ Version  Field                  Description                 Type
 >= 1     ``tx_out_count``       variable-length integer     ``compactSize``
 >= 1     ``tx_out``             list of outputs             ``vector``
 >= 1     ``lock_time``          block height or timestamp   ``uint32``
->= 3     ``expiryHeight``       block height                ``uint32``
+>= 3     ``nExpiryHeight``      block height                ``uint32``
 >= 2     ``nJoinSplit``         variable-length integer     ``compactSize``
 >= 2     ``vJoinSplit``         list of joinsplits          ``vector``
->= 2     ``joinSplitPubKey``    joinsplit_sig public key    32 bytes
->= 2     ``joinSplitSig``       signature                   64 bytes
+>= 2 †   ``joinSplitPubKey``    joinsplit_sig public key    32 bytes
+>= 2 †   ``joinSplitSig``       signature                   64 bytes
 ======== ====================== =========================== ===============
+
+† Present if and only if ``nJoinSplit`` > 0.
 
 
 Header Field
@@ -240,7 +244,7 @@ This only tests that the format of the transaction matches the v3 specification 
 To test if the format of an Overwinter transaction is both v3 and the transaction itself is intended for the client's chain::
 
     if (tx.fOverwintered &&
-        tx.nVersionGroupId == OVERWINTER_VERSION_GROUP_ID) &&
+        tx.nVersionGroupId == OVERWINTER_VERSION_GROUP_ID &&
         tx.nVersion == 3) {
         // Valid v3 format transaction intended for this client's chain
     }
@@ -255,7 +259,7 @@ Ultimately, a client can determine if a transaction is truly intended for the cl
 Deployment
 ==========
 
-This proposal will be deployed with the Overwinter network upgrade. The activation block height proposal is in [#zip-0201]_.
+This proposal was deployed with the Overwinter network upgrade. The activation block height proposal is in [#zip-0201]_.
 
 
 Backwards compatibility
@@ -284,5 +288,5 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
-.. [#zip-0201] `ZIP 201: Network Handshaking for Overwinter <zip-0201.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_

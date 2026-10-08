@@ -53,9 +53,10 @@ Background
 
 An MMR is a Merkle tree which allows for efficient appends, proofs, and verifications.
 Informally, appending data to an MMR consists of creating a new leaf and then iteratively
-merging neighboring subtrees with the same size. This takes at most $\log(n)$ operations
-and only requires knowledge of the previous subtree roots, of which there are fewer than
-$\log(n)$.
+merging neighboring subtrees with the same size. Appending a leaf to an MMR with $n$ leaves
+takes at most $\lfloor \log_2(n+1) \rfloor$ merge operations, and only requires knowledge of
+the existing subtree roots. The number of these roots is the number of 1 bits in the binary
+representation of $n$ and is at most $\lfloor \log_2(n) \rfloor + 1$ when $n$ is nonzero.
 
 (example adapted from [#mimblewimble]_)
 To illustrate this, consider a list of 11 leaves. We first construct the biggest perfect
@@ -149,7 +150,9 @@ needed for light clients to verify:
 
 The protocol requires that an MMR that commits to the inclusion of all blocks since the
 preceding network upgrade $(B_x, \ldots, B_{n-1})$ is formed for each block $B_n$.
-The root $M_n$ of the MMR MUST be included in the header of $B_n$.
+Each block after the block that activates this ZIP commits in its header to the root $M_n$
+of that MMR: in ``hashLightClientRoot`` (set to ``hashChainHistoryRoot``) before NU5, and
+through ``hashBlockCommitments`` [#zip-0244]_ from NU5 onward.
 
 ($\!x$ is the activation height of the preceding network upgrade.)
 
@@ -157,8 +160,9 @@ FlyClient reduces the number of block headers needed for light client verificati
 valid chain, from linear (as in the current reference protocol) to logarithmic in
 block chain length. This verification is correct with high probability. It also allows
 creation of subtree proofs, so light clients need only check blocks later than the most
-recently verified block index. Following that, verification of a transaction inclusion
-within that block follows the usual reference protocol [#zip-0307]_.
+recently verified block index. Following that, a light client can verify that a transaction
+is included in that block using a Merkle path to the ``hashMerkleRoot`` field of the block
+header [#protocol-blockheader]_.
 
 A smaller proof size could enable the verification of Zcash SPV Proofs in block-chain
 protocols such as Ethereum, enabling efficient cross-chain communication and pegs. It also
@@ -187,10 +191,18 @@ Tree Node specification
 -----------------------
 
 Unless otherwise noted, all hashes use BLAKE2b-256 with the personalization field set
-to ``'ZcashHistory' || CONSENSUS_BRANCH_ID``. ``CONSENSUS_BRANCH_ID`` is the 4-byte
-little-endian encoding of the consensus branch ID for the epoch of the block containing
-the commitment. [#zip-0200]_ Which is to say, each node in the tree commits to the
-consensus branch that produced it.
+to ``'ZcashHistory' || CONSENSUS_BRANCH_ID``. ``CONSENSUS_BRANCH_ID`` for the MMR at block
+$B_n$ is the 4-byte little-endian encoding of the consensus branch ID for the epoch that
+begins at the preceding network upgrade height $x$ of block $B_n$ [#zip-0200]_. That epoch
+contains block $B_{n-1}$ and every other block committed to by a leaf of the MMR. Which is
+to say, each node in the tree commits to the consensus branch that produced the blocks it
+commits to.
+
+In particular, in the activation block of each network upgrade after the one that
+activates this ZIP, ``hashChainHistoryRoot`` commits to the complete MMR of the preceding
+epoch, using that epoch's consensus branch ID. The MMR of the new epoch is first committed
+to in the following block. (The block that activates this ZIP commits to no MMR, as
+specified in `Block header semantics and consensus rules`_.)
 
 Each MMR node is defined as follows:
 
@@ -236,8 +248,11 @@ Each MMR node is defined as follows:
      Inherited from the right child.
 
    Note that due to timestamp consensus rules, ``nLatestTimestamp`` may be smaller than
-   ``nEarliestTimestamp`` in some subtrees. This may occur within subtrees smaller than
-   ``PoWMedianBlockSpan`` blocks.
+   ``nEarliestTimestamp`` in some subtrees. This is not limited to subtrees smaller than
+   ``PoWMedianBlockSpan`` blocks: since the ``nTime`` of a block may exceed its
+   median-time-past by up to 90 · 60 seconds [#protocol-blockheader]_, it can occur in
+   subtrees of thousands of blocks. Consumers of these fields MUST NOT assume that
+   ``nLatestTimestamp`` is greater than or equal to ``nEarliestTimestamp``.
 
    Serialized as ``nTime`` (``uint32``).
 
@@ -332,8 +347,10 @@ Each MMR node is defined as follows:
 12. [NU5 onward] ``hashEarliestOrchardRoot``
 
     Leaf node
-      Calculated as the note commitment root of the final Orchard treestate
-      (similar to ``hashEarliestSaplingRoot`` in Sapling).
+      Calculated as $\mathsf{I2LEOSP}_{256}(\mathsf{rt}^{\mathsf{Orchard}})$ where
+      $\mathsf{rt}^{\mathsf{Orchard}}$ is the root of the Orchard note commitment tree for
+      the final Orchard treestate of the block (as for ``anchorOrchard``
+      [#protocol-txnencoding]_).
 
     Internal or root node
       Inherited from the left child.
@@ -343,8 +360,10 @@ Each MMR node is defined as follows:
 13. [NU5 onward] ``hashLatestOrchardRoot``
 
     Leaf node
-      Calculated as the note commitment root of the final Orchard treestate
-      (similar to ``hashLatestSaplingRoot`` in Sapling).
+      Calculated as $\mathsf{I2LEOSP}_{256}(\mathsf{rt}^{\mathsf{Orchard}})$ where
+      $\mathsf{rt}^{\mathsf{Orchard}}$ is the root of the Orchard note commitment tree for
+      the final Orchard treestate of the block (as for ``anchorOrchard``
+      [#protocol-txnencoding]_).
 
     Internal or root node
       Inherited from the right child.
@@ -362,13 +381,64 @@ Each MMR node is defined as follows:
 
     Serialized as ``CompactSize uint``.
 
+15. [NU6.3 onward] ``hashEarliestIronwoodRoot``
 
-The fields marked "[NU5 onward]" are omitted before NU5 activation [#zip-0252]_.
+    Leaf node
+      Calculated as $\mathsf{I2LEOSP}_{256}(\mathsf{rt}^{\mathsf{Ironwood}})$ where
+      $\mathsf{rt}^{\mathsf{Ironwood}}$ is the root of the Ironwood note commitment tree for
+      the final Ironwood treestate of the block (as for ``anchorIronwood``
+      [#protocol-txnencoding]_).
+
+    Internal or root node
+      Inherited from the left child.
+
+    Serialized as ``char[32]``.
+
+16. [NU6.3 onward] ``hashLatestIronwoodRoot``
+
+    Leaf node
+      Calculated as $\mathsf{I2LEOSP}_{256}(\mathsf{rt}^{\mathsf{Ironwood}})$ where
+      $\mathsf{rt}^{\mathsf{Ironwood}}$ is the root of the Ironwood note commitment tree for
+      the final Ironwood treestate of the block (as for ``anchorIronwood``
+      [#protocol-txnencoding]_).
+
+    Internal or root node
+      Inherited from the right child.
+
+    Serialized as ``char[32]``.
+
+17. [NU6.3 onward] ``nIronwoodTxCount``
+
+    Leaf node
+      The number of transactions in the leaf block where ``vActionsIronwood``
+      is non-empty.
+
+    Internal or root node
+      The sum of the ``nIronwoodTxCount`` field of both children.
+
+    Serialized as ``CompactSize uint``.
+
+
+Integers are encoded in little-endian byte order [#protocol-endian]_. ``uint32`` and
+``uint256`` denote unsigned integers encoded in 4 and 32 bytes respectively, ``char[32]``
+denotes a 32-byte string, and ``CompactSize uint`` denotes the CompactSize encoding
+[#zip-0204]_, which MUST be the shortest possible encoding of the value. In the pseudocode
+below, ``serialize_uint32``, ``serialize_uint256``, and ``serialize_compact_uint`` produce
+these encodings.
+
+The fields marked "[NU5 onward]" are present in every node of the MMR at block $B_n$ if
+and only if the preceding network upgrade height $x$ of $B_n$ is at or after NU5
+activation [#zip-0252]_; otherwise they are omitted. Likewise, the fields marked
+"[NU6.3 onward]" are present if and only if $x$ is at or after NU6.3 activation
+[#zip-0258]_. In particular, the MMR committed to by the NU5 activation block has no
+Orchard fields, and the MMR committed to by the NU6.3 activation block has no Ironwood
+fields.
 
 Each node, when serialized, is between 147 and 171 bytes long (between 212 and 244 bytes
-after NU5 activation). The canonical serialized representation of a node is used whenever
-creating child commitments for future nodes. Other than the metadata commitments, the
-MMR tree's construction is standard.
+when the "[NU5 onward]" fields are present, and between 277 and 317 bytes when the
+"[NU6.3 onward]" fields are also present). The canonical serialized representation of a
+node is used whenever creating child commitments for future nodes. Other than the metadata
+commitments, the MMR tree's construction is standard.
 
 Once the MMR has been generated, we produce ``hashChainHistoryRoot``, which we define as
 the BLAKE2b-256 digest of the serialization of the root node.
@@ -376,6 +446,11 @@ the BLAKE2b-256 digest of the serialization of the root node.
 
 Tree nodes and hashing (pseudocode)
 -----------------------------------
+
+The following pseudocode is normative. In it, ``block.consensusBranchId`` is the consensus
+branch ID for the epoch of ``block``, and the Orchard (respectively Ironwood) attributes of
+``block`` are ``None`` if that epoch begins before NU5 (respectively NU6.3) activation, so
+that the corresponding node fields are omitted as specified above.
 
 .. code-block:: python
 
@@ -399,10 +474,14 @@ Tree nodes and hashing (pseudocode)
         nEarliestHeight: int
         nLatestHeight: int
         nSaplingTxCount: int # number of Sapling transactions in block
-        # NU5 only.
+        # NU5 onward.
         hashEarliestOrchardRoot: Optional[bytes] # left child's Orchard root
         hashLatestOrchardRoot: Optional[bytes] # right child's Orchard root
-        nSaplingTxCount: Optional[int] # number of Orchard transactions in block
+        nOrchardTxCount: Optional[int] # number of Orchard transactions in block
+        # NU6.3 onward.
+        hashEarliestIronwoodRoot: Optional[bytes] # left child's Ironwood root
+        hashLatestIronwoodRoot: Optional[bytes] # right child's Ironwood root
+        nIronwoodTxCount: Optional[int] # number of Ironwood transactions in block
 
         consensusBranchId: bytes
 
@@ -426,6 +505,9 @@ Tree nodes and hashing (pseudocode)
                 hashEarliestOrchardRoot=block.orchard_root,
                 hashLatestOrchardRoot=block.orchard_root,
                 nOrchardTxCount=block.orchard_tx_count,
+                hashEarliestIronwoodRoot=block.ironwood_root,
+                hashLatestIronwoodRoot=block.ironwood_root,
+                nIronwoodTxCount=block.ironwood_tx_count,
                 consensusBranchId=block.consensusBranchId)
 
         def serialize(self) -> bytes:
@@ -435,16 +517,20 @@ Tree nodes and hashing (pseudocode)
                 + serialize_uint32(self.nLatestTimestamp)
                 + serialize_uint32(self.nEarliestTargetBits)
                 + serialize_uint32(self.nLatestTargetBits)
-                + hashEarliestSaplingRoot
-                + hashLatestSaplingRoot
+                + self.hashEarliestSaplingRoot
+                + self.hashLatestSaplingRoot
                 + serialize_uint256(self.nSubTreeTotalWork)
                 + serialize_compact_uint(self.nEarliestHeight)
                 + serialize_compact_uint(self.nLatestHeight)
                 + serialize_compact_uint(self.nSaplingTxCount))
-            if hashEarliestOrchardRoot is not None:
-                buf += (hashEarliestOrchardRoot
-                    + hashLatestOrchardRoot
+            if self.hashEarliestOrchardRoot is not None:
+                buf += (self.hashEarliestOrchardRoot
+                    + self.hashLatestOrchardRoot
                     + serialize_compact_uint(self.nOrchardTxCount))
+            if self.hashEarliestIronwoodRoot is not None:
+                buf += (self.hashEarliestIronwoodRoot
+                    + self.hashLatestIronwoodRoot
+                    + serialize_compact_uint(self.nIronwoodTxCount))
             return buf
 
 
@@ -460,17 +546,22 @@ Tree nodes and hashing (pseudocode)
             nLatestTimestamp=right_child.nLatestTimestamp,
             nEarliestTargetBits=left_child.nEarliestTargetBits,
             nLatestTargetBits=right_child.nLatestTargetBits,
-            hashEarliestSaplingRoot=left_child.sapling_root,
-            hashLatestSaplingRoot=right_child.sapling_root,
+            hashEarliestSaplingRoot=left_child.hashEarliestSaplingRoot,
+            hashLatestSaplingRoot=right_child.hashLatestSaplingRoot,
             nSubTreeTotalWork=left_child.nSubTreeTotalWork + right_child.nSubTreeTotalWork,
             nEarliestHeight=left_child.nEarliestHeight,
             nLatestHeight=right_child.nLatestHeight,
             nSaplingTxCount=left_child.nSaplingTxCount + right_child.nSaplingTxCount,
-            hashEarliestOrchardRoot=left_child.orchard_root,
-            hashLatestOrchardRoot=right_child.orchard_root,
+            hashEarliestOrchardRoot=left_child.hashEarliestOrchardRoot,
+            hashLatestOrchardRoot=right_child.hashLatestOrchardRoot,
             nOrchardTxCount=(left_child.nOrchardTxCount + right_child.nOrchardTxCount
                              if left_child.nOrchardTxCount is not None and right_child.nOrchardTxCount is not None
                              else None),
+            hashEarliestIronwoodRoot=left_child.hashEarliestIronwoodRoot,
+            hashLatestIronwoodRoot=right_child.hashLatestIronwoodRoot,
+            nIronwoodTxCount=(left_child.nIronwoodTxCount + right_child.nIronwoodTxCount
+                              if left_child.nIronwoodTxCount is not None and right_child.nIronwoodTxCount is not None
+                              else None),
             consensusBranchId=left_child.consensusBranchId)
 
     def make_root_commitment(root: ZcashMMRNode) -> bytes:
@@ -490,7 +581,7 @@ $B_{n-1}$. The ``append`` operation is detailed below in pseudocode (adapted fro
         peaks: List[ZcashMMRNode] = []
 
         # Get number of leaves.
-        leaves = latest_height - (earliest_height - 1)
+        leaves = node.nLatestHeight - (node.nEarliestHeight - 1)
         assert(leaves > 0)
 
         # Check if the number of leaves is a power of two.
@@ -501,8 +592,8 @@ $B_{n-1}$. The ``append`` operation is detailed below in pseudocode (adapted fro
         else:
             # If the number of leaves is not a power of two, then this
             # node must be internal, and cannot be a peak.
-            peaks.extend(get_peaks(left_child))
-            peaks.extend(get_peaks(right_child))
+            peaks.extend(get_peaks(node.left_child))
+            peaks.extend(get_peaks(node.right_child))
 
         return peaks
 
@@ -527,8 +618,8 @@ $B_{n-1}$. The ``append`` operation is detailed below in pseudocode (adapted fro
         # This will produce a list of peaks in reverse order
         current = leaf
         for peak in peaks[::-1]:
-            current_leaves = current.latest_height - (current.earliest_height - 1)
-            peak_leaves = peak.latest_height - (peak.earliest_height - 1)
+            current_leaves = current.nLatestHeight - (current.nEarliestHeight - 1)
+            peak_leaves = peak.nLatestHeight - (peak.nEarliestHeight - 1)
 
             if current_leaves == peak_leaves:
                 current = make_parent(peak, current)
@@ -552,7 +643,7 @@ in the right subtree of the MMR root.
         Return the new tree root
         '''
 
-        n_leaves = root.latest_height - (root.earliest_height - 1)
+        n_leaves = root.nLatestHeight - (root.nEarliestHeight - 1)
         # if there were an odd number of leaves,
         # simply replace root with left_child
         if n_leaves & 1:
@@ -568,7 +659,7 @@ in the right subtree of the MMR root.
             # until we reach a leaf
             subtree_root = root.right_child
             while subtree_root.left_child:
-                peaks.push(subtree_root.left_child)
+                peaks.append(subtree_root.left_child)
                 subtree_root = subtree_root.right_child
 
         new_root = bag_peaks(peaks)
@@ -608,12 +699,13 @@ Tree nodes
 ----------
 
 Nodes in the commitment tree are canonical and immutable. They are cheap to generate, as
-(with the exception of ``nSaplingTxCount`` and ``nOrchardTxCount``) all metadata is already
-generated during block construction and/or checked during block validation. Nodes are
-relatively compact in memory. As of the original publication of this ZIP, approximately
-140,000 blocks had elapsed since Sapling activation. Assuming a 164-byte commitment to
-each of these, we would have generated approximately 24 MB of additional storage cost for
-the set of leaf nodes (and an additional ~24 MB for storage of intermediate nodes).
+(with the exception of ``nSaplingTxCount``, ``nOrchardTxCount``, and ``nIronwoodTxCount``)
+all metadata is already generated during block construction and/or checked during block
+validation. Nodes are relatively compact in memory. As of the original publication of this
+ZIP, approximately 140,000 blocks had elapsed since Sapling activation. Assuming a 155-byte
+commitment to each of these (the size of a leaf node at those heights), we would have
+generated approximately 22 MB of additional storage cost for the set of leaf nodes (and an
+additional ~22 MB for storage of intermediate nodes).
 
 ``hashSubtreeCommitment`` forms the structure of the commitment tree. Other metadata
 commitments were chosen to serve specific purposes. Originally variable-length commitments
@@ -621,8 +713,8 @@ were placed last, so that most metadata in a node could be directly indexed. We 
 using fixed-length commitments here, but opted for variable-length, in order to marginally
 reduce the memory requirements for managing and updating the commitment trees.
 
-Orchard fields are placed last, in order to avoid complicating existing uses of the other
-fields.
+Orchard fields, and then Ironwood fields, are placed last, in order to avoid complicating
+existing uses of the other fields.
 
 In leaf nodes, some information is repeated. We chose to do this so that leaf nodes could
 be treated identically to internal and root nodes for all algorithms and (de)serializers.
@@ -686,7 +778,7 @@ inclusion in a future upgrade.
 - ``nSaplingTxCount``
 
   * By committing to the number of Sapling transactions in blocks (and ranges of blocks),
-    a light client may reliably learn whether a malicious server is witholding any
+    a light client may reliably learn whether a malicious server is withholding any
     Sapling transactions.
   * In addition, this commitment allows light clients to avoid syncing header ranges that
     do not contain Sapling transactions. As the primary cost of a light client is
@@ -705,6 +797,10 @@ inclusion in a future upgrade.
     not support Sapling addresses.
 
 - ``hashEarliestOrchardRoot``, ``hashLatestOrchardRoot``, and ``nOrchardTxCount``
+
+  * These are included with the same rationale as for Sapling.
+
+- ``hashEarliestIronwoodRoot``, ``hashLatestIronwoodRoot``, and ``nIronwoodTxCount``
 
   * These are included with the same rationale as for Sapling.
 
@@ -809,6 +905,9 @@ network upgrade. [#zip-0250]_
 Additional fields are added on activation of the NU5 network upgrade [#zip-0252]_,
 to support the new Orchard shielded protocol.
 
+Additional fields are added on activation of the NU6.3 network upgrade [#zip-0258]_,
+to support the Ironwood pool.
+
 
 Additional Reading
 ==================
@@ -831,12 +930,14 @@ References
 .. [#FlyClient] `FlyClient protocol <https://eprint.iacr.org/2019/226>`_
 .. [#protocol-blockheader] `Zcash Protocol Specification, Version 2021.2.16. Section 7.6: Block Header Encoding and Consensus <protocol/protocol.pdf#blockheader>`_
 .. [#protocol-workdef] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.5: Definition of Work <protocol/protocol.pdf#workdef>`_
-.. [#zcashBlock] `Zcash block primitive <https://github.com/zcash/zcash/blob/master/src/primitives/block.h>`_
+.. [#protocol-endian] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.1: Integers, Bit Sequences, and Endianness <protocol/protocol.pdf#endian>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#mimblewimble] `MimbleWimble Grin MMR implementation <https://github.com/mimblewimble/grin/blob/aedac483f5a116b91a8baf6acffd70e5f980b8cc/core/src/core/pmmr/pmmr.rs>`_
 .. [#bip-0034] `BIP 34: Block v2, Height in Coinbase <https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0204] `ZIP 204: Zcash P2P Network Protocol <zip-0204.rst>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0250] `ZIP 250: Deployment of the Heartwood Network Upgrade <zip-0250.rst>`_
 .. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
-.. [#zip-0301] `ZIP 301: Zcash Stratum Protocol <https://github.com/zcash/zips/pull/78>`_
-.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://github.com/zcash/zips/pull/226>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
+.. [#zip-0301] `ZIP 301: Zcash Stratum Protocol <zip-0301.rst>`_

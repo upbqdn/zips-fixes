@@ -4,6 +4,199 @@
   Title: Transaction Signature Validation before Overwinter
   Owners: Jack Grigg <thestr4d@gmail.com>
           Daira-Emma Hopwood <daira@jacaranda.org>
-  Status: Reserved
+  Status: Draft
   Category: Consensus
+  Created: 2026-10-08
+  License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/130>
+
+
+Terminology
+===========
+
+The key word "MUST" in this document is to be interpreted as described in BCP 14 [#BCP14]_
+when, and only when, it appears in all capitals.
+
+The term "network upgrade" in this document is to be interpreted as described in ZIP 200.
+[#zip-0200]_
+
+The term "Overwinter" in this document is to be interpreted as described in ZIP 201.
+[#zip-0201]_
+
+The terms "SIGHASH type" and "SIGHASH transaction hash" in this document are to be
+interpreted as described in § 4.10 of the Zcash Protocol Specification. [#protocol-sighash]_
+
+
+Abstract
+========
+
+This ZIP specifies the transaction digest algorithm used for signature validation in
+transactions that do not have the ``fOverwintered`` flag set, which were the only
+transactions valid before the Overwinter network upgrade. The algorithm is the original
+signature hash algorithm of Bitcoin, changed to commit to the JoinSplit fields of version 2
+transactions, to make a ``SIGHASH_SINGLE`` signature without a corresponding output fail,
+and to hash the script code without modification.
+
+
+Motivation
+==========
+
+The Zcash Protocol Specification defers the definition of this algorithm to this ZIP.
+[#protocol-sighash]_ It is a consensus rule: validating the block chain from its genesis
+block requires it, to check the transparent input signatures and JoinSplit signatures of
+transactions mined before Overwinter activation.
+
+
+Specification
+=============
+
+This algorithm MUST be used to compute the SIGHASH transaction hash of a transaction in which
+the ``fOverwintered`` flag is not set. [#protocol-txnencoding]_ Such transactions are valid
+only before Overwinter activation. [#protocol-txnconsensus]_ For these transactions the
+``header`` field is the transaction version number ``nVersion``, a 4-byte signed
+little-endian integer.
+
+Inputs to the algorithm
+-----------------------
+
+The algorithm takes the transaction, a SIGHASH type ``hash_type``, and either a transparent
+input being signed or no input:
+
+* For a signature checked by ``CHECKSIG``, ``CHECKSIGVERIFY``, ``CHECKMULTISIG``, or
+  ``CHECKMULTISIGVERIFY`` while evaluating the scripts of the transparent input at index
+  ``nIn``, the input being signed is that input. ``hash_type`` is the last byte of the
+  signature operand, and the preceding bytes are the ECDSA signature. Each signature checked
+  has its own ``hash_type``, and a separate digest is computed for each.
+* For the JoinSplit signature, the hash is not associated with an input, and ``hash_type``
+  is ``SIGHASH_ALL`` (``0x01``). [#protocol-sproutnonmalleability]_
+
+The ``scriptCode`` of a transparent input signature is the entire script being evaluated by
+the signature-checking opcode (for example the ``scriptPubKey``, or the ``redeemScript`` of a
+P2SH input), without modification. In particular, the ``CODESEPARATOR`` opcode is disabled
+[#protocol-scripts]_ and does not affect ``scriptCode``, and signatures are not removed from
+``scriptCode``.
+
+The following flags are derived from ``hash_type``:
+
+* ``NONE`` is set if and only if ``hash_type & 0x1f`` is ``0x02`` (``SIGHASH_NONE``).
+* ``SINGLE`` is set if and only if ``hash_type & 0x1f`` is ``0x03`` (``SIGHASH_SINGLE``).
+* ``ANYONECANPAY`` is set if and only if ``hash_type & 0x80`` is nonzero
+  (``SIGHASH_ANYONECANPAY``).
+
+Any other value of ``hash_type & 0x1f`` has the semantics of ``SIGHASH_ALL``. Bits of
+``hash_type`` other than those tested above are ignored in this selection, but are still
+hashed.
+
+If ``SINGLE`` is set and ``nIn`` is greater than or equal to ``tx_out_count``, no digest is
+defined, and the signature check MUST fail exactly as for an invalid signature. Such a
+failure does not by itself make the transaction invalid: script evaluation proceeds as for
+any other failed signature check.
+
+Digest
+------
+
+The digest is the SHA-256d hash (SHA-256 applied twice) of the serialization of::
+
+  1. nVersion of the transaction (4-byte signed little-endian)
+  2. number of inputs serialized in item 3 (compactSize):
+     1 if ANYONECANPAY is set, otherwise tx_in_count
+  3. for each serialized input (if ANYONECANPAY is set, only the input being signed;
+     otherwise every input, in transaction order):
+     a. prevout of the input (32-byte hash + 4-byte little-endian index)
+     b. for the input being signed, scriptCode with a leading compactSize length;
+        for any other input, an empty script (a single 0x00 byte)
+     c. for an input other than the input being signed, if NONE or SINGLE is set,
+        4 zero bytes; otherwise nSequence of the input (4-byte little-endian)
+  4. number of outputs serialized in item 5 (compactSize):
+     0 if NONE is set, nIn + 1 if SINGLE is set, otherwise tx_out_count
+  5. for each serialized output, in transaction order: if SINGLE is set and the output's
+     index is not nIn, a null output (8 bytes of 0xFF, i.e. the value -1, followed by
+     an empty script, a single 0x00 byte); otherwise the output as encoded in the
+     transaction (8-byte little-endian value, then scriptPubKey with a leading
+     compactSize length)
+  6. nLockTime of the transaction (4-byte little-endian)
+  7. if nVersion >= 2:
+     a. nJoinSplit (compactSize)
+     b. vJoinSplit, the JoinSplit descriptions as encoded in the transaction
+     c. if nJoinSplit > 0, joinSplitPubKey (32 bytes)
+     d. if nJoinSplit > 0, 64 zero bytes in place of joinSplitSig
+  8. hash_type (4-byte little-endian, i.e. the byte value followed by 3 zero bytes)
+
+When the hash is not associated with an input, no input is the input being signed: every
+input is serialized with an empty script and its own ``nSequence``.
+
+The fields in items 7a to 7d are encoded as specified in § 7.1 and § 7.2 of the Zcash
+Protocol Specification. [#protocol-txnencoding]_ [#protocol-joinsplitencoding]_
+
+The 32-byte SHA-256d output, in the byte order produced by the hash, is the message hash
+verified against the ECDSA signature of a transparent input, or the ``dataToBeSigned``
+verified against ``joinSplitSig``. [#protocol-sproutnonmalleability]_
+
+
+Rationale
+=========
+
+This algorithm is the original signature hash algorithm of Bitcoin [#wiki-checksig]_ with
+the following changes, all made before the launch of Zcash:
+
+* Bitcoin's algorithm, for a ``SIGHASH_SINGLE`` signature on an input with no output at the
+  same index, uses the integer 1 as the digest, so one signature over that constant is
+  valid for every such input spending a coin of the same key. In Zcash such a signature
+  check fails. (In version 3 and 4 transactions such a signature instead commits to no
+  outputs [#zip-0143]_ [#zip-0243]_; in version 5 and later transactions it again fails.
+  [#zip-0244]_)
+* Bitcoin removes occurrences of the signature being checked from ``scriptCode``, starts
+  ``scriptCode`` after the last executed ``CODESEPARATOR``, and removes any remaining
+  ``CODESEPARATOR`` opcodes from it. In Zcash ``CODESEPARATOR`` is disabled and the
+  signature is not removed, so ``scriptCode`` is the script being evaluated, unmodified.
+* The JoinSplit fields of version 2 transactions are hashed so that transparent signatures
+  also bind the JoinSplit descriptions. ``joinSplitSig`` is replaced by zero bytes because
+  it is itself a signature over this digest.
+
+
+Deployment
+==========
+
+This algorithm has been in effect since the Zcash genesis block. From Overwinter activation,
+transactions are required to have the ``fOverwintered`` flag set [#protocol-txnconsensus]_, so
+later transactions use the algorithms of ZIP 143 [#zip-0143]_ (version 3), ZIP 243
+[#zip-0243]_ (version 4), ZIP 244 [#zip-0244]_ (version 5), and ZIP 229 [#zip-0229]_
+(version 6).
+
+
+Test Vectors
+============
+
+The 258 ``zcashd`` v1.0.0 sighash test vectors [#sighash-tests]_ are test vectors for this
+algorithm; 200 of them have JoinSplit descriptions. Each
+entry gives the raw transaction, ``scriptCode``, ``nIn``, ``hash_type``, and the digest as
+hexadecimal in reversed byte order. These vectors use arbitrary 32-bit values of
+``hash_type``, serialized in full in item 8; in consensus, ``hash_type`` is always a single
+byte.
+
+
+Reference Implementation
+========================
+
+``CTransactionSignatureSerializer`` and ``SignatureHash`` in ``zcashd`` v1.0.0:
+https://github.com/zcash/zcash/blob/v1.0.0/src/script/interpreter.cpp
+
+
+References
+==========
+
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-sighash] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.10: SIGHASH Transaction Hashing <protocol/protocol.pdf#sighash>`_
+.. [#protocol-sproutnonmalleability] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.11: Non-malleability (Sprout) <protocol/protocol.pdf#sproutnonmalleability>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#protocol-joinsplitencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.2: JoinSplit Description Encoding and Consensus <protocol/protocol.pdf#joinsplitencodingandconsensus>`_
+.. [#protocol-scripts] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.11: Changes to the Script System <protocol/protocol.pdf#scripts>`_
+.. [#zip-0143] `ZIP 143: Transaction Signature Validation for Overwinter <zip-0143.rst>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#wiki-checksig] `OP\_CHECKSIG. Bitcoin Wiki <https://en.bitcoin.it/wiki/OP_CHECKSIG>`_
+.. [#sighash-tests] `zcashd v1.0.0 SignatureHash Test Vectors <https://github.com/zcash/zcash/blob/v1.0.0/src/test/data/sighash.json>`_

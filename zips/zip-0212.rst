@@ -23,6 +23,8 @@ according to the type (Sapling or Orchard) of note plaintext being processed:
 * let $\mathsf{ToScalar}$ be
   $\mathsf{ToScalar^{Sapling}}$ defined in section 4.2.2 [#protocol-saplingkeycomponents]_ or
   $\mathsf{ToScalar^{Orchard}}$ defined in section 4.2.3 [#protocol-orchardkeycomponents]_;
+* let $\mathsf{ToBase^{Orchard}}$ be as defined in section 4.2.3
+  [#protocol-orchardkeycomponents]_ (used for Orchard only);
 * let $\mathsf{DiversifyHash}$ be
   $\mathsf{DiversifyHash^{Sapling}}$ or $\mathsf{DiversifyHash^{Orchard}}$
   defined in section 5.4.1.6 [#protocol-concretediversifyhash]_;
@@ -192,8 +194,8 @@ For Orchard:
   $\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5] \,||\, \underline{\text{ρ}}))$.
 * $\mathsf{esk}$ MUST be derived as the output of
   $\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4] \,||\, \underline{\text{ρ}}))$.
-* $\text{φ}$ MUST be derived as the output of
-  $\mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$.
+* $\text{ψ}$ MUST be derived as the output of
+  $\mathsf{ToBase^{Orchard}}(\mathsf{PRF^{expand}_{rseed}}([9] \,||\, \underline{\text{ρ}}))$.
 
 where $\underline{\text{ρ}} = \mathsf{I2LEOSP}_{256}(\mathsf{nf^{old}}$ from the same Action description $\!)$.
 
@@ -334,7 +336,7 @@ written by reprogramming the oracle to return bogus keys when necessary.
 Deployment
 ==========
 
-This proposal will be deployed with the Canopy network upgrade. [#zip-0251]_
+This proposal was deployed with the Canopy network upgrade. [#zip-0251]_
 
 
 Reference Implementation
@@ -379,4 +381,4 @@ References
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
 .. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
 .. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
-.. [#zecwallet-grace-extension] `Commit c31a04a in aditypk00/librustzcash: Move ZIP-212 grace period to end of April <https://github.com/adityapk00/librustzcash/commit/c31a04a4dbfa5a2ac013139db229f41cd421754d>`_
+.. [#zecwallet-grace-extension] `Commit c31a04a in adityapk00/librustzcash: Move ZIP-212 grace period to end of April <https://github.com/adityapk00/librustzcash/commit/c31a04a4dbfa5a2ac013139db229f41cd421754d>`_

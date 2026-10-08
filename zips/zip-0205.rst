@@ -71,7 +71,7 @@ conditions starting at block height 299188.
 
 On both Mainnet and Testnet, Sapling-compatible nodes MUST advertise protocol
 version 170007 or later. The minimum peer protocol version that Sapling-compatible
-nodes will connect to, remains 170002.
+nodes will connect to remains 170002.
 
 Pre-Sapling nodes are defined as nodes advertising a protocol version less than 
 170007.
@@ -98,7 +98,7 @@ Once Sapling activates on Testnet or Mainnet, Sapling nodes SHOULD take steps to
 Change to difficulty adjustment on Testnet
 ------------------------------------------
 
-Section 7.6.3 of the Zcash Protocol Specification [#protocol-diffadjustment]_
+Section 7.7.3 of the Zcash Protocol Specification [#protocol-diffadjustment]_
 describes the algorithm used to adjust the difficulty of a block (defined in terms
 of a "target threshold") based on the ``nTime`` and ``nBits`` fields of preceding
 blocks.
@@ -116,6 +116,13 @@ threshold of minimum-difficulty blocks is affected. In fact the ``nBits`` field
 is modified as well, and this affects difficulty adjustment for subsequent blocks.
 
 This change does not affect Mainnet.
+
+Note: ZIP 208 [#zip-0208]_ changed this threshold to 6 · PoWTargetSpacing(height)
+seconds, which is 15 minutes before Blossom activation and 7.5 minutes after it. The
+15-minute threshold specified here applies only before Blossom activation. ZIP 218
+[#zip-0218]_, which is a Draft, proposes changing the threshold to
+18 · PoWTargetSpacing(height) seconds (still 7.5 minutes) from the Testnet NU7
+activation height.
 
 
 Backward compatibility
@@ -151,4 +158,6 @@ References
 .. [#protocol-nbits] `Zcash Protocol Specification, Version 2021.2.16. Section 7.7.4: nBits conversion <protocol/protocol.pdf#nbits>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0201] `ZIP 201: Network Peer Management for Overwinter <zip-0201.rst>`_
+.. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
+.. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0243] `ZIP 243: Transaction Signature Validation for Sapling <zip-0243.rst>`_
