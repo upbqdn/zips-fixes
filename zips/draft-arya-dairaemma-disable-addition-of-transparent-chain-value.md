@@ -13,7 +13,7 @@
 
 # Terminology
 
-The key word "MUST" and "OPTIONAL" in this document are to be interpreted as
+The key words "MUST" and "OPTIONAL" in this document are to be interpreted as
 described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described
@@ -34,6 +34,9 @@ payment protocol introduced in the Sapling network upgrade. [^zip-0205]
 The term "Orchard shielded protocol" in this document refers to the shielded
 payment protocol introduced in the NU5 network upgrade. [^zip-0252]
 
+The term "Ironwood pool" in this document is to be interpreted as described in
+ZIP 229. [^zip-0229] It was introduced in the NU6.3 network upgrade. [^zip-0258]
+
 The term "transparent chain value pool balance" in this document is to be
 interpreted as described in § 4.17 ‘Chain Value Pool Balances’.
 [^protocol-chainvaluepoolbalances]
@@ -41,10 +44,12 @@ interpreted as described in § 4.17 ‘Chain Value Pool Balances’.
 
 # Abstract
 
-This proposal disables the ability to add new value to the transparent chain
-value pool balance. This takes a step toward being able to remove the
-transparent protocol, thus reducing the overall complexity and attack surface
-of Zcash and increasing user privacy without causing the loss of users' funds.
+This proposal disables the ability of non-coinbase transactions to add new
+value to the transparent chain value pool balance. Coinbase transactions can
+still pay the block subsidy and transaction fees to transparent outputs. This
+takes a step toward being able to remove the transparent protocol, thus
+reducing the overall complexity and attack surface of Zcash and increasing
+user privacy without causing the loss of users' funds.
 
 
 # Motivation
@@ -72,14 +77,16 @@ There are three separate major motivations for this ZIP:
 - The transparent scripting system is too complicated to implement in a zk-SNARK
   circuit, which precludes likely approaches to scaling Zcash [^tachyon].
 
-This proposal disables adding new value to the transparent chain value pool,
-thus requiring funds to be moved over time into the Sapling or Orchard shielded
-pools.
+This proposal disables adding new value to the transparent chain value pool
+in non-coinbase transactions, thus requiring funds to be moved over time into
+the Sapling or Ironwood shielded pools. (Since NU6.3, no new value may enter the
+Orchard pool. [^zip-0258])
 
 The implication of this is that when coinbase outputs (miner subsidy, fees, and
-funding stream outputs) are shielded, they cannot later be unshielded, which
-will have the effect of increasing the total proportion of funds held in shielded
-pools relative to the transparent pool.
+funding stream outputs) are shielded, they cannot later be unshielded, other than
+by being paid as transaction fees, which a coinbase transaction can pay to
+transparent outputs. This will have the effect of increasing the total proportion
+of funds held in shielded pools relative to the transparent pool.
 
 
 # Specification
@@ -93,6 +100,11 @@ Define the *total transparent input value* of a transaction as follows:
 Consensus rule: The total value of transparent outputs in a transaction MUST be
 less than or equal to its total transparent input value.
 
+Note: For a coinbase transaction, this rule is implied by the existing coinbase
+rules in § 7.1.2 ‘Transaction Consensus Rules’. [^protocol-txnconsensus] A coinbase
+transaction can therefore still pay the block subsidy and all transaction fees,
+including fees paid from shielded value, to transparent outputs.
+
 Note: The facility to send to transparent addresses, and/or to give out transparent
 addresses on which funds can be received, has always been OPTIONAL for a particular
 Zcash wallet implementation.
@@ -100,19 +112,16 @@ Zcash wallet implementation.
 
 # Rationale
 
-The implication of this is that when coinbase outputs (miner subsidy, fees, and
-funding stream outputs) are shielded, they cannot later be unshielded, which
-will have the effect of increasing the total proportion of funds held in shielded
-pools relative to the transparent pool.
-
 The code changes needed are very small and simple, and their security is easy to
 analyse.
 
 This ZIP is similar to ZIP 211 [^zip-0211] in that it disallows new funds to be
-added to the transparent chain value pool balance as ZIP 211 disallowed new funds
-to be added to the Sprout chain value pool balance. The consensus rule does not
-take the same form because there is no field corresponding to `vpub_old` for the
-transparent protocol.
+added to the transparent chain value pool balance by non-coinbase transactions,
+as ZIP 211 disallowed new funds to be added to the Sprout chain value pool
+balance. Unlike ZIP 211, it does not close the pool to new funds entirely: a
+coinbase transaction cannot have JoinSplit descriptions, but it can have
+transparent outputs. The consensus rule does not take the same form because
+there is no field corresponding to `vpub_old` for the transparent protocol.
 
 Rejected alternatives:
 
@@ -129,8 +138,8 @@ that centralized exchanges play today.
 
 # Security and Privacy Considerations
 
-The security motivations for making this change are described in the Motivation section.
-Privacy concerns that led to the current design are discussed in the Rationale section.
+The security and privacy motivations for making this change are described in the
+Motivation section.
 
 Since all clients MUST change their behaviour at the same time from this proposal's activation
 height, there is no additional client distinguisher.
@@ -152,17 +161,21 @@ TODO
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
-[^protocol]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later](protocol/protocol.pdf)
+[^protocol]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later](protocol/protocol.pdf)
 
-[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
+[^protocol-chainvaluepoolbalances]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances](protocol/protocol.pdf#chainvaluepoolbalances)
 
-[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
+[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^zip-0205]: [ZIP 205: Deployment of the Sapling Network Upgrade](zip-0205.rst)
 
 [^zip-0211]: [ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool](zip-0211.rst)
 
+[^zip-0229]: [ZIP 229: Version 6 Transaction Format](zip-0229.md)
+
 [^zip-0252]: [ZIP 252: Deployment of the NU5 Network Upgrade](zip-0252.rst)
+
+[^zip-0258]: [ZIP 258: Deployment of the NU6.3 Network Upgrade](zip-0258.md)
 
 [^zerocash]: [Zerocash: Decentralized Anonymous Payments from Bitcoin (extended version)](https://eprint.iacr.org/2014/349)
 

@@ -8,6 +8,7 @@
   Credits: Simon Liu
   Status: Draft
   Category: Consensus
+  Created: 2024-10-29
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/803>
   Pull-Request: <https://github.com/zcash/zips/pull/919>
@@ -98,6 +99,9 @@ the block being added to the ZEC transparent transaction value pool.
 Changes to the Zcash Protocol Specification
 -------------------------------------------
 
+In the following, NUx denotes the network upgrade that deploys the V7 transaction
+format (see `Deployment`_).
+
 Let $\mathsf{FeeBundleId} = 5.$
 
 Let $\mathsf{Zec}$ be the asset UUID for ZEC as defined in ZIP 248 [#zip-0248]_.
@@ -105,22 +109,22 @@ Let $\mathsf{Zec}$ be the asset UUID for ZEC as defined in ZIP 248 [#zip-0248]_.
 In § 3.4 'Transactions and Treestates' [#protocol-transactions]_ (last modified by
 ZIP 236 [#zip-0236]_), add the following consensus rules:
 
-  * [NU7 onward] The ``assetClass`` for any entry in ``mValuePoolDeltas`` having
+  * [NUx onward] The ``assetClass`` for any entry in ``mValuePoolDeltas`` having
     ``bundleType`` $= \mathsf{FeeBundleId}$ MUST be 0. That is, fee amounts MUST
     be denominated in ZEC.
 
-  * [NU7 onward] For non-coinbase V7 transactions, the value of
+  * [NUx onward] For non-coinbase V7 transactions, the value of
     $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
     nonpositive. Its absolute value represents the transaction fee in zatoshis.
 
-  * [NU7 onward] For coinbase V7 transactions, the value of
+  * [NUx onward] For coinbase V7 transactions, the value of
     $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
     nonnegative. It represents the total transaction fees collected from all
     other transactions in the block.
 
-In § 7.1 'Transaction Encoding and Consensus' [#protocol-txnconsensus]_, add:
+In § 7.1.2 ‘Transaction Consensus Rules’ [#protocol-txnconsensus]_, add:
 
-  [NU7 onward] The absolute value of the fee bundle's value pool delta MUST
+  [NUx onward] The absolute value of the fee bundle's value pool delta MUST
   be in the range $\{ 0 .. \mathsf{MAX\_MONEY} \}$.
 
 

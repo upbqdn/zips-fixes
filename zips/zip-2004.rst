@@ -36,7 +36,7 @@ of note encryption. This has unnecessarily complicated the specification and
 implementation of consensus rules.
 
 This proposal disentangles note encryption from consensus, by instead requiring
-coinbase outputs for v6 and later transaction versions to be unencrypted. The
+coinbase outputs for v7 and later transaction versions to be unencrypted. The
 disentanglement will be complete once earlier transaction versions are no longer
 allowed on the network, which is likely to happen in some later upgrade.
 
@@ -57,7 +57,7 @@ that it must be possible to decrypt Sapling and Orchard outputs in coinbase
 transactions using a sequence of 32 zero bytes as the outgoing viewing key.
 
 The complexity impact of this change was overlooked. This became apparent during
-the design of ZIP 212 [#zip-0212]_ for the Heartwood network upgrade. In fact
+the design of ZIP 212 [#zip-0212]_ for the Canopy network upgrade. In fact
 for a time there were separate and slightly diverging implementations of note
 decryption for the consensus checks in `zcashd`, and in `librustzcash`. This
 could have led to a chain fork between `zcashd` and `zebrad` before the
@@ -69,7 +69,7 @@ This ZIP restores the originally intended design property.
 Requirements
 ============
 
-The consensus rule change specified in this ZIP must, from transaction version 6
+The consensus rule change specified in this ZIP must, from transaction version 7
 onward, make the implementation and specification of shielded coinbase outputs
 independent of note encryption.
 
@@ -80,8 +80,7 @@ Specification
 Changes to the Zcash Protocol Specification
 -------------------------------------------
 
-In § 5.4.3 'Symmetric Encryption', rename $Sym$ to $NoteSym$ and
-add the following text:
+In § 5.4.3 'Symmetric Encryption', add the following text:
 
   Let $\mathsf{NullSym.}\mathbf{K} := \mathbb{B}^{[256]}$,
   $\mathsf{NullSym.}\mathbf{P} := \mathbb{B^Y}^{\mathbb{N}}$, and
@@ -91,9 +90,9 @@ add the following text:
   
   Define $\mathsf{NullSym.Decrypt_K}(\mathsf{C})$ as follows:
 
-  * If the last 16 bytes of $\mathsf{C}$ are not $[0x00]^{16}$,
-    return $\bot$. Otherwise discard those 16 bytes and return the
-    remaining prefix of $\mathsf{C}$.
+  * If $\mathsf{C}$ is shorter than 16 bytes, or the last 16 bytes of
+    $\mathsf{C}$ are not $[0x00]^{16}$, return $\bot$. Otherwise discard
+    those 16 bytes and return the remaining prefix of $\mathsf{C}$.
   
   Note: These definitions intentionally ignore the key; $\mathsf{NullSym}$
   is not a secure authenticated encryption scheme. It MUST be used only for
@@ -107,25 +106,37 @@ In § 4.20 'In-band secret distribution (Sapling and Orchard)', change:
 
 to
 
-  let $\mathsf{NoteSym}$ and $\mathsf{NullSym}$ be as
-  instantiated in § 5.4.3 'Symmetric Encryption'.
-  
-  [Pre-NU7] let $\mathsf{Sym}$ be $\mathsf{NoteSym}$.
+  if the note to be encrypted or decrypted is in an output of a version 7
+  or later coinbase transaction, let $\mathsf{Sym}$ be $\mathsf{NullSym}$
+  as instantiated in § 5.4.3 'Symmetric Encryption'; otherwise let it be
+  the $\mathsf{AEAD\_CHACHA20\_POLY1305}$ scheme instantiated in that
+  section.
 
-  [NU7 onward] if the note to be decrypted is in an output of a version 6
-  or later coinbase transaction, let $\mathsf{Sym}$ be
-  $\mathsf{NullSym}$, otherwise let it be $\mathsf{NoteSym}$.
+In § 4.1.6 'Key Derivation', add after the security requirements:
+
+  Note: For a note in an output of a version 7 or later coinbase transaction,
+  the scheme in § 4.20 uses $\mathsf{NullSym}$ in place of $\mathsf{Sym}$ and
+  so these requirements do not apply. Such a note is intended to be visible as
+  cleartext.
 
 These changes apply identically to Mainnet and Testnet.
 
-TODO: specify the handling of the ``ephemeralKey`` field.
+TODO: specify the handling of the ``ephemeralKey`` and ``outCiphertext``
+fields, and replace, for version 7 and later coinbase transactions, the rule
+in § 7.1.2 'Transaction Consensus Rules' that coinbase outputs decrypt using
+§ 4.20.3 with an all-zero outgoing viewing key. While that rule applies,
+consensus still depends on note encryption through the checks of
+$\mathsf{esk}$ and ``ephemeralKey`` in § 4.20.3, so the Requirements are not
+met. Unless its encoding rules are relaxed, a fixed ``ephemeralKey`` value would
+have to be a valid encoding; 32 zero bytes are not, for either Sapling or
+Orchard.
 
 
 Deployment
 ==========
 
 This ZIP is proposed to be deployed with the next transaction version change,
-which is assumed to be v6. [#zip-0230]_
+which is assumed to be v7. [#zip-0248]_
 
 
 Reference implementation
@@ -150,4 +161,4 @@ References
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
-.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.rst>`_
+.. [#zip-0248] `ZIP 248: Extensible Transaction Format <zip-0248.rst>`_
