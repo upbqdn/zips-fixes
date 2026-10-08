@@ -8,6 +8,8 @@
   Credits: Francisco Gindre
   Status: Draft
   Category: Wallet
+  Created: 2022-04-26
+  License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/447>
   Pull-Request: <https://github.com/zcash/zips/pull/607>
 
@@ -15,19 +17,21 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
-and "MAY" in this document are to be interpreted as described in BCP 14 [#BCP14]_
-when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",
+"NOT RECOMMENDED", and "MAY" in this document are to be interpreted as described
+in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The terms below are to be interpreted as follows:
 
 Auto-shielding
-    The process of automatically transferring transparent funds to the most recent
-    shielded pool on receipt.
+    The process by which a wallet, without user intervention, transfers transparent
+    funds it holds to the most recent shielded pool, not as a direct result of
+    receiving a payment (see `Auto-shielding`_).
 
 Auto-migration
-    The process of automatically transferring shielded funds from older pools to the
-    most preferred (usually the most recent) pool on receipt.
+    The process by which a wallet, without user intervention, transfers shielded
+    funds from older pools to the most preferred (usually the most recent) pool,
+    not as a direct result of receiving a payment (see `Auto-migration`_).
 
 Opportunistic migration
     The process of transferring previously received shielded funds from older pools
@@ -114,7 +118,8 @@ To support this we define two kinds of TXOs:
 
 * A trusted TXO is a TXO received from a party where the wallet trusts that
   it will remain mined in its original transaction, such as TXOs created by
-  the wallet's internal TXO handling.
+  the wallet's internal TXO handling, other than the outputs of shielding
+  transactions (see `Shielded TXOs`_).
 * An untrusted TXO is a TXO received by the wallet that is not trusted.
 
 Wallets can then require that untrusted TXOs need more confirmations before
@@ -172,8 +177,9 @@ additional information. In particular, issue b) motivates ruling out the use
 of "opportunistic shielding", i.e. shielding previously received transparent
 funds as part of a user-initiated transaction.
 
-Wallets SHOULD NOT auto-shield from multiple transparent addresses in the
-same transaction, and SHOULD NOT use opportunistic shielding.
+Wallets SHOULD NOT shield funds received at multiple transparent addresses
+(including transparent receivers) in the same transaction, and SHOULD NOT use
+opportunistic shielding.
 
 Following all of the recommendations in this section improves both collective
 privacy and the user's individual privacy, by maximizing the size of the note
@@ -212,8 +218,9 @@ Allowed transfers
 
 Wallets SHOULD NOT spend funds from a transparent address in a transaction with
 an external recipient, unless the user gives explicit consent for this on a
-per-transaction basis. Wallets MAY further restrict the set of transfers they
-perform.
+per-transaction basis. The user's consent to a ZIP 320 transfer [#zip-0320]_
+covers its second transaction, which spends the ephemeral transparent output
+of the first. Wallets MAY further restrict the set of transfers they perform.
 
 
 Auto-shielding
@@ -232,21 +239,40 @@ are shielded by the wallet without user intervention.
 Wallet users MUST be able to disable auto-shielding functionality offered by a
 wallet.
 
+Auto-shielding is a time-triggered action, not a receipt-triggered action.
+An auto-shielding transaction MUST NOT be created as a direct result of a
+payment being received. For example, a wallet can sample the time at which
+it creates an auto-shielding transaction from a distribution of "time since
+last payment to the address", weighted by the balance at that address, so
+that as more funds accrue, the auto-shielding transaction becomes more likely.
+This ensures that all funds will eventually be auto-shielded, while preventing
+fee-dusting attacks (where dust is sent in order to repeatedly consume fees
+from the wallet), as the auto-shielding transaction is not directly triggered
+by payment receipt.
+
 Automatic shielding and automatic/opportunistic migration SHOULD NOT be
 applied to inputs where the cost of shielding or migrating them will
-exceed their economic value. If these transactions are paying the
+equal or exceed their economic value. If these transactions are paying the
 ZIP 317 conventional fee [#zip-0317]_, that will be the case if the
-amount of the UTXO to be shielded/migrated exceeds the marginal
-fee, and cannot be accommodated by an input that would be present
+amount of the input to be shielded/migrated is less than or equal to the
+marginal fee, and cannot be accommodated by an input that would be present
 in any case due to padding of the number of inputs from a given
 shielded pool.
+
+Open question: if a wallet is offline for a long time, then it would likely
+auto-shield as soon as it finishes syncing. This might not be enough to reveal
+that the wallet came online, except that it might result in auto-shielding
+transactions for multiple transparent addresses being created at the same time.
+Should this case be handled specially?
 
 
 Trusted and untrusted TXOs
 --------------------------
 
 A wallet SHOULD treat received TXOs that are outputs of transactions created
-by the same wallet, as trusted TXOs. Wallets MAY enable users to mark specific
+by the same wallet, as trusted TXOs, other than outputs of wallet-internal
+shielding transactions, whose spendability is specified separately in
+`Shielded TXOs`_. Wallets MAY enable users to mark specific
 external transactions as trusted, allowing their received TXOs also to be
 classified as trusted TXOs. Wallets MAY also permit users to define alternate
 policies for the number of confirmations required before untrusted TXOs may be
@@ -254,10 +280,17 @@ spent based on a user-configured value threshold.
 
 A wallet SHOULD have a policy that is clearly communicated to the user for
 the number of confirmations needed to spend untrusted and trusted TXOs
-respectively. The following confirmation policy is RECOMMENDED:
+(`untrusted_confirmations` and `trusted_confirmations` respectively, with
+`trusted_confirmations` ≤ `untrusted_confirmations`). The following
+confirmation policy is RECOMMENDED:
 
-* 10 confirmations, for untrusted TXOs;
-* 3 confirmations, for trusted TXOs.
+* `untrusted_confirmations` = 10, for untrusted TXOs;
+* `trusted_confirmations` = 3, for trusted TXOs.
+
+A TXO created in the block at height $h$ has $T - h + 1$ confirmations, where
+$T$ is the height of the wallet's view of the chain tip (see
+`Categories of TXOs according to spendability`_). An unmined TXO has zero
+confirmations.
 
 Wallets SHOULD NOT permit the spending of TXOs with fewer than 3 confirmations,
 with the exception of:
@@ -285,17 +318,39 @@ Categories of TXOs according to spendability
 A TXO is *known-spendable*, relative to a given block chain and wallet
 state, if and only if all of the following are true in that state:
 
-* the TXO is unspent at the wallet's view of the chain tip, and that view is
-  reasonably up-to-date;
-
-  TODO: consider undoing the up-to-date part, as when combined with the
-  definition of balance below, it causes wallet balance to drop to zero in
-  the short window between opening and updating the wallet's chain tip view.
+* the wallet has not observed the TXO being spent in any block that it has
+  scanned, up to and including its view of the chain tip;
 * the TXO is not committed to be spent in another unexpired transaction created
   by this wallet; and
 * the wallet can effect the spend, either by having access to the TXO's
   spending key (for whatever protocol the TXO uses) or by mediating interaction
   with a hardware device or other offline signing protocol.
+
+The wallet's view of the chain tip is the most recent block of the best chain
+that the wallet has learned of from its source of block chain data, whether or
+not it has scanned that block. A wallet MAY treat a TXO as known-spendable
+before it has scanned every block up to its view of the chain tip. If such a
+TXO was in fact spent in a block that the wallet has not yet scanned, then a
+transaction that attempts to spend it again will be rejected by the network,
+and broadcasting that transaction reveals it (including the nullifiers of any
+shielded TXOs it spends) to the parties that receive it.
+
+A TXO is *unconfirmed-spendable*, relative to a given block chain and
+wallet state, if and only if the TXO is known-spendable but is not
+confirmed-spendable in that state. Confirmed-spendable is defined for
+`Shielded TXOs`_ and for `Transparent UTXOs`_ below.
+
+A TXO is *watch-only* if and only if the wallet can detect it (via a full or
+incoming viewing key, or via its address in the case of a transparent TXO) but
+cannot effect its spend by any means, including via a hardware device or other
+offline signing protocol.
+
+A wallet MUST NOT attempt to spend a TXO in a user-initiated transaction
+that is not confirmed-spendable. This does not apply to transparent UTXOs spent
+in wallet-internal shielding transactions, which need only be
+confirmed-shieldable (see `Transparent UTXOs`_), or to the ephemeral
+transparent UTXO spent by the second transaction of a ZIP 320 transfer
+[#zip-0320]_.
 
 Shielded TXOs
 '''''''''''''
@@ -310,25 +365,18 @@ wallet state, if and only if all of the following are true in that state:
 
   * the TXO is not an output of a wallet-internal shielding transaction, and either:
 
-    * it is trusted and has at least the required confirmations for trusted TXOs
-    * it is untrusted and has at least the required confirmations for untrusted TXOs.
+    * it is trusted and has at least `trusted_confirmations` confirmations; or
+    * it is untrusted and has at least `untrusted_confirmations` confirmations.
 
   * the TXO is the output of a wallet-internal shielding transaction, and both:
-  
-    * the transparent UTXOs spent in the shielding transaction have at least
-      `(untrusted_confirmations - trusted_confirmations)` confirmations
+
+    * every transparent UTXO spent in the shielding transaction was produced by
+      a transaction that has at least `untrusted_confirmations` confirmations
+      (or at least `trusted_confirmations` confirmations, if the user has
+      explicitly marked as trusted every transaction that produced such a
+      UTXO; see `Trusted and untrusted TXOs`_); and
     * the wallet-internal shielding transaction has at least `trusted_confirmations`
-      confirmations
-
-A TXO is *unconfirmed-spendable*, relative to a given block chain and
-wallet state, if and only if the TXO is known-spendable but is not
-confirmed-spendable in that state.
-
-A TXO is *watch-only* if and only if the wallet has its full viewing key
-(or address in the case of a transparent TXO) but not its spending key.
-
-A wallet MUST NOT attempt to spend a TXO in a user-initiated transaction
-that is not confirmed-spendable.
+      confirmations.
 
 Transparent UTXOs
 '''''''''''''''''
@@ -340,14 +388,19 @@ wallet state, if and only if all of the following are true in that state:
 * the wallet has sufficient contextual information to be able to effect the
   spend (i.e. it is able to construct a correct redeem script, etc.)
 
+A transparent UTXO is *confirmed-spendable*, relative to a given block chain
+and wallet state, if and only if all of the following are true in that state:
+
+* auto-shielding is not active;
+* the UTXO is confirmed-shieldable; and
+* either it is trusted and has at least `trusted_confirmations` confirmations,
+  or it is untrusted and has at least `untrusted_confirmations` confirmations.
+
 Wallets MAY attempt to spend received transparent UTXOs in wallet-internal
 shielding transactions with zero confirmations. In this case, the resulting
-shielded funds will not be made available for spending until the transaction
-that produced the original transparent UTXOs has at least
-`untrusted_confirmations`, and the shielding transaction has at least
-`trusted_confirmations`. Wallet implementers should take care not to mistake
-the TXOs resulting from shielding transactions as trusted outputs just because
-they are sent to a wallet-internal address.
+shielded funds are not confirmed-spendable until the conditions given in
+`Shielded TXOs`_ hold; they are not trusted merely because they are sent to a
+wallet-internal address.
 
 Reporting of balances
 ---------------------
@@ -364,30 +417,29 @@ Wallets MAY report:
 These are calculated as follows:
 
 * The confirmed-spendable balance is the sum of values of confirmed-spendable
-  TXOs. This balance MAY ignore notes with value less than the ZIP 317
-  marginal fee [#zip-0317]_.
+  TXOs. This balance MAY ignore notes with value less than or equal to the
+  ZIP 317 marginal fee [#zip-0317]_.
 * The pending balance is the sum of values of unconfirmed-spendable TXOs. This
-  balance MAY ignore notes with value less than the ZIP 317 marginal fee
-  [#zip-0317]_, and MUST exercise this option in a way that is consistent
-  with how the confirmed-spendable balance is computed.
+  balance MAY ignore notes with value less than or equal to the ZIP 317
+  marginal fee [#zip-0317]_, and MUST exercise this option in a way that is
+  consistent with how the confirmed-spendable balance is computed.
 * The total balance is the confirmed-spendable balance plus the pending
   balance.
 * The un-economic balance is the total of TXOs that individually have value
-  less than the ZIP 317 marginal fee [#zip-0317]_. Such TXOs can only be spent
-  as "grace inputs" as they do not provide sufficient value to pay the fees
-  required to spend them; wallets MAY ignore the presence of such notes in note
-  selection and balance calculation. If wallets ignore the presence of such
+  less than or equal to the ZIP 317 marginal fee [#zip-0317]_. Such TXOs can
+  only usefully be spent as "grace inputs", as their value does not exceed the
+  fee required to spend them; wallets MAY ignore the presence of such notes in
+  note selection and balance calculation. If wallets ignore the presence of such
   notes, they MUST do so consistently; i.e. wallets MUST NOT report them as
   part of balance that is exposed to the user as spendable or pending if the
   wallet does not provide any mechanism to spend them.
 
-Note: the definition of "confirmed-spendable" above ensures that:
-
-* if auto-shielding is enabled, transparent funds will be reported in
-  the pending or total balance, but not in the confirmed-spendable
-  balance;
-* if the wallet has not synchronized at least the nullifier set to the
-  chain tip, the confirmed-spendable balance will be zero.
+Note: the definitions of "confirmed-spendable" above ensure that, if
+auto-shielding is enabled, transparent funds will be reported in the pending
+or total balance, but not in the confirmed-spendable balance. Since a wallet
+MAY treat TXOs as known-spendable before it has scanned every block up to its
+view of the chain tip, balances computed before that scan completes can
+include TXOs that have since been spent.
 
 If auto-shielding is disabled, the wallet MAY report shielded and
 transparent balances separately. If it does so, it MUST make clear
@@ -413,15 +465,22 @@ migration/usage?
 Reporting of transactions
 -------------------------
 
-If a transaction includes watch-only received TXOs, its watch-only incoming
-balance MUST be reported separately to any potentially known-spendable balance.
+If a transaction includes watch-only received TXOs, the total value of its
+watch-only received TXOs MUST be reported separately to any potentially
+known-spendable balance.
 
 Incoming transactions
 '''''''''''''''''''''
 
-A transaction is incoming if it contains unconfirmed-spendable TXOs.
-Incoming transactions SHOULD be reported with their number of confirmations
-and their balances as described in `Reporting of balances`_.
+A transaction is *received* if the wallet detects in it a TXO paid to one of
+the wallet's addresses or viewing keys (including a watch-only TXO), other than
+change from a transaction that the wallet created. A received transaction is
+*incoming* while it is unmined or any of its received TXOs is
+unconfirmed-spendable.
+
+Received transactions SHOULD be reported with their number of confirmations
+and their balances as described in `Reporting of balances`_; incoming
+transactions SHOULD be marked as pending.
 
 Sent transactions
 '''''''''''''''''
@@ -430,7 +489,7 @@ A transaction is sent if it was either:
 
 * created by the wallet, or
 * detected by using the wallet's outgoing viewing keys to decrypt
-  Sapling or Orchard outputs, or
+  Sapling or Orchard-protocol (Orchard-pool or Ironwood-pool) outputs, or
 * detected as spending a note that was at some time held by the
   wallet by recognizing that note's nullifier, or
 * detected as spending a transparent TXO associated with one of
@@ -440,6 +499,28 @@ Sent transactions SHOULD be reported with their number of confirmations,
 an estimate of how long until they expire (if they are unmined and
 have an expiry height), and their balances as described in
 `Reporting of balances`_.
+
+Resubmission and expiry of transactions
+'''''''''''''''''''''''''''''''''''''''
+
+A wallet SHOULD resubmit a transaction that it created until the transaction
+is mined, expires, or a conflicting transaction (one that spends any of the
+same TXOs) is mined, since nodes might not relay it or might evict it from
+their mempools [#zip-0401]_. Some nodes do not accept or relay a transaction
+that will expire within ``TX_EXPIRING_SOON_THRESHOLD`` blocks of their view of
+the chain tip [#zip-0204]_, so resubmission that close to expiry might not be
+effective.
+
+A transaction with nonzero ``nExpiryHeight`` $N$ cannot be mined in a block at
+height greater than $N$ [#zip-0203]_. A wallet SHOULD treat such a transaction
+as expired only once its view of the chain tip is at height $N$ or greater and
+the transaction is not mined in that chain. If a rollback then takes the
+wallet's view of the chain tip below height $N$ then the transaction is no
+longer expired. A transaction with ``nExpiryHeight`` = 0 does not expire.
+
+When a transaction expires, the wallet SHOULD notify the user [#zip-0203]_,
+and the TXOs it spent become available to other transactions, subject to
+`Note selection`_.
 
 
 Display of voluntary fund removal
@@ -490,9 +571,21 @@ that send funds out of the wallet.
 Kinds of information leakage
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Transaction version (v4 or v5, as of NU5)
+* Transaction version (v4 or v5 as of NU5; v4, v5 or v6 as of NU6.3; v5 or v6
+  as of NU7)
 
-It is RECOMMENDED to use v5 transactions unless Sprout funds are being spent.
+Before NU6.3 activation, it is RECOMMENDED to use v5 transactions unless Sprout
+funds are being spent.
+
+From NU6.3 activation, it is RECOMMENDED to use v6 transactions. Ironwood-pool
+Actions occur only in v6 transactions [#zip-0229]_, so a transaction that pays
+an Orchard receiver (see `Payments to Orchard receivers`_) is necessarily v6.
+A v5 transaction MAY be used when a signer supports only v5, for example a
+hardware wallet signing an Orchard-to-transparent transaction
+[#zip-0229-requirements]_; such a transaction is distinguishable from a v6
+transaction. Before NU7 activation, v4 transactions are needed only to spend
+Sprout funds; from NU7 activation, v4 transactions are invalid and Sprout funds
+cannot be spent [#zip-0259]_ [#zip-2003]_.
 
 * Lock time (rarely used; may be a distinguisher if it is)
 
@@ -518,7 +611,8 @@ See `Linkability of transactions or addresses`_.
 
 TODO: we SHOULD try to create fully shielded transactions where possible.
 
-* Numbers of JoinSplits, Spends, Outputs, and Actions
+* Numbers of JoinSplits, Spends, Outputs, Orchard-pool Actions, and
+  Ironwood-pool Actions
 
   * This could correlate with other information under certain circumstances.
     For example in a “dusting attack”, the adversary sends a victim lots of
@@ -538,10 +632,16 @@ TODO: we SHOULD try to create fully shielded transactions where possible.
 * For coinbase transactions, the amounts / destination addresses / memos of
   shielded outputs
 
-* Orchard flags (enableSpends/enableOutputs)
+* Orchard-protocol bundle flags (enableSpends/enableOutputs/enableCrossAddress)
+  of the Orchard-pool and Ironwood-pool bundles
 
-  * Under normal circumstances these only depend on whether the transaction
-    is coinbase.
+  * Under normal circumstances enableSpends and enableOutputs only depend on
+    whether the transaction is coinbase.
+  * From NU6.3 activation, coinbase transactions have no Orchard-pool Actions,
+    and enableCrossAddress is 0 in every Orchard-pool bundle [#zip-0258]_.
+  * The enableCrossAddress flag SHOULD be 1 in every Ironwood-pool bundle, so
+    that transfers to the same address as the notes spent cannot be
+    distinguished from payments.
 
 
 Linkability of transactions or addresses
@@ -559,8 +659,10 @@ If multiple UTXOs are received at the same transparent address, it is safe
 to shield them all in the same transaction, because that is not leaking
 additional information.
 
-UTXOs received on different transparent receivers SHOULD NOT be shielded
-in the same transaction. Ideally, when they are shielded in separate
+Shielding UTXOs received at different transparent addresses in the same
+transaction would link those addresses, and hence any diversified Unified
+Addresses that contain them as transparent receivers; this is ruled out in
+`Long-term storage of funds`_. Ideally, when they are shielded in separate
 transactions, this should be done in such a way that the timing of those
 transactions is not linkable.
 
@@ -572,21 +674,37 @@ When spending transparent UTXOs, they SHOULD only be sent to an internal
 shielded receiver belonging to the wallet, except when they are generated
 and spent ephemerally as part of a ZIP 320 transfer [#zip-0320]_.
 
-A wallet MUST NOT send funds to a transparent address unless all of the
-source funds come from shielded pools, and this SHOULD be a single shielded
-pool.
+A wallet MUST NOT send funds to a transparent address, including a TEX address
+[#zip-0320]_, unless all of the funds being sent come from shielded pools, and
+these SHOULD come from a single shielded pool. For a ZIP 320 transfer, the
+funds being sent are those spent by its first transaction; the second
+transaction, which spends the ephemeral transparent output to the TEX address,
+conforms if the first does.
 
 We want to minimize pool crossing.
+
+Payments to Orchard receivers
+'''''''''''''''''''''''''''''
+
+From NU6.3 activation, a payment to an Orchard receiver MUST be made as an
+Ironwood-pool output, which requires a v6 transaction [#zip-0229]_. This
+follows from the requirement to use the most preferred Receiver of a Unified
+Address that the sender supports [#zip-0316]_, the requirement that a wallet
+not send funds to any external receiver in the Orchard pool after NU6.3
+activation [#zip-0326]_, and the consensus rules that disable cross-address
+transfers within the Orchard pool and prevent value from entering it
+[#zip-0258]_.
 
 Anchor selection
 ''''''''''''''''
 
-A wallet SHOULD choose an anchor a number of blocks back from the head of the
-chain equal to the trusted confirmation depth. That is, if the current block
-is at height H, the anchor SHOULD reflect the final treestate of the block at
-height H-3.
-
-TODO: Define a parameter for this depth, and then RECOMMEND a value of 3.
+Let $H$ be the target height of a transaction, i.e. the height of the block in
+which it is expected to be mined. This is normally $T + 1$ where $T$ is the
+height of the wallet's view of the chain tip. A wallet SHOULD choose as anchor
+the final treestate of the block at height $H$ − `trusted_confirmations`, which
+with the RECOMMENDED policy is the block at height $T - 2$ in the normal case.
+This makes every trusted TXO with at least `trusted_confirmations`
+confirmations spendable.
 
 
 Rationale for anchor selection
@@ -595,10 +713,9 @@ Rationale for anchor selection
 * If the chain rolls back past the block at which the anchor is chosen, then
   the anchor and the transaction will be invalidated. This is undesirable
   both for reliability, and because the nullifiers of spent shielded notes
-  will have been revealed, linking this transaction to any future transactions
-  that spend those notes.
-
-  TODO: Reword this given the proposed note management mitigation below.
+  will have been revealed, which could link this transaction to future
+  transactions that spend those notes (see `Note selection`_ for the
+  mitigation).
 * On the other hand, it is undesirable to choose an anchor too many blocks
   back, because that prevents more recently received shielded notes from
   being spent.
@@ -611,13 +728,33 @@ Rationale for anchor selection
 Note selection
 ''''''''''''''
 
-TODO: recommend that when nullifiers are revealed in a transaction that is then
-invalidated (or revealed in some other detectable way), they SHOULD be used in
-a note management tx to avoid linking the invalidated tx with some arbitrary
-future tx. Provided that there are no transparent outputs leaving this wallet's
-control, the same arities and transparent outputs SHOULD be preserved, which
-also avoids revealing whether the user changed their mind about whether to send
-the original semantic transaction.
+The nullifiers of notes are *revealed* when a transaction that spends them is
+broadcast (to the network or to a light wallet server), included in a block,
+or otherwise disclosed to another party.
+
+When a transaction created by the wallet is invalidated after it has revealed
+the nullifiers of notes (for example, because it expired, or because the chain
+rolled back past its anchor), the wallet SHOULD spend those notes in a note
+management transaction to an internal receiver, before using them in any other
+transaction. This avoids linking the invalidated transaction with some
+arbitrary future transaction.
+
+Provided that no transparent output of the invalidated transaction leaves the
+wallet's control, the note management transaction SHOULD preserve the numbers
+of spends and outputs in each pool, and the transparent outputs, of the
+invalidated transaction. This also avoids revealing whether the user changed
+their mind about whether to send the original semantic transaction. (Shielded
+outputs to other parties can be replaced by outputs of the same value to an
+internal receiver without this being detectable.)
+
+If a transparent output of the invalidated transaction leaves the wallet's
+control (for example, a payment to a transparent or TEX address), then
+re-creating that output would make the payment, which requires the user's
+consent. For this purpose, an output to an ephemeral address of a ZIP 320
+transfer [#zip-0320]_ leaves the wallet's control, since it exists only to pay
+the TEX address. If the user does not consent to making the payment, the
+note management transaction SHOULD send the funds to an internal shielded
+receiver.
 
 
 Expiration height
@@ -642,148 +779,189 @@ TODO: dusting attack mitigation
 Network-layer privacy
 ---------------------
 
+A server or network operator that sees the IP address from which a transaction
+is broadcast can correlate that address with the transaction on chain, and so
+with any amounts that the transaction reveals (for example, by crossing pools).
+
+* A wallet SHOULD offer to connect to light wallet servers through an
+  anonymity network such as Tor. When this is enabled, the wallet SHOULD route
+  transaction broadcasts through that network.
+* A wallet SHOULD NOT broadcast a transaction over the same connection or
+  circuit as a synchronization that may identify the wallet, and SHOULD use a
+  separate circuit for each broadcast, so that its transactions cannot be
+  linked by their origin. A wallet MAY broadcast to a different server from
+  the one it uses for synchronization.
+* Before broadcasting a transaction that reveals amounts without network-layer
+  privacy, a wallet SHOULD inform the user of this correlation risk.
+
+ZIP 318 imposes stricter requirements for the broadcast of migration
+transactions [#zip-0318-network-layer-privacy]_.
+
 
 Viewing keys
 ------------
 
-What they are supposed to reveal; see ZIP 310 for Sapling (needs updating for
-Orchard). https://github.com/zcash/zips/issues/606
+What they are supposed to reveal; see ZIP 310 [#zip-0310]_ for Sapling (needs
+updating for Orchard). https://github.com/zcash/zips/issues/606
 
 
 Auto-migration
 --------------
 
+Auto-migration is a time-triggered action, not a receipt-triggered action.
+Receipt of a shielded payment MUST NOT trigger any on-chain behaviour, as that
+reveals transaction linkability; in particular, an auto-migration transaction
+MUST NOT be created as a direct result of a payment being received.
+
+A wallet MAY also perform opportunistic migration: if it is making a
+user-initiated transaction that spends from an older pool anyway, it can
+migrate as much as it would in an auto-migration transaction, which saves a
+transaction. This is subject to
+`Information leakage for transfers between pools`_, and does not apply to
+shielding, since opportunistic shielding is ruled out in
+`Long-term storage of funds`_.
+
+Migration of funds from the Orchard pool to the Ironwood pool after NU6.3
+activation is specified in ZIP 318 [#zip-0318]_.
+
 
 Information leakage for transfers between pools
 -----------------------------------------------
 
+When the funds in a single shielded pool suffice for a transfer, a wallet
+SHOULD spend from that pool alone.
 
-If no auto-migration, if you can satisfy a transfer request to Sapling from your
-Sapling funds, do so.
+A transaction that moves value between shielded pools (including by spending
+notes from more than one pool) reveals the amount crossing between those pools
+publicly, as opposed to revealing it only to the holder of a viewing key
+authorized to see that amount. A wallet MUST NOT create such a transaction
+unless the user has consented to revealing that amount, either for that
+transaction or through a configured privacy policy that permits revealed
+amounts (see `User consent`_). Consent for a single transaction can be
+obtained at the transaction confirmation step, provided that the wallet
+discloses there that the transaction crosses pools and the amount that will
+be revealed. In particular, wallets MUST NOT automatically combine funds
+across pools to satisfy a transfer without such consent, since that could
+reveal the total funds the user holds in some pool.
 
-The user's consent is needed to reveal amounts publically (as opposed
-to revealing them to the holder of a viewing key authorized to see that
-amount). Therefore, there should be per-transaction opt-in for any
-transfer that publically reveals amounts on chain.
-
-* there may be a compatibility issue for amount-revealing cross-pool txns that were
-  previously allowed without opt-in
-
-Wallets MUST NOT automatically combine funds across pools to satisfy a transfer
-(since that could reveal the total funds the user holds in some pool).
+The Orchard pool and the Ironwood pool are distinct pools for this purpose
+[#zip-0229]_. From NU6.3 activation, cross-address transfers within the Orchard
+pool are disabled [#zip-0258]_, so a payment to a shielded address of another
+party that is funded from Orchard-pool notes always crosses pools and requires
+this consent; see also ZIP 318 [#zip-0318]_.
 
 In order to maintain the integrity of IVK guarantees, wallets should not generate
 unified addresses that contain internal receivers, nor expose internal receivers
 (such as those used for auto-shielding and change outputs) in any way.
 
-Open questions:
+Change outputs
+''''''''''''''
 
-* should there be an auto-migration option from Sapling to Orchard?
+Change SHOULD be sent to an internal receiver of the account that funds the
+transaction, in a shielded pool that the transaction already spends from or
+sends to, in order to avoid an additional pool crossing. From NU6.3 activation,
+the following also apply:
 
-str4d notes
-'''''''''''
-
-If we want to have both automatic and opportunistic shielding, and keep the two
-indistinguishable, then we can't auto-shield when the transparent balance reaches
-some threshold (otherwise opportunistic would either never be used, or would be
-identifiable when it uses the balance below the threshold).
-
-Instead, a proposition: we define a distribution of "time since last payment to the
-address" from which we sample the time at which the auto-shielding transaction will
-be created. This distribution is weighted by the balance in the address, so as more
-funds accrue, the auto-shielding transaction is more likely to be created.
-
-- It ensures that all funds will eventually be auto-shielded, while preventing
-  fee-dusting attacks (where dust is sent in order to repeatedly consume fees from
-  the wallet), as the auto-shielding transaction is not directly triggered by payment
-  receipt.
-
-- If the user makes a shielding transaction in the meantime, we opportunistically
-  shield, without it being clearly not an auto-shielding transaction.
-
-- If a wallet is offline for a long time, then it would likely auto-shield as soon as
-  it finishes syncing. This maybe isn't enough to reveal that the wallet came online,
-  except that it _might_ result in auto-shielding transactions for multiple
-  transparent addresses being created at the same time. So we might want to
-  special-case this?
-
-Properties we want from auto-shielding:
-
-- Auto-shielding transactions MUST NOT shield from multiple transparent receivers in
-  the same transaction.
-  - Doing so would trivially link diversified UAs containing transparent receivers.
-
-Properties we want from auto-migration:
-
-- Receipt of a shielded payment MUST NOT trigger any on-chain behaviour (as that
-  reveals transaction linkability).
-
-Both auto-shielding and auto-migration are time-triggered actions, not
-receipt-triggered actions. An auto-shielding or auto-migration transaction MUST NOT
-be created as a direct result of a payment being received.
-
-Both of these are opportunistic: if the user's wallet is making a transaction in
-which one of these actions would occur anyway, then the wallet takes the opportunity
-to migrate as much as it would do if it were generating an autoshielding transaction.
-This both saves on a transaction, and removes the need for any kind of transparent
-change address within UAs.
-
-TODO: what pool should change go to?
-
-* Proposal: the most recent pool already involved in the transaction.
+* Change MUST NOT be sent to an external receiver in the Orchard pool
+  [#zip-0326]_.
+* Change can be sent to an internal receiver in the Orchard pool only in an
+  Action whose spent note (which can be a dummy note) is at that same
+  receiver, and only if the transaction's ``valueBalanceOrchard`` is
+  nonnegative [#zip-0258]_.
+* Change from a transaction that spends Orchard-pool notes, if it is not sent
+  to the Orchard pool as above, SHOULD be sent to the Ironwood pool, even if
+  the transaction does not otherwise involve that pool.
 
 Wallet Recovery
 ---------------
 
-In the case where we are recovering a wallet from a backed-up mnemonic phrase,
-and not from a wallet.dat, we don't have enough information to figure out what
-receiver types the user originally used when deriving each UA under an account.
-We have a similar issue if someone exports a UFVK, derives an address from it,
-and has a payment sent to the address: zcashd will detect the payment, but has
-no way to figure out what address it should display in the UI. A wallet could
-store this information in the memo field of change outputs, but that adds a
-bunch of coordination to the problem, and assumes ongoing on-chain state
-storage.
+When a wallet is restored from a seed, rather than from a backup of the
+wallet's own data, it does not have enough information to determine which
+receiver types the user originally used when deriving each Unified Address
+under an account. There is a similar issue when a UFVK is exported, an address
+is derived from it, and a payment is sent to that address: a wallet holding the
+UFVK will detect the payment, but cannot determine which Unified Address it
+should display. A wallet could store this information in the memo field of
+change outputs, but that adds a bunch of coordination to the problem, and
+assumes ongoing on-chain state storage.
 
-- If the receiver matches an address that the wallet knows was derived via
-  ``z_getaddressforaccount``, show that UA as expected (matching the receiver
-  types the user selected).
-- If the receiver matches a UFVK in the wallet, and we are looking it up
-  because we detected a received note in some block, show the UA with the
-  default receiver types that zcashd was using as of that block height
-  (ideally the earliest block height we detect), and cache this for future
-  usage.
-- For zcashd's current policy of "best and second-best shielded pools, plus
-  transparent pool", that would mean Orchard, Sapling, and transparent for
-  current block heights.
-- For each release of a wallet, the wallet should specify a set of receiver
+- If the receiver matches an address that the wallet knows it derived (for
+  example, with receiver types that the user selected), the wallet SHOULD show
+  that Unified Address.
+- For each release of a wallet, the wallet SHOULD specify a set of receiver
   types and an associated range of block heights during which the wallet
-  will, by default, generate unified addresses using that set of receiver
+  will, by default, generate Unified Addresses using that set of receiver
   types.
-- For zcashd we know how the policy evolves because each zcashd release has
-  an approximate release height and End-of-Service height that defines the window.
 - Subsequent releases of a wallet SHOULD NOT retroactively change their
   policies for previously defined block height ranges.
+- If the receiver matches a UFVK in the wallet, and the wallet is looking it
+  up because it detected a received note in some block, the wallet SHOULD show
+  the Unified Address with the receiver types given by its policy for that
+  block height (ideally the earliest block height at which it detects the
+  receiver), and cache this for future usage.
 - If the receiver type for a note received at a given time is not a member
   of the set of receiver types expected for the range of block heights, the
   policy corresponding to the nearest block height range that includes that
   receiver type SHOULD be used.
-- If the receiver matches a UFVK in the wallet, and we have no information
-  about when this receiver may have been first used, show the UA
-  corresponding to the most recent receiver types policy that includes the
-  receiver's type.
-- As part of this, we're also going to change the "Sapling receiver to
-  UfvkId" logic to trial-decrypt after trying internal map, so that we will
-  detect all receivers linked to UFVKs in the wallet, not just receivers in
-  addresses generated via z_getaddressforaccount. The internal map lookup
-  is then just an optimisation (and a future refactor to have Orchard do
-  the same is possible, but for now we will only trial-decrypt so we don't
-  need to refactor to access the Rust wallet). TODO: express this in a less
-  zcashd-specific way.
+- If the receiver matches a UFVK in the wallet, and the wallet has no
+  information about when this receiver may have been first used, it SHOULD
+  show the Unified Address corresponding to the most recent receiver types
+  policy that includes the receiver's type.
+- A wallet that restores a seed created by another implementation does not
+  know that implementation's policy, and SHOULD apply its own policy as above.
+- A wallet SHOULD recognize every Sapling or Orchard receiver derived from a
+  UFVK in the wallet, not only the receivers of addresses that it has recorded
+  deriving; for example, by decrypting the receiver's diversifier with the
+  UFVK's diversifier key to obtain its diversifier index, and checking that
+  the receiver is derived from the UFVK at that index. A lookup of recorded
+  receivers is then only an optimisation.
+
+From NU6.3 activation, the Orchard receiver at a given diversifier index
+depends on the account's `use_qsk` value, which is not known when restoring
+from seed; the wallet then scans with both values, as specified in ZIP 326
+[#zip-0326-restoring-from-seed]_. Until the wallet has determined `use_qsk` for
+the account, the Orchard receiver to show in a reconstructed Unified Address is
+undetermined.
+
+Transparent address recovery
+''''''''''''''''''''''''''''
+
+Transparent addresses derived from a ZIP 32 seed use the BIP 44 path
+``m/44'/coin_type'/account'/scope/index`` [#bip-0044]_, where:
+
+* scope 0 is used for external addresses, including the transparent receivers
+  of Unified Addresses, for which the index is the diversifier index
+  [#zip-0316-deriving-a-unified-address]_;
+* scope 1 is used for internal addresses, such as change
+  [#zip-0316-deriving-internal-keys]_;
+* scope 2 SHOULD be used for the ephemeral addresses of ZIP 320 transfers
+  [#zip-0320]_, so that they can be recovered from the seed and do not collide
+  with external or internal addresses.
+
+For each scope, a wallet uses a *gap limit*: the number of consecutive indices,
+beyond the highest index that has received funds, at which it will generate
+addresses. The gap limit counts BIP 44 child indices, not Unified Addresses; an
+index that is skipped because it does not give a valid Sapling diversifier
+still counts.
+
+* A wallet SHOULD NOT generate or expose a transparent address at an index that
+  is more than the gap limit beyond the highest index in that scope that has
+  received funds.
+* When recovering from a seed, a wallet SHOULD look for funds at each index in
+  each scope, in order, until it finds a run of consecutive indices that have
+  not received funds whose length is the gap limit.
+* The RECOMMENDED gap limits are 10 for external addresses, 5 for internal
+  addresses, and 10 for ephemeral addresses.
+
+A restoring wallet that uses smaller gap limits than the wallet that created
+the seed can fail to find transparent funds. Independently of the gap limits,
+all wallets MUST assume that there may be transparent funds associated with
+diversifier index 0 for each ZIP 32 account
+[#zip-0316-deriving-a-unified-address]_.
 
 TODO: Mention recommendations (not requirements) of receiver types based on
-settled ('accepted') network upgrades, as defined in §3.3 of the
-Zcash Protocol Specification, at the time of the release of the wallet.
+settled ('accepted') network upgrades, as defined in [#protocol-blockchain]_,
+at the time of the release of the wallet.
 
 TODO: Rationale subsection explaining why earliest block height at detection
 and the rules/recommendations in place at that block height are preferred
@@ -793,15 +971,30 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-blockchain] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#bip-0039] `BIP 39: Mnemonic code for generating deterministic keys <https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki>`_
+.. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#slip-0039] `SLIP 39: Shamir's Secret-Sharing for Mnemonic Codes <https://github.com/satoshilabs/slips/blob/master/slip-0039.md>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
 .. [#zip-0032-wallet-seeds] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet seeds <zip-0032.rst#specification-wallet-seeds>`_
 .. [#zip-0032-wallet-usage] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet usage <zip-0032.rst#specification-wallet-usage>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
+.. [#zip-0204] `ZIP 204: Zcash P2P Network Protocol <zip-0204.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0229-requirements] `ZIP 229: Version 6 Transaction Format — Requirements <zip-0229.md#requirements>`_
 .. [#zip-0233] `ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation <zip-0233.md>`_
 .. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
+.. [#zip-0310] `ZIP 310: Security Properties of Sapling Viewing Keys <zip-0310.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
-.. [#zip-0316-deriving-a-unified-address] `ZIP 316: Unified Addresses and Unified Viewing Keys — Deriving a Unified Address from a UIVK <zip-0316-deriving-a-unified-address-from-a-uivk.rst>`_
+.. [#zip-0316-deriving-internal-keys] `ZIP 316: Unified Addresses and Unified Viewing Keys — Deriving Internal Keys <zip-0316.rst#deriving-internal-keys>`_
+.. [#zip-0316-deriving-a-unified-address] `ZIP 316: Unified Addresses and Unified Viewing Keys — Deriving a Unified Address from a UIVK <zip-0316.rst#deriving-a-unified-address-from-a-uivk>`_
 .. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
+.. [#zip-0318] `ZIP 318: Orchard to Ironwood Migration <zip-0318.md>`_
+.. [#zip-0318-network-layer-privacy] `ZIP 318: Orchard to Ironwood Migration — Network-layer privacy <zip-0318.md#network-layer-privacy>`_
 .. [#zip-0320] `ZIP 320: Defining an Address Type to which funds can only be sent from Transparent Addresses <zip-0320.rst>`_
+.. [#zip-0326] `ZIP 326: NU6.3 Consequences for Wallets <zip-0326.md>`_
+.. [#zip-0326-restoring-from-seed] `ZIP 326: NU6.3 Consequences for Wallets — Scanning when restoring from seed <zip-0326.md#scanning-when-restoring-from-seed>`_
+.. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
+.. [#zip-2003] `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`_

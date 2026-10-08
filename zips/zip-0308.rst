@@ -13,9 +13,9 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to
-be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they
-appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
 
 The terms below are to be interpreted as follows:
 
@@ -47,12 +47,13 @@ funds from Sprout to Sapling.
 
 The Zcash consensus rules prohibit direct transfers from Sprout to Sapling
 z-addresses, unless the amount is revealed by sending it through the
-"transparent value pool" [#transparent-value-pool]_. The primary motivation
-for this is to allow detection of any overall inflation of the Zcash monetary
-base, due to exploitation of possible vulnerabilities in the shielded
-protocols or their implementation, or a compromise of the Sprout multi-party
-computation. (It is not necessary for Sprout -> Sapling transfers to go via
-a t-address.)
+"transparent transaction value pool" [#protocol-transactions]_
+[#protocol-joinsplitbalance]_ [#protocol-saplingbalance]_. The primary
+motivation for this is to allow detection of any overall inflation of the
+Zcash monetary base, due to exploitation of possible vulnerabilities in the
+shielded protocols or their implementation, or a compromise of the Sprout
+multi-party computation. (It is not necessary for Sprout -> Sapling transfers
+to go via a t-address.)
 
 Since the exposure of the migrated amount potentially compromises the privacy
 of users, we wish to define a way to perform the migration that mitigates
@@ -74,7 +75,8 @@ other than possibly increasing the latency of some other shielded operations.
 It is possible to enable or disable migration at any time.
 
 All shielded funds in Sprout z-addresses will eventually be transferred to
-Sapling z-addresses, provided the node is working.
+Sapling z-addresses, provided the node is working and the migration completes
+before NU7 activation (see `Network Upgrade 7`_).
 
 It should take a "reasonable" length of time to complete the transfer;
 less than a month for amounts up to 1000 ZEC.
@@ -141,6 +143,10 @@ Nodes SHOULD NOT send migration transactions during initial block download, or
 if the timestamp of the triggering block (with height 499, modulo 500) is more
 than three hours in the past according to the node's adjusted local clock.
 
+A node MUST NOT send a migration batch whose transactions would have an
+``nExpiryHeight`` greater than or equal to the activation height of the next
+network upgrade; that batch is skipped.
+
 Note: the 500-block interval has *not* been altered as a result of the halving
 of target block spacing to 75 seconds with the Blossom upgrade. [#zip-0208]_
 
@@ -152,7 +158,10 @@ height N, implementations SHOULD start generating the transactions at around
 height N-5 (provided that block's timestamp is not more than three hours in
 the past). Each migration transaction SHOULD specify an anchor at height N-10
 for each Sprout JoinSplit description (and therefore only notes created before
-this anchor are eligible for migration).
+this anchor are eligible for migration). (This anchor was never implemented in
+``zcashd``. From v5.0.0, ``zcashd`` uses the anchor of the block that has
+``-anchorconfirmations`` confirmations (by default 3) when the transactions are
+generated, and it selects only notes with at least 11 confirmations.)
 
 Open questions:
 
@@ -205,6 +214,16 @@ spacing change in Blossom.)
 The simulation also depends on the amounts sent as specified in the next
 section. It includes the time spent waiting for the first batch to be sent.
 
+The simulation assumes that successive batches contain 1, 2, 4, 5, 5, ...
+transactions, as if each transaction left two eligible change notes. With the
+change handling described in `Other design decisions`_, each migration
+transaction spends at least one note and leaves at most one change note,
+which is eligible only in a later batch, so no batch has more transactions
+than the number of Sprout notes that the wallet held when migration started,
+plus any it receives later. A wallet that holds a single Sprout note sends one
+transaction per batch; for 1000 ZEC its median time to complete migration is
+then about 30 days under the same simulation model.
+
 The code used for this simulation is at [#migration-simulator]_.
 
 .. raw:: html
@@ -229,8 +248,8 @@ Implementations MAY optimize this procedure by selecting the exponent and
 mantissa based on the amount remaining to avoid repetition, but the resulting
 distribution MUST be identical.
 
-The amount chosen *includes* the 0.0001 ZEC fee for this transaction, i.e.
-the value of the Sapling output will be 0.0001 ZEC less.
+The amount chosen *includes* the fee for this transaction, i.e. the value of
+the Sapling output will be the amount less that fee.
 
 Rationale for how much to send
 ''''''''''''''''''''''''''''''
@@ -269,14 +288,23 @@ handling. Change is sent back to the default address, which is the z-address
 of the first selected Sprout note. The number of JoinSplits will therefore be
 the same as for a normal transaction sending the same amount with the same
 wallet state. Only the ``vpub_new`` of the last JoinSplit will be nonzero.
-There will always be exactly one Sapling Output.
+There is exactly one Sapling Output carrying value. A builder that pads Sapling
+bundles adds zero-value dummy outputs; from v5.9.0, ``zcashd`` pads to two
+Sapling Outputs.
+
+Migration transactions are version 4 transactions, since only version 4
+supports both Sprout JoinSplit descriptions and Sapling Outputs.
 
 The expiry delta for migration transactions MUST be 450 blocks. Since these
 transactions are sent when the block height is 499 modulo 500, their expiry
 height will be 451 blocks later, i.e. ``nExpiryHeight`` will be 450 modulo 500.
 
-The fee for each migration transaction MUST be 0.0001 ZEC. This fee is taken
-from the funds to be migrated.
+The fee for each migration transaction MUST be at least the conventional fee
+specified in ZIP 317 [#zip-0317]_ for that transaction. This fee is taken from
+the funds to be migrated. (From v6.0.0, ``zcashd`` pays the ZIP 317 fee for
+2n + 2 logical actions, where n is the number of Sprout notes spent; this is an
+upper bound on the number of logical actions. Earlier versions paid a fixed fee
+of 0.0001 ZEC, or from v4.2.0, 0.00001 ZEC [#zip-0313]_.)
 
 Some wallets by default add a "developer fee" to each transaction, directed
 to the developer(s) of the wallet. This is typically implemented by adding
@@ -296,6 +324,16 @@ SHOULD be chosen in the same way as for a transfer sent from a t-address.
 
 A node SHOULD treat migration transactions in the same way as transactions
 submitted over the RPC interface.
+
+
+Network Upgrade 7
+-----------------
+
+ZIP 259 [#zip-0259]_ proposes to deploy ZIP 2003 [#zip-2003]_ in NU7. ZIP 2003
+makes version 4 transactions invalid, so from NU7 activation migration
+transactions cannot be mined, and funds remaining in the Sprout pool become
+unspendable. Nodes MUST NOT send migration transactions for target heights at
+or after NU7 activation. Users need to complete migration before then.
 
 
 Open questions
@@ -344,7 +382,10 @@ The destination z-address can optionally be set by another option::
   -migrationdestaddress=<zaddr>
 
 If this option is not present then the migration destination address is
-the address for Sapling account 0, with the default diversifier [#zip-0032]_.
+the address with the default diversifier for the Sapling key at path
+``m_Sapling/32'/coin_type'/0x7FFFFFFF'/0'`` (the ``zcashd`` "legacy" Sapling
+account) [#zip-0032]_. (Before v4.7.0, ``zcashd`` used the address for Sapling
+account 0, with the default diversifier.)
 
 The state variable can also be set for a running node using the following
 RPC method::
@@ -373,16 +414,23 @@ Returns::
     "migration_txids": [txids]
   }
 
-The ``destination_address`` field MAY be omitted if the ``-migrationaddress``
-parameter is not set and no default address has yet been generated.
+The ``destination_address`` field MAY be omitted if the
+``-migrationdestaddress`` parameter is not set and no default address has yet
+been generated.
 
-The values of ``unmigrated_amount`` and ``migrated_amount`` MUST take into
-account failed transactions, that were not mined within their expiration
-height.
+The value of ``unmigrated_amount`` is the total value of Sprout notes for which
+the wallet holds the spending key and that are not spent by any mined or mempool
+transaction. It MUST take into account failed transactions, that were not mined
+within their expiration height: a note spent only by such transactions is
+counted as unmigrated. (A failed migration transaction is never finalized, so
+``zcashd`` continues to count its value in ``unfinalized_migrated_amount``.)
 
 The values of ``unfinalized_migrated_amount`` and ``finalized_migrated_amount``
 are the total amounts sent to the Sapling destination address in migration
 transactions, excluding fees.
+
+The value of ``finalized_migration_transactions`` is the number of migration
+transactions (as defined below) that are finalized.
 
 ``migration_txids`` is a list of strings representing transaction IDs of all
 known migration transactions involving this wallet, as lowercase hexadecimal
@@ -422,13 +470,28 @@ The following PRs implement this specification:
 * https://github.com/zcash/zcash/pull/4002 (minor RPC improvements)
 * https://github.com/zcash/zcash/pull/4005 (change expiry for migration transactions)
 
+Later PRs changed its behaviour as described in this specification:
+
+* https://github.com/zcash/zcash/pull/4025 (skip batches that would expire after a network upgrade)
+* https://github.com/zcash/zcash/pull/4916 (fee reduced to 0.00001 ZEC)
+* https://github.com/zcash/zcash/pull/5306 (default destination in the legacy Sapling account)
+* https://github.com/zcash/zcash/pull/5917 (Sprout anchor at ``-anchorconfirmations`` depth)
+* https://github.com/zcash/zcash/pull/6784 (Sapling builder that pads to two Sapling Outputs)
+* https://github.com/zcash/zcash/pull/6900 (fee of at least the ZIP 317 conventional fee)
+
 
 References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#transparent-value-pool] `Zcash Protocol Specification, Version 2020.1.15. Sections 3.4, 4.11 and 4.12 <protocol/protocol.pdf>`_
+.. [#protocol-transactions] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
+.. [#protocol-joinsplitbalance] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.12: Balance (Sprout) <protocol/protocol.pdf#joinsplitbalance>`_
+.. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.13: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
+.. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
+.. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
+.. [#zip-2003] `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`_
 .. [#migration-simulator] `Sprout -> Sapling migration simulation <https://github.com/daira/zcash-migration>`_

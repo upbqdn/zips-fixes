@@ -10,7 +10,7 @@
            Francisco Gindre
   Status: [Revision 0] Active, [Revision 1: NU6.3] Draft, [Revision 2] Draft
   Category: Standards / Wallet
-  Obsoletes: ZIP 313
+  Obsoletes: 313
   Created: 2022-08-15
   Last-Updated: 2026-06-26
   License: MIT
@@ -73,8 +73,9 @@ Requirements
   and/or outputs.
 * Users should not be penalised for sending transactions constructed
   with padding of inputs and outputs to reduce information leakage.
-  (The default policy employed by zcashd and the mobile SDKs pads to
-  two inputs and two outputs for each shielded pool used by the transaction).
+  (The default policy of the reference wallet transaction builders pads
+  Sapling bundles to at least two outputs, and Orchard and Ironwood bundles
+  to at least two Actions; Sapling spends are not padded.)
 * Users should be able to spend a small number of UTXOs or notes with value
   below the marginal fee per input.
 * The conventional fee should not leak private information used in
@@ -107,8 +108,9 @@ Revisions
 
 .. _`Revision 1`:
 
-* Revision 1: Adds a contribution for *Ironwood-pool* [#zip-0229]_ Actions, to
-  be enacted at NU6.3 which introduces the *Ironwood pool* [#zip-0258]_ [#Ironwood-book]_.
+* Revision 1: Adds a contribution for *Ironwood-pool* [#zip-0229]_ Actions, in
+  effect from the activation of NU6.3, which introduced the *Ironwood pool*
+  [#zip-0258]_ [#Ironwood-book]_.
 
 .. _`Revision 2`:
 
@@ -175,6 +177,15 @@ Input                                         Units  Description
 :math:`\mathit{nA\kern-0.1em ctionsOrchard}`  number the number of Orchard actions
 ============================================= ====== ====================================================================
 
+A V7 transaction [#zip-0248]_ has no ``tx_in`` field. For such a transaction,
+$\mathit{tx\_in\_total\_size}$ is the sum over its transparent inputs of
+$40 + \mathit{size}(\mathtt{scriptSigLen}) + \mathtt{scriptSigLen} + \mathtt{sizeSighashInfo} - 1$
+bytes, where $\mathit{size}(\mathtt{scriptSigLen})$ is the length of the
+``compactSize`` encoding of ``scriptSigLen``. That is, an input is counted at
+the size of its v5 encoding, plus the size of any ``associatedData`` in its
+``sighashInfo``. Similarly, $\mathit{tx\_out\_total\_size}$ is the total size
+in bytes of the ``tx_out`` field of its transparent effecting data.
+
 As of `Revision 1`_, the $\mathit{logical\_actions}$ sum additionally includes
 a contribution for Ironwood-pool [#zip-0229]_ Actions, which use the same
 Action structure as Orchard-pool Actions:
@@ -194,6 +205,15 @@ Input                                         Units  Description
 ============================================= ====== ====================================================================
 :math:`\mathit{nA\kern-0.1em ctionsIronwood}` number the number of Ironwood actions
 ============================================= ====== ====================================================================
+
+From NU6.3, every *Orchard-pool* Action has cross-address transfers disabled,
+so its output goes to the receiver of the note it spends [#zip-0258]_. Wallets
+therefore pair each real spend with a fabricated output, and each real output
+with a fabricated spend [#zip-0318]_. An Orchard-pool bundle with $s$ spends and
+$o$ outputs then has $s + o$ Actions, and pays for $s + o$ logical actions
+rather than the $\mathsf{max}(s, o)$ of a Sapling or Ironwood-pool bundle. The
+formula still charges every Action the same; the difference comes from the
+bundle shape that NU6.3 requires.
 
 As of `Revision 2`_ (draft), the $\mathit{logical\_actions}$ sum additionally
 includes a contribution for memo bundles [#zip-0231]_:
@@ -245,6 +265,11 @@ combining is that Orchard requires padding of either inputs or outputs
 to ensure that the number of inputs and outputs are the same. Usage of
 Sapling and transparent protocols does not require this padding, and
 so this could have effectively discriminated against Orchard.
+From NU6.3, an Orchard-pool Action cannot pair a real input with a real
+output to a different receiver, and wallets do not pair them at all (see
+`Fee calculation`_), so an Orchard-pool bundle pays for its inputs plus its
+outputs, as under that previous proposal; Ironwood-pool Actions still combine
+an input and an output.
 
 .. raw:: html
 
@@ -261,10 +286,11 @@ Rationale for the chosen parameters
 **Why not just charge per-action, without a grace window?**
 
 * This ensures that there is no penalty to padding a 1-action
-  transaction to a 2-action transaction. Such padding is desirable
-  to reduce information leakage from input and output arity, and
-  is the standard approach used by `zcashd` and the mobile SDK
-  transaction builder.
+  transaction to a 2-action transaction, for example padding a
+  1-in, 1-out transfer to two Sapling outputs or to two Actions.
+  Such padding is desirable to reduce information leakage from
+  input and output arity, and is the standard approach used by
+  wallet transaction builders, as it was by `zcashd`.
 * Without a grace window, an input with value below the marginal
   fee would never be worth including in the resulting transaction.
   With a grace window, an input with value below $\mathit{marginal\_fee}$
@@ -276,12 +302,15 @@ Rationale for the chosen parameters
 
 A 1-in, 2-out (or 2-action) transaction is the smallest possible
 transaction that permits both an output to a recipient, and a
-change output. However, as stated above, `zcashd` and the mobile
-SDK transaction builder will pad the number of inputs to at least 2.
+change output.
 
 Let $\mathit{min\_actions}$ be the minimum number of logical actions
 that can be used to execute economically relevant transactions that
-produce change. Due to the aforementioned padding, $\mathit{min\_actions} = 2$.
+produce change. Such a transaction has at least two outputs, so it has
+at least 2 logical actions under the Sapling contribution
+$\mathsf{max}(\mathit{nSpendsSapling},\, \mathit{nOutputsSapling})$ and
+under the per-Action Orchard and Ironwood contributions. Therefore
+$\mathit{min\_actions} = 2$.
 
 Having a grace window size greater than $\mathit{min\_actions}$ would
 increase the cost to create such a minimal transaction. If the
@@ -290,7 +319,7 @@ is $B$, then possible choices of $\mathit{marginal\_fee}$ are
 bounded above by $B / \mathsf{max}(\mathit{min\_actions}, \mathit{grace\_actions})$.
 Therefore, the optimal choice of $\mathit{grace\_actions}$ to maximize
 the per-logical-action cost of denial-of-service attacks for a given
-$B$, is $\mathit{grace\_actions} = \mathit{min\_actions = 2}$. This also
+$B$, is $\mathit{grace\_actions} = \mathit{min\_actions} = 2$. This also
 ensures that a denial-of-service adversary does not gain a
 significant per-logical-action cost advantage by using transactions
 with a smaller or larger number of logical actions.
@@ -326,16 +355,17 @@ length for P2PKH inputs and outputs, as follows:
     * 1 (script length) + 25 (P2PKH script)
 
 P2SH outputs are smaller than P2PKH outputs, but P2SH inputs
-may be larger than P2PKH inputs. For example a 2-of-3 multisig
-input is around 70% larger, and is counted as such when computing
-the number of logical actions.
+may be larger than P2PKH inputs. For example, a 2-of-3 multisig
+input with compressed keys is up to 299 bytes, about twice as large,
+and is counted as such (2 logical actions) when computing the number
+of logical actions.
 
 **Marginal Fee**
 
 This returns the conventional fee for a minimal transaction (as
-described above) to the original conventional fee of 10000 zatoshis
-specified in [#zip-0313]_, and imposes a non-trivial cost for
-potential denial-of-service attacks.
+described above) to the original conventional fee of 10000 zatoshis,
+in effect before ZIP 313 [#zip-0313]_ reduced it to 1000 zatoshis, and
+imposes a non-trivial cost for potential denial-of-service attacks.
 
 **Memo Chunks**
 
@@ -349,10 +379,14 @@ Making the fee linear in the number of memo chunks has the following properties:
 - A "broadcast transaction" (many outputs to different recipients all given the
   same memo) is the same fee as before (but a smaller transaction).
 - A "many memos transaction" (many outputs to different recipients all with
-  unique memos) is at most around twice the fee as before.
+  unique memos) is at most around twice the fee as before when each memo fits
+  in one 256-byte chunk, and at most around three times when the memos use the
+  full 512 bytes previously available.
 
 Combined with the memo bundle size restriction, the maximum additional fee for
-a ZIP 231 memo bundle [#zip-0231]_ over prior transactions is 0.0019 ZEC.
+a ZIP 231 memo bundle [#zip-0231]_ over prior transactions is 62 marginal fees
+(0.0031 ZEC) for a transaction with shielded outputs, or 64 marginal fees
+(0.0032 ZEC) for a transaction without shielded outputs.
 
 .. raw:: html
 
@@ -361,7 +395,7 @@ a ZIP 231 memo bundle [#zip-0231]_ over prior transactions is 0.0019 ZEC.
 Transaction relaying
 --------------------
 
-zcashd, zebrad, and potentially other node implementations, implement
+Node implementations, including `zebrad` and formerly `zcashd`, implement
 fee-based restrictions on relaying of mempool transactions. Nodes that
 normally relay transactions are expected to do so for transactions that pay
 at least the conventional fee as specified in this ZIP, unless there are
@@ -376,7 +410,8 @@ or transactions with more unpaid actions than a configurable limit (see the
 Mempool size limiting
 ---------------------
 
-zcashd and zebrad limit the size of the mempool as described in [#zip-0401]_.
+Node implementations (`zebrad`, and formerly `zcashd`) limit the size of the
+mempool as described in [#zip-0401]_.
 This specifies a $\mathit{low\_fee\_penalty}$ that is added to the "eviction weight"
 if the transaction pays a fee less than the conventional transaction fee.
 This threshold is modified to use the new conventional fee formula.
@@ -386,7 +421,8 @@ Block production
 
 Miners, mining pools, and other block producers, select transactions for
 inclusion in blocks using a variety of criteria. The algorithm in the
-following section is planned to be implemented by `zcashd` and `zebrad`.
+following section was implemented by `zcashd` v5.5.0 and `zebrad` v1.0.0-rc.3
+(see `Deployment`_ for later changes).
 
 Recommended algorithm for block template construction
 '''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -397,9 +433,28 @@ $\mathit{block\_unpaid\_action\_limit} = 50$.
 Let $\mathit{conventional\_fee}(\mathit{tx})$ be the conventional fee for transaction
 $\mathit{tx}$ calculated according to the section `Fee calculation`_.
 
+Let $\mathit{tx.fee}$ be the transaction fee [#protocol-transactions]_ of a
+transaction $\mathit{tx}$ and $\mathit{tx.logical\_actions}$ the value of
+$\mathit{logical\_actions}$ computed for it according to the section
+`Fee calculation`_.
+
 Let $\mathit{unpaid\_actions}(\mathit{tx}) = \begin{cases}\mathsf{max}\!\left(0,\, \mathsf{max}(\mathit{grace\_actions},\, \mathit{tx.logical\_actions}) - \mathsf{floor}\!\left(\frac{\mathit{tx.fee}}{\mathit{marginal\_fee}}\right)\right),&\textsf{if }\mathit{tx}\textsf{ is a non-coinbase transaction} \\ 0,&\textsf{if }\mathit{tx}\textsf{ is a coinbase transaction.}\end{cases}$
 
 Let $\mathit{block\_unpaid\_actions}(\mathit{block}) = \sum_{\mathit{tx} \,\in\, \mathit{block}}\, \mathit{unpaid\_actions}(\mathit{tx})$.
+
+A *parent* of a transaction $\mathit{tx}$ is a mempool transaction with a
+transparent output that $\mathit{tx}$ spends. (Only transparent inputs can
+depend on unmined transactions: shielded anchors refer to treestates of
+earlier blocks, or for Sprout, also to earlier JoinSplits in the same
+transaction.)
+
+A block template is *within limits* if:
+
+* it is within the block size limit and block sigop limit [#sigop-limit]_;
+* every parent of each transaction in it is also in it, and comes before
+  that transaction; and
+* for a block at a height where NU7 is active, it satisfies the per-pool and
+  block shielded action limits of ZIP 218 [#zip-0218]_.
 
 The following algorithm is RECOMMENDED for constructing a block template
 from a set of transactions in a node's mempool:
@@ -417,27 +472,34 @@ from a set of transactions in a node's mempool:
    a. Pick one of those transactions at random with probability in direct
       proportion to its $\mathit{weight\_ratio}$, and remove it from the set of
       candidate transactions. Let $B$ be the block template $T$
-      with this transaction included.
-   b. If $B$ would be within the block size limit and block sigop
-      limit [#sigop-limit]_, set $T := B$.
+      with this transaction appended.
+   b. If $B$ would be within limits, set $T := B$.
 
 4. Repeat while there is any candidate transaction:
 
    a. Pick one of those transactions at random with probability in direct
       proportion to its $\mathit{weight\_ratio}$, and remove it from the set of
       candidate transactions. Let $B$ be the block template $T$
-      with this transaction included.
-   b. If $B$ would be within the block size limit and block sigop
-      limit [#sigop-limit]_ and $\mathit{block\_unpaid\_actions}(B) \leq \mathit{block\_unpaid\_action\_limit}$,
+      with this transaction appended.
+   b. If $B$ would be within limits and $\mathit{block\_unpaid\_actions}(B) \leq \mathit{block\_unpaid\_action\_limit}$,
       set $T := B$.
 
 5. Return $T$.
 
 Note: In step 1, the final coinbase transaction cannot be included at this
 stage because it depends on the fees paid by other transactions. In practice,
-this difficulty can be overcome by reserving sufficient space and sigops to
-allow modifying the coinbase transaction as needed, when testing against the
-block space and block sigop limits in steps 3b and 4b.
+this difficulty can be overcome by reserving sufficient space, sigops and
+(from NU7) shielded actions to allow modifying the coinbase transaction as
+needed, when testing against the block space, block sigop and shielded action
+limits in steps 3b and 4b.
+
+Note: Steps 3b and 4b discard a picked transaction unless all of its parents
+are already in the block template. Implementations MAY instead return such a
+transaction to the set of candidate transactions once its parents have been
+added; MAY consider a transaction with parents in the mempool only after all
+of them have been added, rather than at step 2; or MAY omit such transactions
+entirely. They MAY also require such a transaction to pay at least the
+conventional fee.
 
 
 Rationale for block template construction algorithm
@@ -545,6 +607,9 @@ paragraph.
 Deployment in zcashd
 --------------------
 
+The `zcashd` node does not support NU6.3 or later network upgrades; this
+section describes its behaviour up to its retirement.
+
 `zcashd` v5.5.0 implemented use of ZIP 317 fees by default for its
 internal wallet in the following PRs:
 
@@ -561,7 +626,7 @@ in:
 * https://github.com/zcash/zcash/pull/6460 (preparation)
 * https://github.com/zcash/zcash/pull/6607 (follow-up to #6460)
 * https://github.com/zcash/zcash/pull/6527 (fee computation)
-* https://github.com/zcash/zcash/pull/6564 (block template construction)
+* https://github.com/zcash/zcash/pull/6403 (block template construction)
 
 The value used for $\mathit{block\_unpaid\_action\_limit}$ by `zcashd`
 can be overridden using the ``-blockunpaidactionlimit`` configuration
@@ -581,6 +646,11 @@ implemented in:
 
 * https://github.com/zcash/zcash/pull/6646
 
+From v6.0.0, `zcashd` defaults ``-blockunpaidactionlimit``, and therefore
+``-txunpaidactionlimit``, to 0 unpaid actions:
+
+* https://github.com/zcash/zcash/pull/6900
+
 Note that `zcashd` also requires transactions to pay at least a
 "relay threshold" fee. As part of the ZIP 317 work, this rule was
 simplified for `zcashd` v5.5.0:
@@ -593,15 +663,18 @@ Deployment in zebra
 `zebra` does not provide a wallet, and so does not need to calculate
 ZIP 317 fees in order to construct transactions.
 
-`zebra` v1.0.0-rc.3 implemented the current `Recommended algorithm for
+`zebra` v1.0.0-rc.3 implemented the `Recommended algorithm for
 block template construction`_ in:
 
 * https://github.com/ZcashFoundation/zebra/pull/5724
 * https://github.com/ZcashFoundation/zebra/pull/5776 (algorithm update)
 
 `zebra` v1.0.0-rc.2 had implemented an earlier version of this algorithm.
-The value used for $block\_unpaid\_action\_limit$ in `zebra` is not
-configurable.
+The value used for $\mathit{block\_unpaid\_action\_limit}$ in `zebra` is not
+configurable. Since `zebra` v1.8.0 it is 0, for both mempool admission and
+block template construction:
+
+* https://github.com/ZcashFoundation/zebra/pull/8638
 
 `zebra` v1.0.0-rc.2 implemented the change to `Mempool size limiting`_ in:
 
@@ -615,6 +688,13 @@ configurable.
 enforces a minimum fee of 100 zatoshis (this differs from `zcashd` only for
 valid transactions of less than 1000 bytes, assuming that `zcashd` uses its
 default value for ``-minrelaytxfee``).
+
+From v6.4.0, `zebra` uses the parameters proposed in ZIP 2009 [#zip-2009]_,
+which differ from those of this ZIP: $\mathit{marginal\_fee} = 1000$
+for transaction relaying, mempool size limiting, and block template
+construction, and a $\mathit{weight\_ratio\_cap}$ of 10:
+
+* https://github.com/ZcashFoundation/zebra/pull/11290
 
 
 Considered Alternatives
@@ -681,13 +761,17 @@ References
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.3.8. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-transactions] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#sigop-limit] `zcash/zips issue #568 - Document block transparent sigops limit consensus rule <https://github.com/zcash/zips/issues/568>`_
 .. [#madars-1] `Madars concrete soft-fork proposal <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/89>`_
+.. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.md>`_
-.. [#zip-0248] `ZIP 248: Extensible Transaction Format (unmerged) <https://github.com/zcash/zips/pull/1156>`_
+.. [#zip-0248] `ZIP 248: Extensible Transaction Format <zip-0248.rst>`_
 .. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-0313] `ZIP 313: Reduce Conventional Transaction Fee to 1000 zatoshis <zip-0313.rst>`_
+.. [#zip-0318] `ZIP 318: Orchard to Ironwood Migration <zip-0318.md>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_
+.. [#zip-2009] `ZIP 2009: Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10 <zip-2009.md>`_
 .. [#Ironwood-book] `The Ironwood Book <https://zcash.github.io/ironwood/>`_

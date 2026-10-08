@@ -111,11 +111,20 @@ If Ian detects a new transaction by observing a nullifier for one of Alice’s
 unspent known notes, then he learns:
 
 * [GUARANTEED] Alice is a sender.
-* [GUARANTEED] Whether Alice is the sole sender, or has collaborated to create
-  the transaction (if there are other Spend descriptions with unknown
-  nullifiers).
-* [UNREVEALED] The identities of the other senders (as in this context Ian only
-  has Alice’s FVK).
+* [GUARANTEED] Whether every Spend description in the transaction spends one
+  of Alice’s known notes.
+* [UNDEFINED] Whether anyone other than Alice contributed inputs.
+
+  * A Spend description whose nullifier Ian does not recognise may be a dummy
+    spend that Alice added to hide her number of real inputs
+    [#protocol-saplingdummynotes]_. It may spend a change note at Alice’s
+    ZIP 32 internal address (see `Internal keys`_), a note that Alice received
+    out of band (see `What Ian learns about balances`_), a note under another
+    key that Alice holds, or a note of another party. Transparent inputs, and
+    inputs from other shielded pools, are likewise not attributable.
+
+* [UNREVEALED] The identities of any other senders (as in this context Ian
+  only has Alice’s FVK).
 * [UNDEFINED] The recipient(s).
 
   * Nothing in the transaction enforces that outputs are encrypted to either the
@@ -126,8 +135,9 @@ unspent known notes, then he learns:
   * The protocol does not distinguish between Alice sending all funds to a
     third party, and moving funds to a different address that she controls.
 
-If Ian can decrypt an output in the same transaction with Alice’s IVK, then he
-additionally learns:
+If Ian can decrypt an output in the same transaction with Alice’s IVK (or, for
+change sent to Alice’s internal address, with her internal IVK; see
+`Internal keys`_), then he additionally learns:
 
 * [GUARANTEED] Alice receives change from the transaction (by the definition
   that “change” is funds that you receive in a transaction where you also spend
@@ -152,13 +162,16 @@ descriptions), then he learns:
 * [GUARANTEED] The sender had knowledge of Alice’s OVK (negligible probability
   of random chance, as OVK is 256 bits).
 * [UNVERIFIED] Alice might be the sender.
-* [UNVERIFIED] This is a non-standard transaction. There may be a bug in the
-  wallet generating transactions, or the transaction might be generated as an
-  out-of-band transaction.
+* [UNVERIFIED] This is a non-standard transaction, unless it spends only notes
+  held by Alice’s internal FVK and Ian does not have that key (see
+  `Internal keys`_). There may be a bug in the wallet generating transactions,
+  or the transaction might be generated as an out-of-band transaction.
 
-  * The behaviour of the zcashd wallet is to use the OVK corresponding to the
-    first address (i.e. first call to the transaction builder) being spent
-    from.
+  * Standard OVK selection is specified in ZIP 316
+    [#zip-0316-usage-of-outgoing-viewing-keys]_: of the sending account’s full
+    viewing key for the preferred sending protocol, the external OVK for
+    outputs to other parties, and the internal OVK (or none) for
+    wallet-internal outputs.
 
 
 What Ian learns about balances
@@ -174,7 +187,7 @@ there are multiple diversified addresses associated with an FVK.)
 
 The balance of a tally after a particular block is defined as the sum of note
 values that are spendable, according to the Sapling protocol, using the
-extended spending key associated with the tally, in a block chain that extends
+expanded spending key associated with the tally, in a block chain that extends
 from that block.
 
 Ian can attempt to keep track of a given tally’s balance as of a given block.
@@ -182,8 +195,9 @@ This would be done as follows:
 
 * Scan the chain from Sapling activation up to and including the specified
   block, collecting all of the Sapling spends and Sapling outputs up to and
-  including that block that are relevant to the FVK, as specified in section
-  4.19 of the Protocol Specification [#protocol-saplingscan]_. This produces
+  including that block that are relevant to the FVK, as specified in the
+  Block Chain Scanning section of the Protocol Specification
+  [#protocol-saplingscan]_. This produces
   a ReceivedSet of notes that were received by that tally, and a SpentSet of
   notes that were spent from it.
 
@@ -196,8 +210,8 @@ The following inaccuracies may occur in balance accounting:
   transmitted it and the recipient accepted it “out of band”, without
   following the Sapling protocol.
 * If an incoming payment is not detected for the above reason, and the note
-  is later spent, then that spend will also not be detected by the process
-  in section 4.19.
+  is later spent, then that spend will also not be detected by that scanning
+  process [#protocol-saplingscan]_.
 
 The combination of the above inaccuracies can cause a tally’s computed
 balance to be lower than its actual balance. They cannot cause a tally’s
@@ -211,6 +225,41 @@ computed balance to be higher than its actual balance. That is:
 It should be noted that since “out-of-band” payments require cooperation
 between the sender and recipient in not following the Sapling protocol, the
 sender and recipient could instead have agreed to use a different tally.
+
+
+Internal keys
+-------------
+
+ZIP 32 associates with each Sapling extended full viewing key an internal full
+viewing key, with its own incoming viewing key, nullifier deriving key, and
+outgoing viewing key [#zip-0032-sapling-internal-key-derivation]_. Wallets use
+the corresponding internal addresses for internal operations such as change and
+auto-shielding [#zip-0316-deriving-internal-keys]_. The internal and external
+FVKs each correspond to their own expanded spending key, and so each has its own
+tally. The following qualifications apply to the sections above.
+
+* The holder of a Sapling extended FVK (including the Sapling component of a
+  Unified Full Viewing Key) can derive the internal FVK. To learn the combined
+  balance of Alice’s external and internal tallies, Ian scans as described in
+  `What Ian learns about balances`_ with both FVKs.
+* The internal FVK cannot be derived from a Sapling full viewing key as
+  described in [#protocol]_, since that key lacks the diversifier key needed
+  for the derivation. The holder of such a key, or of any key that covers only
+  the external FVK, does not detect change and auto-shielding outputs sent to
+  Alice’s internal addresses, and cannot recognise the nullifiers of those
+  notes when they are spent. Even if Alice follows the Sapling protocol, the
+  balance that Ian computes is then only a lower bound on the combined balance
+  of her external and internal tallies.
+* Change sent to Alice’s internal address can be detected by decryption only
+  with her internal IVK, or with the OVK used to encrypt it, which under ZIP 316
+  is her internal OVK if any OVK is used
+  [#zip-0316-usage-of-outgoing-viewing-keys]_.
+* A transaction that spends only notes held by Alice’s internal FVK, and pays
+  another party, is detected by the holder of only her external FVK solely by
+  decryption with her external OVK. In that case, detection by OVK alone does
+  not indicate a non-standard transaction.
+* The external and internal FVKs of the same ZIP 32 account do not belong to
+  independent entities (see `What Ian learns about the ecosystem`_).
 
 
 What Ian learns about the ecosystem
@@ -254,5 +303,9 @@ References
 ==========
 
 .. [#protocol] `Zcash Protocol Specification, Version 2020.1.15 or later <protocol/protocol.pdf>`_
-.. [#protocol-saplingscan] `Zcash Protocol Specification, Version 2020.1.15. Section 4.19: Block Chain Scanning (Sapling) <protocol/protocol.pdf#saplingscan>`_
+.. [#protocol-saplingdummynotes] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.8.2: Dummy Notes (Sapling) <protocol/protocol.pdf#saplingdummynotes>`_
+.. [#protocol-saplingscan] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.22: Block Chain Scanning (Sapling and Orchard) <protocol/protocol.pdf#saplingscan>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0032-sapling-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation <zip-0032.rst#sapling-internal-key-derivation>`_
+.. [#zip-0316-deriving-internal-keys] `ZIP 316: Unified Addresses and Unified Viewing Keys — Deriving Internal Keys <zip-0316.rst#deriving-internal-keys>`_
+.. [#zip-0316-usage-of-outgoing-viewing-keys] `ZIP 316: Unified Addresses and Unified Viewing Keys — Usage of Outgoing Viewing Keys <zip-0316.rst#usage-of-outgoing-viewing-keys>`_

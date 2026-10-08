@@ -12,7 +12,7 @@
   Credits: Taylor Hornby
            Stephen Smith
   Status: [Revision 0] Active, [Revision 1] Withdrawn, [Revision 2] Draft
-  Category: Standards / RPC / Wallet
+  Category: Standards / Wallet
   Created: 2021-04-07
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/482>
@@ -57,7 +57,7 @@ Metadata Encoding
   An encoding of metadata that is not a Receiver or Viewing Key, but may affect
   the interpretation of the overall Unified Address/Viewing Key.
 Item
-  An Receiver Encoding, Viewing Key Encoding, or Metadata Encoding.
+  A Receiver Encoding, Viewing Key Encoding, or Metadata Encoding.
 Legacy Address
   A Transparent, Sprout, or Sapling Address.
 Unified Address (or UA)
@@ -207,7 +207,7 @@ Addresses
 
 A Unified Address (or UA for short) combines one or more Receivers.
 
-When new Transport Protocols are introduced to the Zcash protocol after
+When new Transfer Protocols are introduced to the Zcash protocol after
 Unified Addresses are standardized, those should introduce new Receiver Types
 but *not* different Address types outside of the UA standard. There needs
 to be a compelling reason to deviate from the standard, since the benefits
@@ -217,7 +217,7 @@ upgrades.
 For `Revision 2`_, users must be able to visually distinguish addresses
 that risk information being leaked on-chain as a result of a transfer,
 from addresses that present no such risks, with the exception of pool-crossing
-amounts. The latter are accepted leage in the UA design, in order to achieve
+amounts. The latter are accepted leakage in the UA design, in order to achieve
 the desired wallet compatibility properties.
 
 Receivers
@@ -249,7 +249,7 @@ and Unified String Encoding of a given UA/UVK in either direction.
 The Unified String Encoding fits into ZIP-321 Payment URIs [#zip-0321]_
 and general URIs without introducing parse ambiguities.
 
-The encoding must support sufficiently many Recipient Types to allow
+The encoding must support sufficiently many Receiver Types to allow
 for reasonable future expansion.
 
 The encoding must allow all wallets to safely and correctly parse out
@@ -309,7 +309,7 @@ Open Issues and Known Concerns
 ------------------------------
 
 Privacy impacts of transparent or cross-pool transactions, and the
-associated UX issues, will be addressed in ZIP 315 (in preparation).
+associated UX issues, are addressed in ZIP 315 [#zip-0315]_.
 
 Specification
 =============
@@ -341,18 +341,25 @@ Revisions
   receivers, and ``tu`` addresses, which allow transparent receivers to be
   augmented with metadata items. For Unified Viewing Keys, this version adopts
   ``uvf`` and ``uvi`` encoding prefixes for Unified Full Viewing Keys and
-  Unified Incoming Viewing Keys respectively, drops the restriction that a UVK
-  must contain at least one shielded Item, and adds support for
+  Unified Incoming Viewing Keys respectively, and adds support for
   `P2SH Viewing Key Items`_ using BIP 388 wallet policies [#bip-0388]_.
+  It drops the restriction that a ``tu`` UA or a UVK must contain at least
+  one shielded Item.
 
 A Revision 0 UA/UVK is distinguished from a Revision 2 UA/UVK by its
 Human-Readable Part, as follows.
 
 Let *addr_prefix* be:
 
-* “``u``”, if this is a UA or UVK prior to `Revision 2`_;
-* “``zu``”, if this is a shielded-only UA from `Revision 2`_ onward.
-* “``tu``”, if this is a transparent-enabled UA from `Revision 2`_ onward.
+* “``u``”, if this is a UA prior to `Revision 2`_;
+* “``zu``” or “``tu``”, as chosen by the Producer, if this is a UA from
+  `Revision 2`_ onward.
+
+A ``zu`` UA is subject to the restrictions on ``zu`` addresses in
+`Requirements for both Unified Addresses and Unified Viewing Keys`_ and
+`Typecode Registry`_. A ``tu`` UA need not contain a transparent Item. A
+Producer SHOULD use “``zu``” for a UA that contains no Item prohibited in
+``zu`` addresses.
 
 The Human-Readable Parts (as defined in [#bip-0350]_) of Unified
 Addresses are defined as:
@@ -455,6 +462,10 @@ To decode a Unified Address Encoding, a Consumer MUST use the following
 procedure:
 
 * Decode using Bech32m, rejecting any address with an incorrect checksum.
+  (Bech32m decoding accepts a string that is entirely in uppercase, and
+  rejects one in mixed case [#bip-0350]_.) In the following steps, and in
+  determining the network and Revision, “the Human-Readable Part” means its
+  lowercase form.
 * Apply $\mathsf{F4Jumble}^{-1}$ (this can also reject if the input
   is not in the correct range of lengths).
 * Let ``padding`` be the Human-Readable Part, padded to 16 bytes as for
@@ -479,7 +490,7 @@ Unified Full or Incoming Viewing Keys are encoded and decoded
 analogously to Unified Addresses. A Consumer MUST use the decoding
 procedure from the previous section. For Viewing Keys, a Consumer
 will normally take the union of information provided by all contained
-Receivers, and therefore the Priority List defined in the previous
+Viewing Key Items, and therefore the Priority List defined in the previous
 section is not used.
 
 For each FVK Type or IVK Type currently defined in this specification,
@@ -493,19 +504,34 @@ $\mathtt{addr}$ field:
 
 * An Orchard FVK or IVK Encoding, with Typecode $\mathtt{0x03}$, is
   the raw encoding of the Orchard Full Viewing Key or Orchard Incoming
-  Viewing Key respectively.
+  Viewing Key respectively [#protocol-orchardfullviewingkeyencoding]_
+  [#protocol-orchardinviewingkeyencoding]_.
 
 * A Sapling FVK Encoding, with Typecode $\mathtt{0x02}$, is the
   encoding of $(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})$
   given by $\mathsf{EncodeExtFVKParts}(\mathsf{ak}, \mathsf{nk}, \mathsf{ovk}, \mathsf{dk})$,
   where $\mathsf{EncodeExtFVKParts}$ is defined in [#zip-0032-sapling-helper-functions]_.
-  This SHOULD be derived from the Extended Full Viewing Key at the Account
-  level of the ZIP 32 hierarchy.
+  This SHOULD be derived from the Extended Full Viewing Key
+  [#zip-0032-sapling-extfvk]_ at the Account level of the ZIP 32 hierarchy
+  [#zip-0032-sapling-key-path]_. When decoding, Consumers MUST reject the
+  Item if $\mathsf{abst}_{\mathbb{J}}$ returns $\bot$ for $\mathsf{ak}$ or
+  $\mathsf{nk}$ or if $\mathsf{ak} \notin \mathbb{J}^{(r)*}$ or
+  $\mathsf{nk} \notin \mathbb{J}^{(r)}$
+  [#protocol-saplingfullviewingkeyencoding]_,
+  or if either the external IVK derived from $(\mathsf{ak}, \mathsf{nk})$ as
+  specified in [#protocol-saplingkeycomponents]_, or the IVK of the internal
+  FVK derived as specified in [#zip-0032-sapling-internal-key-derivation]_,
+  is zero.
 
 * A Sapling IVK Encoding, also with Typecode $\mathtt{0x02}$,
   is an encoding of $(\mathsf{dk}, \mathsf{ivk})$ given by
-  $\mathsf{dk}\,||\,\mathsf{I2LEOSP}_{256}(\mathsf{ivk})$. Note that
-  a zero $\mathsf{ivk}$ is not valid [#protocol-2025.6.0]_.
+  $\mathsf{dk}\,||\,\mathsf{I2LEOSP}_{256}(\mathsf{ivk})$. When decoding,
+  Consumers MUST reject the Item if $\mathsf{ivk}$ is not in the range
+  $\{1 .. 2^{251} - 1\}$ [#protocol-saplingkeycomponents]_
+  [#protocol-saplinginviewingkeyencoding]_, i.e. if it is zero or if any of
+  the five most significant bits of the last byte of the encoding is set. (In
+  versions of the Zcash Protocol Specification prior to 2025.6.0, a zero
+  $\mathsf{ivk}$ was not excluded [#protocol-2025.6.0]_.)
 
 .. _`P2SH Viewing Key Items`:
 
@@ -533,6 +559,12 @@ $\mathtt{addr}$ field:
     * $\mathtt{pubkey} : \mathtt{byte[33]}$ — the compressed public key
       in SEC1 encoding.
 
+  The descriptor template MUST have the form ``sh(SCRIPT)`` [#bip-0381]_,
+  where ``SCRIPT`` is a ``multi()`` or ``sortedmulti()`` expression
+  [#bip-0383]_ or a ``pkh()`` expression [#bip-0381]_. The redeem script (the
+  serialized output script produced by ``SCRIPT``) MUST be at most 520 bytes;
+  for ``multi()`` and ``sortedmulti()`` this limits the number of keys to 15.
+
   Key placeholders in the descriptor template use the ``@N`` notation defined
   by BIP 388. In order to preserve the diversifiability properties of UVKs, in
   a UFVK, the template MUST use the ``/**`` multipath notation for each key
@@ -541,16 +573,23 @@ $\mathtt{addr}$ field:
   derivation of external addresses only). To produce the key information vector
   for a UIVK, it is necessary to perform an additional step of non-hardened
   derivation from the keys provided in the UFVK's key information vector
-  using the external child path index (index 0). Producers MUST encode
-  $\mathsf{n_keys}$ in a deterministic order, which may vary depending upon the
-  template in use. For ZIP 48 keys, this is lexicographic by chain code and
-  pubkey.
+  using the external child path index (index 0).
+
+  If ``SCRIPT`` is a ``sortedmulti()`` expression (as in the ZIP 48 template
+  [#zip-0048]_), Producers MUST encode the $\mathtt{n\_keys}$ key information
+  entries in ascending lexicographic order of the 65-byte string
+  $\mathtt{chaincode}\,||\,\mathtt{pubkey}$ of each entry. Otherwise, the
+  entries MUST be in the order of the key information vector of the BIP 388
+  wallet policy, which determines the redeem script.
 
   The number of ``@N`` key placeholders in the descriptor template MUST equal
   $\mathtt{n\_keys}$. Consumers MUST reject P2SH Viewing Key Items for which
   this does not hold, or for which the descriptor template is not a valid BIP
-  388 descriptor template, or does not satisfy the above requirements on the
-  use of ``/**`` or ``/*`` multipath notation.
+  388 descriptor template of the form specified above, or does not satisfy the
+  above requirements on the use of ``/**`` or ``/*`` multipath notation or on
+  the size of the redeem script. A Consumer that supports P2SH Viewing Key
+  Items, but not the descriptor template of a particular one, MUST reject the
+  UFVK or UIVK containing it.
 
 * For Transparent P2PKH Addresses that are derived according to BIP 32
   [#bip-0032]_ and BIP 44 [#bip-0044]_, the FVK and IVK Encodings have
@@ -595,24 +634,36 @@ Requirements for both Unified Addresses and Unified Viewing Keys
 * A Unified Address or Unified Viewing Key MUST contain at least one
   non-metadata Item.
 
-* A `Revision 0`_ Unified Address MUST contain at least one shielded Item
-  (currently Typecodes $\mathtt{0x02}$ and $\mathtt{0x03}$). Consumers MUST
-  reject addresses that violate this restriction.
+* For the requirements below, a *shielded Item* is a non-metadata Item other
+  than a Transparent P2PKH or P2SH Item: that is, currently an Item with
+  Typecode $\mathtt{0x02}$ or $\mathtt{0x03}$ or any non-metadata Item whose
+  Typecode the Consumer does not recognise. (Typecode $\mathtt{0x01}$ in a
+  `Revision 0`_ UVK is unrecognised, and so counts as shielded.) Counting
+  unrecognised Items allows a Consumer to accept a UA that combines a
+  transparent Receiver with a Receiver of a shielded type defined after the
+  Consumer was implemented. As a consequence, an Item with an Unassigned
+  Typecode also satisfies the requirements below, even though Producers MUST
+  NOT generate one.
+
+* A `Revision 0`_ Unified Address MUST contain at least one shielded Item.
+  Consumers MUST reject addresses that violate this restriction. This
+  requirement is dropped for `Revision 2`_ Unified Addresses: a ``tu``
+  Unified Address MAY contain only transparent Items.
 
 * A `Revision 2`_ Unified Address encoded with the ``zu`` prefix MUST NOT
   contain any transparent Items (currently Typecodes $\mathtt{0x00}$ and
   $\mathtt{0x01}$). Consumers MUST reject addresses that violate this
   restriction.
 
-* A `Revision 0`_ Unified Viewing Key MUST contain at least one shielded Item
-  (currently Typecodes $\mathtt{0x02}$ and $\mathtt{0x03}$). This requirement
-  is dropped for `Revision 2`_ UVKs. Consumers MUST reject any UVK that
-  violates the restriction applying to its Revision.
+* A `Revision 0`_ Unified Viewing Key MUST contain at least one shielded
+  Item. This requirement is dropped for `Revision 2`_ UVKs. Consumers MUST
+  reject any UVK that violates the restriction applying to its Revision.
 
 * The $\mathtt{typecode}$ and $\mathtt{length}$ fields are encoded as
-  $\mathtt{compactSize}$. [#Bitcoin-CompactSize]_ (Although existing Receiver
-  Encodings and Viewing Key Encodings are all less than 256 bytes and so could
-  use a one-byte length field, encodings for experimental types may be longer.)
+  $\mathtt{compactSize}$. [#Bitcoin-CompactSize]_ (The Revision 0 Receiver,
+  FVK and IVK Encodings are all less than 256 bytes, but a `Revision 2`_ P2SH
+  Viewing Key Item with four or more keys exceeds 255 bytes, and encodings for
+  experimental types may be longer.)
 
 * Within a single UA or UVK, all HD-derived Receivers, FVKs, and IVKs SHOULD
   represent an Address or Viewing Key for the same account (as used in
@@ -639,8 +690,11 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   MUST ignore constituent Items with Typecodes they do not recognise.
 
 * Consumers MUST reject Unified Addresses/Viewing Keys in which the
-  same Typecode appears more than once, or that include both P2SH and
-  P2PKH Transparent Addresses, or that contain only Metadata Items.
+  same Typecode appears more than once, or that contain only Metadata Items.
+  Consumers MUST reject Unified Addresses that include both a P2SH Receiver
+  and a P2PKH Receiver, and, from `Revision 2`_ onward, Unified Viewing Keys
+  that include both a P2SH Viewing Key Item and a Transparent P2PKH FVK or
+  IVK.
 
 * Consumers MUST reject Unified Addresses/Viewing Keys in which *any*
   constituent Item does not meet the validation requirements of its
@@ -663,8 +717,8 @@ Requirements for both Unified Addresses and Unified Viewing Keys
   commentary on how the cost of such attacks depends on the number of
   characters the user is able to check.
 
-Rationale for dropping the "at least one shielded Item" restriction for UVKs
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Rationale for dropping the "at least one shielded Item" restriction
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. raw:: html
 
@@ -683,6 +737,10 @@ case with the advent of ZIP 48 [#zip-0048]_. In addition, transparent-only
 viewing keys can use Metadata Items to represent expiration heights/dates as
 described in `Address Expiration Metadata`_ that is useful in the generation of
 ``tu``-prefixed addresses.
+
+Similarly, a transparent-only ``tu`` Unified Address can carry expiration
+metadata alongside a transparent Receiver, which the existing transparent
+address formats cannot express.
 
 .. raw:: html
 
@@ -752,7 +810,7 @@ characters are included in the characters that are compared.
 
 To analyze the difficulty of partial matching attacks, we must subtract the
 length of the HRP and the "1" separator from the 20 characters. The longest HRP
-defined for a Mainnet UA/UVK in this specification for is "uview" for Revision
+defined for a Mainnet UA/UVK in this specification is "uview" for Revision
 0 UFVKs — and so in the worst case only 14 characters, corresponding to 70
 bits, of the jumbled Mainnet UA/UVK data will be present. (We are not
 particularly concerned about attacks on Testnet UA/UVKs.) This implies an
@@ -831,8 +889,9 @@ Rationale for making Revision 0 UA/UVKs with MUST-understand Typecodes invalid
    <summary>Click to show/hide</summary>
 
 A Consumer implementing this ZIP prior to `Revision 2`_ will not
-recognise the Human-Readable Parts beginning with “``zu``” that mark a
-`Revision 2`_ UA/UVK. So if a UA/UVK that includes MUST-understand
+recognise the Human-Readable Parts that mark a `Revision 2`_ UA/UVK
+(“``zu``”, “``tu``”, “``uvi``” and “``uvf``”, and their Testnet forms with
+suffix “``test``”). So if a UA/UVK that includes MUST-understand
 Typecodes is required to use these `Revision 2`_ HRPs, this will ensure
 that the MUST-understand specification is correctly enforced even for
 such implementations.
@@ -847,14 +906,18 @@ Address Expiration Metadata
 
 As of `Revision 2`_, Typecodes $\mathtt{0xE0}$ and $\mathtt{0xE1}$
 are reserved for optional address expiry metadata. A producer MAY choose to
-generate Unified Addresses containing either or both of the following Metadata
-Item Types, or none.
+generate Unified Addresses or Unified Viewing Keys containing either or both of
+the following Metadata Item Types, or none.
 
 The value of a $\mathtt{0xE0}$ item MUST be an unsigned 32-bit integer in
 little-endian order specifying the Address Expiry Height, a block height of the
 Zcash chain associated with the UA/UVK. A Unified Address containing metadata
 Typecode $\mathtt{0xE0}$ MUST be considered expired when the height of
-the Zcash chain is greater than this value.
+the chain tip is greater than this value. (When the chain tip height equals the
+Address Expiry Height, the address is not yet considered expired, but the rule
+below on ``nExpiryHeight`` already forbids sending to it, since a transaction
+mined in the next block needs a non-zero ``nExpiryHeight`` greater than the
+Address Expiry Height.)
 
 The value of a $\mathtt{0xE1}$ item MUST be an unsigned 64-bit integer in
 little-endian order specifying a Unix Epoch Time, hereafter referred to as the
@@ -938,20 +1001,23 @@ represent hard bounds because computer clocks often disagree, but every effort
 should be made to ensure that transactions expire instead of being mined more
 than 24 hours after a recipient address's expiry time. When chain height
 information is available to the Sender, it is both permissible and advisable to
-set this bound more tightly; a common expiry delta used by many wallets is 40
-blocks from the current chain tip, as suggested in ZIP 203
-[#zip-0203-default-expiry]_.
+set this bound more tightly; a common expiry delta used by many wallets is about
+50 minutes' worth of blocks from the current chain tip, as suggested in ZIP 203:
+40 blocks at the 75-second target spacing [#zip-0203-default-expiry]_, and 120
+blocks from NU7 activation at the 25-second target spacing
+[#zip-0203-nu7-expiry]_.
 
 Typecode Registry
 -----------------
 
 The following table specifies the full range of Typecodes and indicates which
-address types permit each Typecode. Typecode range entries in the table below
-are to be interpreted as end-inclusive.
+address and viewing key types permit each Typecode. The UVK columns apply to
+both UFVKs and UIVKs. Typecode range entries in the table below are to be
+interpreted as end-inclusive.
 
 Producers MUST NOT include Items with Typecodes not permitted for the address
-type being produced, and MUST NOT generate UA/UVKs containing Items with
-typecodes that are Unassigned.
+or viewing key type being produced, and MUST NOT generate UA/UVKs containing
+Items with typecodes that are Unassigned.
 
 The guiding principle for ``zu`` addresses is that a ``zu`` address MUST NOT
 contain any Items whose interpretation in transaction construction could result
@@ -975,36 +1041,43 @@ properties of ``zu`` addresses.
 
 ::
 
-  +-------------------+--------------------------------------+----+--------+--------+
-  | Typecode          | Description                          | R0 | R2 zu  | R2 tu  |
-  +===================+======================================+====+========+========+
-  | 0x00              | Transparent P2PKH                    | ✅ | ❌     | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0x01              | Transparent P2SH                     | ✅ | ❌     | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0x02              | Sapling                              | ✅ | ✅     | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0x03              | Orchard                              | ✅ | ✅     | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0x04..=0xBF       | Unassigned                           | ❌ | ❌     | ❌     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0xC0..=0xDF       | Non-MUST-understand Metadata         | ❌ | ❌     | ❌     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0xE0              | Address Expiry Height                | ❌ | ✅     | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0xE1              | Address Expiry Time                  | ❌ | ✅     | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0xE2..=0xFC       | Unassigned MUST-understand Metadata  | ❌ | ❌     | ❌     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0xFD..=0xFFF9     | Unassigned                           | ❌ | ❌     | ❌     |
-  +-------------------+--------------------------------------+----+--------+--------+
-  | 0xFFFA..=0xFFFF   | Experimental                         | ✅ | [1]    | ✅     |
-  +-------------------+--------------------------------------+----+--------+--------+
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | Typecode            | Description                          | R0 UA | R0 UVK | R2 zu  | R2 tu  | R2 UVK |
+  +=====================+======================================+=======+========+========+========+========+
+  | 0x00                | Transparent P2PKH                    | ✅    | ✅     | ❌     | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0x01                | Transparent P2SH [2]                 | ✅    | ❌     | ❌     | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0x02                | Sapling                              | ✅    | ✅     | ✅     | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0x03                | Orchard                              | ✅    | ✅     | ✅     | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0x04..=0xBF         | Unassigned                           | ❌    | ❌     | ❌     | ❌     | ❌     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0xC0..=0xDF         | Non-MUST-understand Metadata         | ❌    | ❌     | ❌     | ❌     | ❌     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0xE0                | Address Expiry Height                | ❌    | ❌     | ✅     | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0xE1                | Address Expiry Time                  | ❌    | ❌     | ✅     | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0xE2..=0xFC         | Unassigned MUST-understand Metadata  | ❌    | ❌     | ❌     | ❌     | ❌     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0xFD..=0xFFF9       | Unassigned                           | ❌    | ❌     | ❌     | ❌     | ❌     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0xFFFA..=0xFFFF     | Experimental                         | ✅    | ✅     | [1]    | ✅     | ✅     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
+  | 0x10000..=0x2000000 | Unassigned                           | ❌    | ❌     | ❌     | ❌     | ❌     |
+  +---------------------+--------------------------------------+-------+--------+--------+--------+--------+
 
 [1] See note above regarding experimental typecodes in ``zu`` addresses.
 
-Additions to this registry are made via 2xxx-series ZIPs. This table will be
-updated by the ZIP Editors when such a ZIP transitions to ``Proposed`` status.
+[2] In a `Revision 2`_ UVK, Typecode $\mathtt{0x01}$ is a P2SH Viewing Key Item
+(see `P2SH Viewing Key Items`_). In a `Revision 0`_ UVK it is treated as
+unrecognised.
+
+A Typecode is assigned by a modification to this ZIP, or by the ZIP that
+defines the new type (which may be a 2000-series Update ZIP). The ZIP Editors
+add it to this table once that ZIP reaches at least ``Proposed`` status.
 
 
 Deriving Internal Keys
@@ -1058,8 +1131,8 @@ we derive the external and internal $\mathsf{ovk}$ components from the P2SH FVK
 (described in `P2SH Viewing Key Items`_) as follows:
 
 - Let $\mathsf{fvk\_ser}$ be the raw encoding of the P2SH Viewing Key
-  Item (i.e. the concatenation of $\mathsf{template\_len}$,
-  $\mathsf{template}$, $\mathsf{n\_keys}$, and the key information
+  Item (i.e. the concatenation of $\mathtt{template\_len}$,
+  $\mathtt{template}$, $\mathtt{n\_keys}$, and the key information
   entries, as specified in `P2SH Viewing Key Items`_).
 - Let $I_\mathsf{ovk} = \textsf{BLAKE2b-512}(\texttt{"ZIP316\_P2SH\_OVK\_"},\, \mathsf{fvk\_ser})$.
 - Let $\mathsf{ovk_{external}}$ be the first $32$ bytes of
@@ -1109,8 +1182,9 @@ The following derivations are applied to each component FVK:
      with ``/*``.
   2. For each key in the key information vector, deriving the child key
      with non-hardened index $0$ (external chain) as described in
-     [#bip-0032-public-to-public]_, and appending $0$ (non-hardened)
-     to the key's derivation path.
+     [#bip-0032-public-to-public]_.
+  3. If the descriptor template uses ``sortedmulti()``, sorting the derived
+     key information entries as specified in `P2SH Viewing Key Items`_.
 
 In each case, the Typecode remains the same as in the FVK.
 
@@ -1135,9 +1209,14 @@ For Metadata Items recognised by the Consumer, the processing of the
 Item when deriving a Unified Address is specified in the section or
 ZIP describing that Item.
 
-To derive a Unified Address from a UIVK we need to choose a diversifier
-index, which MUST be valid for all of the Viewing Key Types in the
-UIVK. That is,
+To derive a Unified Address from a UIVK, the Producer chooses a diversifier
+index and the subset of the UIVK's component IVKs whose Receivers are to be
+included. The derived Unified Address MAY omit the Receiver for any component
+IVK, provided that the result satisfies the requirements in
+`Requirements for both Unified Addresses and Unified Viewing Keys`_ (for
+example, a ``zu`` Unified Address cannot include a Receiver derived from a
+transparent IVK). The diversifier index MUST be valid for the Viewing Key Type
+of every Receiver included in the derived Unified Address. That is,
 
 * A Sapling diversifier index MUST generate a valid diversifier as
   defined in ZIP 32 section “Sapling diversifier derivation”
@@ -1149,9 +1228,9 @@ UIVK. That is,
 * There are no additional constraints on an Orchard diversifier index.
 
 Note: A diversifier index of 0 may not generate a valid Sapling
-diversifier (with probability $1/2$). Some wallets (either prior
-to the deployment of ZIP 316, in violation of the above requirement,
-or because they do not include a Sapling component in their UAs) always
+diversifier (with probability approximately 0.547). Some wallets (either
+prior to the deployment of ZIP 316, in violation of the above requirement,
+or because they do not include a Sapling Receiver in their UAs) always
 generate a Transparent P2PKH address at diversifier index 0. Therefore,
 *all* Zcash wallets, whether or not they support Unified Addresses,
 MUST assume that there may be transparent funds associated with
@@ -1160,8 +1239,8 @@ wallet implementation would not generate a Unified Address with that
 index for a given account. This is necessary to ensure reliable recovery
 of funds if key material is imported between wallets.
 
-The following derivations are applied to each component IVK using the
-diversifier index:
+The following derivations are applied, using the diversifier index, to each
+component IVK whose Receiver is included:
 
 * For a Sapling IVK, the corresponding Sapling Receiver is obtained as
   specified in [#protocol-saplingkeycomponents]_.
@@ -1185,11 +1264,13 @@ diversifier index:
   1. For each key in the key information vector, deriving the child key
      at the diversifier index using non-hardened BIP 32 public derivation
      [#bip-0032-public-to-public]_.
-  2. Instantiating the descriptor template by substituting each ``@N``
-     placeholder with the corresponding derived public key, evaluating
-     the resulting output descriptor [#bip-0380]_ to obtain the output
-     script, and computing the HASH160 of the serialized script to
-     produce the P2SH Receiver Encoding.
+  2. Replacing each ``@N/*`` in the descriptor template with the
+     hex-encoded compressed public key derived for key ``N`` in step 1,
+     giving an output descriptor ``sh(SCRIPT)`` [#bip-0380]_ [#bip-0381]_.
+     The P2SH Receiver Encoding is the HASH160 of the redeem script, i.e.
+     of the serialized output script produced by ``SCRIPT`` (equivalently,
+     the 20-byte script hash in the P2SH output script produced by the
+     descriptor).
 
 Items (including Metadata Items that are not "MUST-understand") that
 are unrecognised by a given Consumer, or that are specified in experiments
@@ -1220,7 +1301,7 @@ viewing keys (i.e. Sapling and Orchard) further complicates this
 question, since from NU5 activation, nothing at the consensus level
 prevents a wallet from spending both Sapling and Orchard notes
 in the same transaction. (Recommendations about wallet usage of
-multiple pools will be given in ZIP 315 [#zip-0315]_.)
+multiple pools are given in ZIP 315 [#zip-0315]_.)
 
 Here we refine the protocol specification in order to allow more
 precise determination of viewing authority for UFVKs.
@@ -1238,18 +1319,29 @@ The Sender also determines a "preferred sending protocol" —one of
 most preferred Receiver Type (as given in `Encoding of Unified Addresses`_)
 of any funds sent in the transaction.
 
-If the sending Account has been determined, then the Sender
-SHOULD use the external or internal $\mathsf{ovk}$
-(according to the type of transfer), as specified by the
-preferred sending protocol, of the full viewing key for that
-Account (i.e. at the ZIP 32 Account level).
+An output is *wallet-internal* if it is sent to an address derived from the
+internal key tree of the sending wallet (see `Deriving Internal Keys`_), as
+for change and auto-shielding; otherwise it is *external*.
+
+If the sending Account has been determined, then the Sender SHOULD use the
+following outgoing viewing key, as specified by the preferred sending protocol,
+of the full viewing key for that Account (i.e. at the ZIP 32 Account level):
+
+* the external $\mathsf{ovk}$ for an external output;
+* either the internal $\mathsf{ovk}$ or no outgoing viewing key
+  ($\mathsf{ovk} = \bot$ as permitted by [#protocol-saplingsend]_ and
+  [#protocol-orchardsend]_) for a wallet-internal output.
+
+A wallet-internal output can be recovered with the internal IVK in either case.
+Using the internal $\mathsf{ovk}$ additionally allows it to be recovered from
+the outgoing ciphertext; using $\mathsf{ovk} = \bot$ ensures that the outgoing
+ciphertext cannot be decrypted by anyone.
 
 If the sending Account is undetermined, then the Sender SHOULD
 choose one of the addresses, restricted to addresses for the
 preferred sending protocol, from which funds are being sent
-(for example, the first one for that protocol), and then use
-the external or internal $\mathsf{ovk}$ (according to the
-type of transfer) of the full viewing key for that address.
+(for example, the first one for that protocol), and then proceed
+as above using the full viewing key for that address.
 
 
 Jumbling
@@ -1363,8 +1455,8 @@ before encoding the result with Bech32m.
 The Consumer rejects any Bech32m-decoded byte sequence that is less than
 38 bytes or greater than $\ell^\mathsf{MAX}_M$ bytes; otherwise it
 applies $\mathsf{F4Jumble}^{-1}$. It rejects any result that does
-not end in the expected 16-byte padding, before stripping these 16 bytes
-and parsing the result.
+not end in the expected 16-byte padding (computed from the lowercase HRP),
+before stripping these 16 bytes and parsing the result.
 
 Rationale for length restrictions
 '''''''''''''''''''''''''''''''''
@@ -1390,15 +1482,18 @@ supported by $\mathsf{F4Jumble}$.
 
 Allowing only a Transparent P2PKH Receiver is consistent with dropping
 the requirement to have at least one shielded Item in Revision 2 UA/UVKs
-(`see rationale <#rationale-for-dropping-the-at-least-one-shielded-item-restriction>`_).
+(see `Rationale for dropping the "at least one shielded Item" restriction`_).
 
 Note that Revision 0 of this ZIP specified a minimum input length to
-$\mathsf{F4Jumble}^{-1}$ of 48 bytes. Since there were no sets
-of UA/UVK Item Encodings valid in Revision 0 to which a byte sequence
-(after removal of the 16-byte padding) of length between 22 and 31 bytes
-inclusive could be parsed, the difference between the 38 and 48-byte
-restrictions is not observable, other than potentially affecting which
-error is reported. A Consumer supporting Revision 2 of this specification
+$\mathsf{F4Jumble}^{-1}$ of 48 bytes. The smallest Item Encoding with an
+assigned shielded Typecode is 45 bytes, so a byte sequence (after removal of
+the 16-byte padding) of length between 22 and 31 bytes inclusive can be parsed
+as a valid Revision 0 UA/UVK only if none of its shielded Items is recognised
+by a Revision 0 Consumer (for example, if they all have experimental
+Typecodes). The difference between the 38 and 48-byte restrictions is
+therefore observable only for such UA/UVKs, which a Producer can generate only
+as part of an experiment; otherwise it potentially affects only which error is
+reported. A Consumer supporting Revision 2 of this specification
 MAY therefore apply either the 48-byte or 38-byte minimum to Revision 0
 UA/UVKs.
 
@@ -1467,6 +1562,12 @@ Address, and an Orchard Address, would have $\ell_M = 128$ bytes.
 A UA containing a Sapling Address and an Orchard
 Address would have $\ell_M = 106$ bytes.
 
+A Revision 0 UFVK containing Transparent P2PKH, Sapling, and Orchard FVKs
+would have $\ell_M = 311$ bytes. A `Revision 2`_ UVK containing only Items of
+the currently defined types has $\ell_M$ of at most 1355 bytes (for a UFVK
+containing a 15-key P2SH Viewing Key Item, Sapling and Orchard FVKs, and both
+expiry Metadata Items).
+
 For longer UAs (when other Receiver Types are added) or UVKs, the cost
 increases to 6 BLAKE2b compressions for $128 < \ell_M \leq 192$, and
 10 BLAKE2b compressions for $192 < \ell_M \leq 256$, for example. The
@@ -1488,10 +1589,10 @@ this process would be 128 bytes plus two BLAKE2b hash states.
 Since this streaming implementation of $\mathsf{F4Jumble}^{-1}$ is
 quite complicated, we do not require all Consumers to support streaming. If a
 Consumer implementation cannot support UAs / UVKs up to the maximum length,
-it MUST nevertheless support UAs / UVKs with $\ell_M$ of at least
-$256$ bytes. Note that this effectively defines two conformance levels
-to this specification. A full implementation will support UAs / UVKs up to
-the maximum length.
+it MUST nevertheless support UAs with $\ell_M$ of at least $256$ bytes, and
+UVKs with $\ell_M$ of at least $1536$ bytes. Note that this effectively
+defines two conformance levels to this specification. A full implementation
+will support UAs / UVKs up to the maximum length.
 
 
 Dependencies
@@ -1565,6 +1666,8 @@ References
 .. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2023.4.0. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions <protocol/protocol.pdf#concretediversifyhash>`_
 .. [#protocol-addressandkeyencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6: Encodings of Addresses and Keys <protocol/protocol.pdf#addressandkeyencoding>`_
 .. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-saplinginviewingkeyencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.3.2: Sapling Incoming Viewing Keys <protocol/protocol.pdf#saplinginviewingkeyencoding>`_
+.. [#protocol-saplingfullviewingkeyencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.3.3: Sapling Full Viewing Keys <protocol/protocol.pdf#saplingfullviewingkeyencoding>`_
 .. [#protocol-orchardpaymentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.2: Orchard Raw Payment Addresses <protocol/protocol.pdf#orchardpaymentaddrencoding>`_
 .. [#protocol-orchardinviewingkeyencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.3: Orchard Raw Incoming Viewing Keys <protocol/protocol.pdf#orchardinviewingkeyencoding>`_
 .. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
@@ -1574,22 +1677,20 @@ References
 .. [#zip-0032-sapling-extfvk] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling extended full viewing keys <zip-0032.rst#sapling-extended-full-viewing-keys>`_
 .. [#zip-0032-sapling-diversifier-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling diversifier derivation <zip-0032.rst#sapling-diversifier-derivation>`_
 .. [#zip-0032-sapling-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation <zip-0032.rst#sapling-internal-key-derivation>`_
-.. [#zip-0032-orchard-child-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation <zip-0032.rst#orchard-child-key-derivation>`_
 .. [#zip-0032-orchard-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation <zip-0032.rst#orchard-internal-key-derivation>`_
 .. [#zip-0032-specification-wallet-usage] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet usage <zip-0032.rst#specification-wallet-usage>`_
 .. [#zip-0032-sapling-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path <zip-0032.rst#sapling-key-path>`_
-.. [#zip-0032-orchard-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032.rst#orchard-key-path>`_
 .. [#zip-0048] `ZIP 48: Transparent Multisig Wallets <zip-0048.md>`_
 .. [#zip-0203-default-expiry] `ZIP 203: Transaction Expiry — Changes for Blossom <zip-0203.rst#changes-for-blossom>`_
+.. [#zip-0203-nu7-expiry] `ZIP 203: Transaction Expiry — Changes for NU7 <zip-0203.rst#changes-for-nu7>`_
 .. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
 .. [#zip-0312] `ZIP 312: FROST for Spend Authorization Multisignatures <zip-0312.rst>`_
-.. [#zip-0315] `ZIP 315: Best Practices for Wallet Handling of Multiple Pools <zip-0315.rst>`_
+.. [#zip-0315] `ZIP 315: Best Practices for Wallet Implementations <zip-0315.rst>`_
 .. [#zip-0321] `ZIP 321: Payment Request URIs <zip-0321.rst>`_
-.. [#zip-2005-usagewithfrost] `ZIP 2005: Orchard Quantum Recoverability — Usage with FROST <zip-2005.md#usagewithfrost>`_
+.. [#zip-2005-usagewithfrost] `ZIP 2005: Ironwood Quantum Recoverability — Usage with FROST <zip-2005.md#usagewithfrost>`_
 .. [#bip-0032] `BIP 32: Hierarchical Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki>`_
 .. [#bip-0032-conventions] `BIP 32: Hierarchical Deterministic Wallets — Conventions <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#conventions>`_
-.. [#bip-0032-key-identifiers] `BIP 32: Hierarchical Deterministic Wallets — Key identifiers <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#key-identifiers>`_
 .. [#bip-0032-serialization-format] `BIP 32: Hierarchical Deterministic Wallets — Serialization Format <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format>`_
 .. [#bip-0032-public-to-public] `BIP 32: Hierarchical Deterministic Wallets — Child key derivation (CKD) functions: Public parent key → public child key <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#public-parent-key--public-child-key>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
@@ -1597,6 +1698,8 @@ References
 .. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#bip-0380] `BIP 380: Output Script Descriptors General Operation <https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki>`_
+.. [#bip-0381] `BIP 381: Non-Segwit Output Script Descriptors <https://github.com/bitcoin/bips/blob/master/bip-0381.mediawiki>`_
+.. [#bip-0383] `BIP 383: Multisig Output Script Descriptors <https://github.com/bitcoin/bips/blob/master/bip-0383.mediawiki>`_
 .. [#bip-0388] `BIP 388: Wallet Policies for Descriptor Wallets <https://github.com/bitcoin/bips/blob/master/bip-0388.mediawiki>`_
 .. [#P2PKH] `Transactions: P2PKH Script Validation — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#p2pkh-script-validation>`_
 .. [#P2SH] `Transactions: P2SH Scripts — Bitcoin Developer Guide <https://developer.bitcoin.org/devguide/transactions.html#pay-to-script-hash-p2sh>`_

@@ -5,7 +5,7 @@
   Owners: Kris Nuttycombe <kris@nutty.land>
           Daira-Emma Hopwood <daira@jacaranda.org>
   Credits: Francisco Gindre
-  Status: Active
+  Status: [Revision 0] Active, [Revision 1] Proposed
   Category: Standards / Wallet
   Created: 2020-08-28
   Discussions-To: <https://github.com/zcash/zips/issues/347>
@@ -21,7 +21,10 @@ are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they
 appear in all capitals.
 
 The terms "Testnet" and "Mainnet" are to be interpreted as described in
-section 3.11 of the Zcash Protocol Specification [#protocol-networks]_.
+section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
+
+"ZEC/TAZ" refers to the native currency of Zcash on a given network, i.e.
+ZEC on Mainnet and TAZ on Testnet.
 
 The terms "Custom Asset", "Asset Identifier", and "asset description" in this
 document are to be interpreted as described in ZIP 227 [#zip-0227]_.
@@ -80,20 +83,33 @@ Requirements
 The format must be a valid URI format [#RFC3986]_.
 
 The format must permit the representation of one or more tuples of
-payment address, amount, asset (if applicable), and optional memo.
+payment address, optional amount, asset (if applicable), and optional memo.
 
 
 Specification
 =============
+
+Revisions
+---------
+
+.. _`Revision 0`:
+
+* Revision 0: The initial version of this specification.
+
+.. _`Revision 1`:
+
+* Revision 1: Adds the ``req-asset`` parameter for payments of Custom Assets
+  (see `Custom Assets`_). This revision depends on ZIP 227 [#zip-0227]_, which
+  has not yet been deployed.
 
 URI Syntax
 ----------
 
 The following syntax specification uses ABNF [#RFC5234]_.
 
-.. code-block:: EBNF
+.. code-block:: ABNF
 
-  zcashurn        = "zcash:" ( zcashaddress [ "?" zcashparams ] / "?" zcashparams )
+  zcashuri        = "zcash:" ( zcashaddress [ "?" zcashparams ] / "?" zcashparams )
   zcashaddress    = 1*( ALPHA / DIGIT )
   zcashparams     = zcashparam [ "&" zcashparams ]
   zcashparam      = [ addrparam / amountparam / assetparam / memoparam / messageparam / labelparam / otherreqparam / otherparam ]
@@ -102,30 +118,50 @@ The following syntax specification uses ABNF [#RFC5234]_.
   paramindex      = "." NONZERO 0*3DIGIT
   addrparam       = "address"   [ paramindex ] "=" zcashaddress
   amountparam     = "amount"    [ paramindex ] "=" 1*DIGIT [ "." 1*8DIGIT ]
-  assetparam      = "req-asset" [ paramindex ] "=" *base64url
+  assetparam      = "req-asset" [ paramindex ] "=" *base64urlchar
   labelparam      = "label"     [ paramindex ] "=" *qchar
-  memoparam       = "memo"      [ paramindex ] "=" *base64url
+  memoparam       = "memo"      [ paramindex ] "=" *base64urlchar
   messageparam    = "message"   [ paramindex ] "=" *qchar
   paramname       = ALPHA *( ALPHA / DIGIT / "+" / "-" )
   otherreqparam   = "req-" paramname [ paramindex ] [ "=" *qchar ]
   otherparam      = paramname [ paramindex ] [ "=" *qchar ]
   qchar           = unreserved / pct-encoded / allowed-delims / ":" / "@"
   allowed-delims  = "!" / "$" / "'" / "(" / ")" / "*" / "+" / "," / ";"
+  base64urlchar   = ALPHA / DIGIT / "-" / "_"
 
-Here, ``ALPHA``, ``unreserved`` and ``pct-encoded`` are as defined in
-[#RFC3986]_. "base64url" is defined as in [#base64url]_ with padding omitted.
-(Note that this uses a different alphabet to the usual base64; the values 62 and
-63 in the alphabet are encoded as ``-`` and ``_`` respectively. Implementations
-MUST NOT accept the characters ``+``, ``/``, and ``=`` that occur only in the
-usual base64.)
+Here, ``ALPHA`` is as defined in Appendix B.1 of [#RFC5234]_, and ``unreserved``
+and ``pct-encoded`` are as defined in [#RFC3986]_. "base64url" is defined as in
+[#base64url]_ with padding omitted. (Note that this uses a different alphabet to
+the usual base64; the values 62 and 63 in the alphabet are encoded as ``-`` and
+``_`` respectively. Implementations MUST NOT accept the characters ``+``, ``/``,
+and ``=`` that occur only in the usual base64.)
 
 Productions of the form ``1*x`` indicate one or more successive instances of the
 production ``x``. Productions of the form ``<n>*<m>x`` indicate at least `<n>` and
 at most `<m>` instances of production ``x``.
 
+Parameter names, including the ``req-`` prefix, are case-sensitive. That is,
+the quoted parameter names in the grammar above match only the lowercase forms
+shown, rather than being case-insensitive as [#RFC5234]_ section 2.3 specifies
+for ABNF strings in general.
+
+A parameter whose name (excluding any ``paramindex``) is ``address``,
+``amount``, ``label``, ``memo``, ``message``, or ``req-asset`` MUST match the
+production for that parameter above; the ``otherreqparam`` and ``otherparam``
+productions match only parameters with other names.
+
 Note that this grammar does not allow percent encoding outside the productions
 that use ``qchar``, i.e. the values of label, message, ``otherreqparam``, and
 ``otherparam`` parameters.
+
+The values of ``qchar`` productions represent Unicode text encoded as UTF-8
+and then percent-encoded as described in [#RFC3986]_ section 2.5. Parsers MUST
+consider the entire URI invalid if the value of a ``label`` or ``message``
+parameter, after percent-decoding, is not valid UTF-8.
+
+Parsers MUST consider the entire URI invalid if the value of a ``memo`` or
+``req-asset`` parameter has a length congruent to 1 modulo 4, or has unused
+trailing bits that are not all zero [#RFC4648-canonical]_.
 
 Purported ZIP 321 URIs that cannot be parsed according to the above grammar
 MUST NOT be accepted.
@@ -138,13 +174,15 @@ A ZIP-321 URI represents a request for the construction of a transaction having
 one or more *payments*. In the case that only a single payment is being
 requested, the recipient address SHOULD be included in the ``hier-part`` component
 of the RFC 3986 URI; otherwise, multiple recipient addresses can be specified
-using ``addrparam`` parameters with different indices.
+using ``addrparam`` parameters with different indices. A URI MUST contain at
+least one address (in the ``hier-part`` or as an ``addrparam``); a URI that
+specifies no payment, such as ``zcash:?``, MUST be rejected.
 
-Addresses, amounts, labels, and messages sharing the same ``paramindex``
-(including the empty ``paramindex``) are interpreted to be associated with
-the same payment for the purposes of payment construction. A ``paramindex``
-MUST NOT have leading zero(s).  There is no significance to the ordering of
-parameters, and ``paramindex`` values need not be sequential.
+All parameters sharing the same ``paramindex`` (including the empty
+``paramindex``) are interpreted to be associated with the same payment for the
+purposes of payment construction. A ``paramindex`` MUST NOT have leading
+zero(s).  There is no significance to the ordering of parameters, and
+``paramindex`` values need not be sequential.
 
 Implementations SHOULD construct a single transaction that pays all of the
 specified instances of ``zcashaddress``. The number of such addresses is
@@ -154,8 +192,15 @@ if all payments were to Sapling payment addresses (each specified either
 directly or as a Receiver of a Unified Address), the limit described in
 [#protocol-saplingbalance]_ implies that constructing a transaction for a
 ZIP-321 URI might fail if it requests more than 2109 distinct payments. The
-effective limit might be lower if payments to Orchard addresses or other future
+effective limit might be lower if payments to Orchard Receivers or other future
 types of address are included.
+
+ZIP 218 [#zip-0218]_, proposed for deployment in NU7 [#zip-0259]_, would add
+per-block limits under which a transaction can have at most 300 Sapling Spends
+and Outputs, and at most 330 Sapling Spends and Outputs and Orchard and Ironwood
+Actions in total. If these limits are deployed, a request for more than 300
+payments to Sapling Receivers, or for more than 330 shielded payments, cannot be
+satisfied by a single transaction.
 
 A URI of the form ``zcash:<address>?...`` MUST be considered equivalent to a
 URI of the form ``zcash:?address=<address>&...`` where ``<address>`` is an
@@ -170,16 +215,18 @@ at the same ``paramindex`` MUST be rejected.
 
 Implementations SHOULD check that each instance of ``zcashaddress`` is a valid
 string encoding of an address, other than a Sprout address, as specified in the
-subsections of section 5.6 (Encoding of Addresses and Keys) of the Zcash protocol
-specification [#protocol-addressandkeyencoding]_. At the time of writing this
-includes the following address formats:
+subsections of section 5.6 (Encodings of Addresses and Keys) of the Zcash protocol
+specification [#protocol-addressandkeyencoding]_, or of a TEX Address as specified
+in ZIP 320 [#zip-0320]_. At the time of writing this includes the following
+address formats:
 
 * a Zcash transparent address, as defined in [#protocol-transparentaddrencoding]_,
   using Base58Check [#base58check]_;
 * a Zcash Sapling payment address as defined in [#protocol-saplingpaymentaddrencoding]_,
   using Bech32 [#zip-0173]_;
 * a Zcash Unified Address as defined in [#protocol-unifiedencodings]_ and [#zip-0316]_,
-  using Bech32m [#bip-0350]_.
+  using Bech32m [#bip-0350]_;
+* a TEX Address as defined in [#zip-0320]_, using Bech32m [#bip-0350]_.
 
 New address formats may be added to [#protocol-addressandkeyencoding]_ in future,
 and these SHOULD be supported whether or not this ZIP is updated to explicitly
@@ -202,6 +249,10 @@ updating this ZIP to exclude these types, as part of their deprecation.
 Custom Assets
 -------------
 
+This section is part of `Revision 1`_, which is not deployed. Parsers that do
+not recognize the ``req-asset`` parameter consider the entire URI invalid, as
+required in `Forward compatibility`_.
+
 The ``req-asset`` parameter permits the specification of both an Asset Identifier
 and an amount for a payment. It is encoded as follows:
 
@@ -216,9 +267,18 @@ Future versions MAY define different structures or lengths after the version
 byte; implementations MUST use the version value to determine how to decode
 the remainder of the parameter.
 
+Parsers MUST consider the entire URI invalid if a ``req-asset`` value is
+empty, if its version byte is not recognized, or if, for version ``0x00``, the
+decoded value does not consist of exactly the version byte, the 8-byte amount,
+and one encoding $\mathsf{EncodeAssetId}(\mathsf{AssetId})$ as defined in ZIP 227
+[#zip-0227-asset-identifier]_ whose version byte and issuance signature scheme
+byte the parser recognizes. (For the encodings currently defined in ZIP 227,
+$\mathsf{EncodeAssetId}(\mathsf{AssetId})$ is 66 bytes, so a version ``0x00``
+value decodes to 75 bytes.)
+
 If no ``req-asset`` parameter is present, the payment MUST be considered to
-be for ZEC, and the transfer amount in ZEC is specified using the ``amount``
-parameter.
+be for ZEC/TAZ, and the transfer amount in ZEC/TAZ, if any, is specified using
+the ``amount`` parameter.
 
 Only Orchard receivers are valid for Custom Asset payments. Therefore, a payment
 request for a Custom Asset MUST use a Unified Address that encodes at least one
@@ -232,8 +292,9 @@ Example
    <details>
    <summary>Click to show/hide</summary>
 
-Suppose the asset description is "USD testing", with an invented digest and
-issuer key as inputs. The resulting 66-byte value is:
+Suppose the asset description is "USD testing", with an invented asset
+description hash $\mathsf{assetDescHash}$ and issuer key as inputs. The
+resulting 66-byte value is:
 
 ::
 
@@ -265,11 +326,12 @@ Base64url-encoded (unpadded) for the entire 75-byte blob, this becomes
 
   AEcnAAAAAAAAAADerb7v3q2-796tvu_erb7v3q2-796tvu_erb7v3q2-7xEiM0RVZneImQCqu8zd7v8AESIzRFVmd4iZqrvM3e7_
 
-A payment URI using this ``req-asset`` could look like:
+A payment URI using this ``req-asset`` could look like the following (the line
+break and indentation are for display only, and are not part of the URI):
 
 ::
 
-  zcash:utest1q9d6gqg...7y0d9zj7ns2ceqk4j0d6ngqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq7e4t0p
+  zcash:utest1nvzd4wf8mxnext5mze9rzqc8feq2wpv27fdl396yy5lwaq6q6f3q6tnzw2h2ujtsgn9mnvgf6w9u7d4aq2dpxtnxespwlhyzavz9jujt
     ?req-asset=AEcnAAAAAAAAAADerb7v3q2-796tvu_erb7v3q2-796tvu_erb7v3q2-7xEiM0RVZneImQCqu8zd7v8AESIzRFVmd4iZqrvM3e7_
 
 .. raw:: html
@@ -279,7 +341,11 @@ A payment URI using this ``req-asset`` could look like:
 ZEC Transfer Amount
 -------------------
 
-If an ``amount`` parameter is provided, its value is interpreted as decimal ZEC.
+If an ``amount`` parameter is provided, its value is interpreted as decimal ZEC/TAZ.
+
+If a payment has neither an ``amount`` nor a ``req-asset`` parameter, the amount
+is to be chosen by the sender: the sender's wallet MUST obtain it from the user
+before constructing the transaction, and MUST NOT default it to zero.
 
 If a decimal fraction is present then a period (`.`) MUST be used as the separating
 character to separate the whole number from the decimal fraction, and both the
@@ -290,13 +356,21 @@ more than 8 digits in the decimal fraction.
 
 For example,
 
-* ``amount=50.00`` or ``amount=50`` or ``amount=050`` is treated as 50 ZEC;
-* ``amount=0.5`` or ``amount=00.500`` is treated as 0.5 ZEC; and
+* ``amount=50.00`` or ``amount=50`` or ``amount=050`` is treated as 50 ZEC/TAZ;
+* ``amount=0.5`` or ``amount=00.500`` is treated as 0.5 ZEC/TAZ; and
 * ``amount=50,000.00`` or ``amount=50,00`` or ``amount=50.`` or ``amount=.5``
   or ``amount=0.123456789`` are invalid.
 
-The amount MUST NOT be greater than 21000000 ZEC (in general, ZEC monetary amounts
-in Zcash cannot be greater than this value).
+The amount MUST NOT be greater than 21000000 ZEC/TAZ (in general, ZEC/TAZ
+monetary amounts in Zcash cannot be greater than this value).
+
+An amount of zero is permitted by this specification. However, node relay
+policy treats a transparent output whose value is below a dust threshold
+(currently 54 zatoshi for P2PKH and P2SH outputs) as non-standard, although
+such an output, including one with zero value, is valid under the consensus
+rules. A wallet SHOULD reject, or warn the user about, a payment request that
+would require such an output, rather than construct a transaction that will not
+be relayed.
 
 Query Keys
 ----------
@@ -316,7 +390,7 @@ memo
    if shorter, will be filled with trailing zeros to 512 bytes.
    Parsers MUST consider the entire URI invalid if the address associated with
    the same ``paramindex`` does not permit the use of memos (i.e. it is a
-   transparent address).
+   transparent address or a TEX Address).
 
 message
    Message that clients can display for the purpose of presenting descriptive
@@ -325,6 +399,9 @@ message
 Examples
 --------
 
+Line breaks and leading whitespace in the examples below are for display only,
+and are not part of the URI.
+
 Valid examples
 ~~~~~~~~~~~~~~
 
@@ -332,7 +409,7 @@ Valid examples
 
   zcash:ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez?amount=1&memo=VGhpcyBpcyBhIHNpbXBsZSBtZW1vLg&message=Thank%20you%20for%20your%20purchase
 
-A valid payment request for a payment of 1 ZEC to a single shielded Sapling
+A valid payment request for a payment of 1 TAZ to a single shielded Sapling
 address, with a base64url-encoded memo and a message for display by the wallet.
 
 ::
@@ -344,10 +421,10 @@ address, with a base64url-encoded Unicode memo for the shielded recipient.
 
 ::
 
-  zcash:?address=utest1qpsw0d7s6e5t7dv8x8yyw5e4v4jh8p5kux6g5v4kthh0nngwh2c5ue2x8p3wxy7qsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq7egr7p
+  zcash:?address=utest1nvzd4wf8mxnext5mze9rzqc8feq2wpv27fdl396yy5lwaq6q6f3q6tnzw2h2ujtsgn9mnvgf6w9u7d4aq2dpxtnxespwlhyzavz9jujt
     &req-asset=AEcnAAAAAAAAAADerb7v3q2-796tvu_erb7v3q2-796tvu_erb7v3q2-7xEiM0RVZneImQCqu8zd7v8AESIzRFVmd4iZqrvM3e7_
-    &address.1=utest1qplk9cnv5u2r0z8a3g7yyjv4x3v5h4d0nx3uq36zj2u4p6h9ty4g8r9xk2q0d2n7qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq4u3aq
-    &req-asset.1=AJAIAwAAAAAAADerb7v3q2-796tvu_erb7v3q2-796tvu_erb7v3q2-7xEiM0RVZneImQCqu8zd7v8AESIzRFVmd4iZqrvM3e7_
+    &address.1=utest1pn783ylmejaugf5ukrcmp7af6pj2jj9jmg7rhrcpzf8wzt58u0djhsl2ktfqded2nccxww553cs73x3mwatrcv8zzamghg3ftgsdxu9c
+    &req-asset.1=AJDQAwAAAAAAAADerb7v3q2-796tvu_erb7v3q2-796tvu_erb7v3q2-7xEiM0RVZneImQCqu8zd7v8AESIzRFVmd4iZqrvM3e7_
 
 This is a valid payment request with two recipients, each using a distinct Unified
 Address that includes an Orchard receiver. Each ``req-asset`` value encodes, in order,
@@ -426,9 +503,10 @@ Forward compatibility
 ---------------------
 
 Variables which are prefixed with a ``req-`` are considered required. If a
-parser does not recognize any variables which are prefixed with ``req-``, it
-MUST consider the entire URI invalid. Any other variables that are not
-recognized, but that are not prefixed with a ``req-``, SHOULD be ignored.
+URI contains any parameter whose name begins with ``req-`` that the parser
+does not recognize, the parser MUST consider the entire URI invalid. Any other
+variables that are not recognized, but that are not prefixed with a ``req-``,
+SHOULD be ignored.
 
 ``req-`` is potentially part of a given parameter name that may be defined
 in a future version of this ZIP, not a modifier that can be applied to an
@@ -449,6 +527,14 @@ query parameter rather than in the ``hier-part`` of the URI. They may also
 not support the ``memo`` parameter, or may not treat it as base64url-encoded.
 
 
+Reference Implementation
+========================
+
+The ``zip321`` crate in librustzcash [#zip321-crate]_ implements `Revision 0`_.
+It does not implement the ``req-asset`` parameter of `Revision 1`_, and so
+considers a URI containing that parameter invalid.
+
+
 References
 ==========
 
@@ -456,18 +542,23 @@ References
 .. [#RFC5234] `RFC 5234: Augmented BNF for Syntax Specifications: ABNF <https://www.rfc-editor.org/rfc/rfc5234.html>`_
 .. [#RFC3986] `RFC 3986: URI Generic Syntax, Appendix A. Collected ABNF for URI <https://www.rfc-editor.org/rfc/rfc3986.html#appendix-A>`_
 .. [#base64url] `RFC 4648 section 5: Base64 Encoding with URL and Filename Safe Alphabet <https://www.rfc-editor.org/rfc/rfc4648.html#section-5>`_
+.. [#RFC4648-canonical] `RFC 4648 section 3.5: Canonical Encoding <https://www.rfc-editor.org/rfc/rfc4648.html#section-3.5>`_
 .. [#bip-0021] `BIP 21: URI Scheme <https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki>`_
 .. [#bip-0070] `BIP 70: Payment Protocol <https://github.com/bitcoin/bips/blob/master/bip-0070.mediawiki>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#base58check] `Bitcoin Wiki: Base58Check encoding <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
 .. [#zip-0173] `ZIP 173: Bech32 Format <zip-0173.rst>`_
-.. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Value Pool <zip-0211.rst>`_
+.. [#zip-0211] `ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool <zip-0211.rst>`_
+.. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`_
 .. [#zip-0227-asset-identifier] `ZIP 227: Issuance of Zcash Shielded Assets — Asset Identifier <zip-0227.rst#asset-identifier>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.11: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2023.4.0. Section 4.12: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
+.. [#zip-0320] `ZIP 320: Defining an Address Type to which funds can only be sent from Transparent Addresses <zip-0320.rst>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2023.4.0. Section 4.13: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
 .. [#protocol-addressandkeyencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6: Encodings of Addresses and Keys <protocol/protocol.pdf#addressandkeyencoding>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
 .. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
 .. [#protocol-unifiedencodings] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.4.1: Unified Payment Addresses and Viewing Keys <protocol/protocol.pdf#unifiedencodings>`_
+.. [#zip321-crate] `zip321 crate in librustzcash <https://github.com/zcash/librustzcash/tree/main/components/zip321>`_

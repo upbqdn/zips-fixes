@@ -19,9 +19,9 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", "NOT RECOMMENDED", and "MAY" in this document
-are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
-they appear in all capitals.
+The key words "MUST", "SHOULD", "SHOULD NOT", and "RECOMMENDED" in this
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
 
 The terms "Recipient", "Producer", "Consumer", "Sender", "Receiver", "Address",
 and "Unified Address" are to be interpreted as described in ZIP 316
@@ -117,12 +117,12 @@ Specification
 A TEX Address, also called a Transparent-Source-Only Address, is a Bech32m [#bip-0350]_
 reencoding of a transparent Zcash P2PKH address [#protocol-transparentaddrencoding]_.
 
-Wallets and other Senders sending to a TEX address (as any output) MUST ensure that
+Wallets and other Senders sending to a TEX Address (as any output) MUST ensure that
 only transparent (P2SH or P2PKH) UTXOs are spent in the creation of the transaction.
 For simplicity of parsing and interpreting such transactions, they also SHOULD only
 send to transparent outputs.
 
-A TEX address can be produced from a Mainnet Zcash P2PKH Address by executing the
+A TEX Address can be produced from a Mainnet Zcash P2PKH Address by executing the
 following steps:
 
 1. Decode the address to a byte sequence using the Base58Check decoding
@@ -138,7 +138,7 @@ For Testnet addresses, the required lead bytes of a P2PKH address in step 2 are
 $[\mathtt{0x1D}, \mathtt{0x25}]$, and the ``"textest"`` HRP is used when
 reencoding in step 3.
 
-A TEX address can be parsed by reversing this encoding, i.e.:
+A TEX Address can be parsed by reversing this encoding, i.e.:
 
 1. Decode the address to a byte sequence using Bech32m [#bip-0350]_, checking
    that the HRP is ``"tex"`` for a Mainnet TEX Address and ``"textest"`` for a
@@ -171,6 +171,35 @@ the relevant transparent viewing keys. This also implies that they SHOULD be
 chosen in a way that avoids collisions with addresses for previously generated
 outputs (including change outputs), such as might have been created by a
 transparent-only wallet using Bitcoin-derived code based on BIP 44 [#bip-0044]_.
+
+To meet these requirements, a wallet based on ZIP 32 SHOULD derive the
+ephemeral addresses of an account as the P2PKH addresses of the keys at BIP 44
+paths ``m/44'/coin_type'/account'/2/address_index``, where ``coin_type`` and
+``account`` are as for the account's other transparent keys, the change level
+is 2 (BIP 44 itself uses only 0 and 1), and ``address_index`` is non-hardened.
+It SHOULD allocate address indices sequentially and SHOULD NOT reuse an
+ephemeral address for another transaction. A wallet SHOULD use a gap limit
+[#bip-0044-gap-limit]_ for ephemeral addresses, both when allocating them and
+when recovering them from the seed; a gap limit of 10 (the default in
+librustzcash) is RECOMMENDED. Since the change level is derived non-hardened
+from the account level, the ephemeral addresses can also be derived from the
+account's transparent P2PKH full viewing key [#zip-0316-encoding]_.
+
+When a Sender creates such a pair of transactions, the ``nExpiryHeight``
+[#zip-0203]_ of the second SHOULD NOT be later than that of the first, where an
+``nExpiryHeight`` of 0 (no expiry) counts as later than any nonzero value.
+Equal nonzero expiry heights are RECOMMENDED: if the second transaction expires
+earlier than the first, it might not be mined, leaving the funds at the
+ephemeral address.
+
+Another wallet using the same seed might observe the output to the ephemeral
+address after the first transaction is mined but before the second is. A wallet
+that detects an unspent output at one of its ephemeral addresses, in a
+transaction that spends funds belonging to the wallet, SHOULD NOT treat that
+output as spendable until it is known to be unspent as of a block height
+greater than that transaction's ``nExpiryHeight`` (if nonzero). This does not
+apply to funds returned by a Recipient, which arrive in a transaction that
+spends no funds belonging to the wallet.
 
 In order to show accurate transaction history to a user, wallets SHOULD
 remember when a particular transaction output was sent to a TEX Address, so
@@ -205,10 +234,10 @@ Javascript::
 Rationale
 =========
 
-TEX addresses are the simplest possible approach to creating a new address type that
+TEX Addresses are the simplest possible approach to creating a new address type that
 indicates that only transparent sources of funds should be used.
 
-As required by Binance, it will be possible to convert between a TEX address and an
+As required by Binance, it will be possible to convert between a TEX Address and an
 unrestricted transparent P2PKH address using extremely straightforward code that
 depends only on Base58Check and Bech32m encoding/decoding, as shown in the above
 `Reference Implementation`_.
@@ -224,9 +253,9 @@ However, ultimately the Unified Address-based approach did not meet all of the
 requirements, since it would in practice have required dependencies on address
 handling libraries that Binance did not want to depend on in their front-end code.
 
-Some design elements of that approach that apply to metadata in general have
-been incorporated into ZIP 316 Revision 1 [#zip-0316-revision-1]_. A more general
-form of Source Restriction Metadata is also under consideration.
+Some design elements of that approach that apply to metadata in general, first
+proposed in the now withdrawn ZIP 316 Revision 1, have been incorporated into
+ZIP 316 Revision 2 [#zip-0316-revision-2]_.
 
 Disadvantages
 -------------
@@ -246,13 +275,16 @@ References
 .. [#hanh-profile] `Zcash Community Forum user @hanh <https://forum.zcashcommunity.com/u/hanh/summary>`_
 .. [#hanh-suggestion] `Ywallet developer @hanh's proposal <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954/112>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#zip-0316-terminology] `ZIP 316: Unified Addresses and Unified Viewing Keys — Terminology <zip-0316.rst#terminology>`_
-.. [#zip-0316-revision-1] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 1 <zip-0316.rst#revision-1>`_
+.. [#zip-0316-revision-2] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 2 <zip-0316.rst#revision-2>`_
+.. [#zip-0316-encoding] `ZIP 316: Unified Addresses and Unified Viewing Keys — Encoding of Unified Full/Incoming Viewing Keys <zip-0316.rst#encoding-of-unified-full-incoming-viewing-keys>`_
 .. [#zip-0316-address-expiry] `ZIP 316: Unified Addresses and Unified Viewing Keys — Address Expiration Metadata <zip-0316.rst#address-expiration-metadata>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2023.4.0. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2023.4.0. Section 5.6.1.1 Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
 .. [#binance-address-expiry] `Zcash Community Forum post describing motivations for address expiry <https://forum.zcashcommunity.com/t/unified-address-expiration/46564/6>`_
 .. [#Base58Check] `Base58Check encoding — Bitcoin Wiki <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#bip-0044-gap-limit] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Address gap limit <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#address-gap-limit>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
