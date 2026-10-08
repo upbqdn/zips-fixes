@@ -14,6 +14,7 @@
            Andrew Miller
   Status: Active
   Category: Consensus Process
+  Obsoletes: 1012
   Created: 2019-11-10
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/community-sentiment-polling-results-nu4-and-draft-zip-1014/35560>
@@ -74,7 +75,7 @@ and increasingly decentralized governance is encouraged.
 Motivation
 ==========
 
-Starting at Zcash's first halving in October 2020, by default 100% of the block
+Starting at Zcash's first halving in November 2020, by default 100% of the block
 subsidies will be allocated to miners, and no further funds will be automatically
 allocated to any other entities. Consequently, no substantial new funding
 may be available to existing teams dedicated to furthering charitable,
@@ -260,13 +261,13 @@ Grants, but subject to the following additional constraints:
    to operate the Community Advisory Panel and SHOULD work toward making it more
    representative and independent (more on that below).
    
-8. From 1st January 2022, a portion of the MG Slice shall be allocated to a 
-   Discretionary Budget, which may be disbursed for expenses reasonably related 
+8. From 1st January 2022, a portion of the MG slice SHALL be allocated to a 
+   Discretionary Budget, which MAY be disbursed for expenses reasonably related 
    to the administration of Major Grants. The amount of funds allocated to the 
    Discretionary Budget SHALL be decided by the ZF's Community Advisory Panel or 
    successor process. Any disbursement of funds from the Discretionary Budget 
    MUST be approved by the Major Grant Review Committee. Expenses related to the 
-   administration of Major Grants include, without limitation the following:
+   administration of Major Grants include, without limitation, the following:
    
    * Paying third party vendors for services related to domain name registration, or
      the design, website hosting and administration of websites for the Major Grant 
@@ -348,7 +349,7 @@ BP, ECC, ZF, and grant recipients MUST promptly disclose any security or privacy
 risks that may affect users of Zcash (by responsible disclosure under
 confidence to the pertinent developers, where applicable).
 
-BP's reports, ECC's reports, and ZF's annual report on its non-grant operations,
+BP's reports, ECC's reports, and ZF's annual report on its non-grant operations
 SHOULD be at least as detailed as grant proposals/reports submitted by other
 funded parties, and satisfy similar levels of public scrutiny.
 
@@ -377,12 +378,12 @@ Future Community Governance
 ---------------------------
 
 Decentralized community governance is used in this proposal via the Community
-Panel as input into the Major Grant Review Committee which governs the
+Advisory Panel as input into the Major Grant Review Committee which governs the
 `MG slice (Major Grants)`_.
 
 It is highly desirable to develop robust means of decentralized community
-voting and governance –either by expanding the Community Advisory Panel or a
-successor mechanism– and to integrate them into this process by the end of
+voting and governance — either by expanding the Community Advisory Panel or a
+successor mechanism — and to integrate them into this process by the end of
 2021. BP, ECC, and ZF SHOULD place high priority on such development and its
 deployment, in their activities and grant selection.
 
@@ -408,7 +409,7 @@ Acknowledgements
 ================
 
 This proposal is a limited modification of Eran Tromer's ZIP 1012 [#zip-1012]_
-by the Zcash Foundation, the ECC, further modified by feedback from the
+by the Zcash Foundation and the ECC, further modified by feedback from the
 community and the results of the `latest Helios poll`_.
 
 Eran's proposal is most closely based on the Matt Luongo 'Decentralize the
@@ -433,12 +434,12 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2021.2.16. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#trademark] `Zcash Trademark Donation and License Agreement <https://electriccoin.co/wp-content/uploads/2019/11/Final-Consolidated-Version-ECC-Zcash-Trademark-Transfer-Documents-1.pdf>`_
+.. [#trademark] `Zcash Trademark Donation and License Agreement <https://zodl.com/wp-content/uploads/2019/11/Final-Consolidated-Version-ECC-Zcash-Trademark-Transfer-Documents-1.pdf>`_
 .. [#osd] `The Open Source Definition <https://opensource.org/osd>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-1003] `ZIP 1003: 20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate <zip-1003.rst>`_
 .. [#zip-1010] `ZIP 1010: Compromise Dev Fund Proposal With Diverse Funding Streams <zip-1010.rst>`_
 .. [#zip-1011] `ZIP 1011: Decentralize the Dev Fee <zip-1011.rst>`_
 .. [#zip-1012] `ZIP 1012: Dev Fund to ECC + ZF + Major Grants <zip-1012.rst>`_
-.. [#zf-community] `ZF Community Advisory Panel <https://www.zfnd.org/governance/community-advisory-panel/>`_
+.. [#zf-community] `ZF Community Advisory Panel <https://zfnd.org/zcash-community-advisory-panel/>`_
 .. [#section501c3] `U.S. Code, Title 26, Section 501(c)(3) <https://www.law.cornell.edu/uscode/text/26/501>`_

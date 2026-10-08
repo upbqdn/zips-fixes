@@ -1,7 +1,7 @@
 ::
 
   ZIP: 416
-  Title: Spending Key Derivation in the `zcashd` wallet
+  Title: Spending Key Derivation in the zcashd wallet
   Owners: Daira-Emma Hopwood <daira@jacaranda.org>
           Jack Grigg <thestr4d@gmail.com>
           Kris Nuttycombe <kris@nutty.land>

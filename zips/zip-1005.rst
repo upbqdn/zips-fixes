@@ -7,7 +7,7 @@
   Category: Consensus Process
   Created: 2019-06-23
   License: MIT
-  Discussions-To: <https://forum.zcashcommunity.com/t/zip-proposal-zcfs-zcash-community-funding-system/33898>
+  Discussions-To: <https://forum.zcashcommunity.com/t/zip-1005-zip-proposal-zcfs-zcash-community-funding-system/33898>
 
 
 Abstract
@@ -41,7 +41,7 @@ System (CCS) and is defined as follows:
 2.  An individual, team or company (for-profit or non-profit), henceforth
     ‘proposer’, has an idea to improve the Zcash ecosystem that requires funds.
 3.  The proposer creates a ZCFS proposal in a modified version of the existing
-    `ZF Grants website <https://www.zfnd.org/grants/>`_, to be called the ZCFS
+    `ZF Grants website <https://web.archive.org/web/20200628200916/https://www.zfnd.org/grants/>`_, to be called the ZCFS
     website. The ZF Grants website already has the basic infrastructure for
     this mechanism and needs to be tweaked in order to facilitate this
     specification. The ZF Grants website will continue to operate in its

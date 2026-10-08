@@ -48,7 +48,7 @@ technical specification of the feature and a rationale for the feature.
 We intend ZIPs to be the primary mechanism for proposing new features,
 for collecting community input on an issue, and for documenting the
 design decisions that have gone into Zcash. The Owner(s) of the ZIP
-(usually the authors(s)) are responsible for building consensus within
+(usually the author(s)) are responsible for building consensus within
 the community and documenting dissenting opinions.
 
 Because the ZIPs are maintained as text files in a versioned repository,
@@ -154,7 +154,7 @@ ZIPs:
 * if it only describes updates to existing ZIPs and/or the Zcash
   Protocol Specification (that will be a complete specification in
   themselves after deployment), assign a number in the range
-  2000..2999.
+  2000..2999;
 * try to number ZIPs that should or will be deployed together
   consecutively (subject to the above conventions), and in a coherent
   reading order.
@@ -250,12 +250,12 @@ current practice.
 ZIP Editor Responsibilities
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ZIP Editors subscribe to the `Zcash Community Forum.
-<https://forum.zcashcommunity.com/>`__
+The ZIP Editors subscribe to the `Zcash Community Forum
+<https://forum.zcashcommunity.com/>`__.
 
 Each new ZIP draft SHOULD be submitted as a "pull request" to the ZIPs
-git repository [#zips-repo]_. It SHOULD NOT contain a ZIP number unless
-one had already been assigned by the ZIP Editors. The ZIP content
+git repository [#zips-repo]_. It MUST NOT contain a ZIP number unless
+one has already been assigned by the ZIP Editors. The ZIP content
 SHOULD be submitted in reStructuredText [#rst]_ or Markdown [#markdown]_
 format, and the Status field MUST initially be set to Draft. Generated
 HTML MUST NOT be included in the pull request.
@@ -304,14 +304,16 @@ SHOULD clearly state the ZIP number, title, and a brief summary.
 If an Update ZIP is accepted, it is the responsibility of the ZIP Editors
 to apply the changes it describes to any existing specifications, but
 this MUST only be done once the Status of the Update ZIP has reached at
-least Proposed.
+least Proposed. Before then, the changes MAY instead be recorded in an
+existing ZIP as a Revision that is not Released, as described in
+`ZIP Status Field`_.
 
 If a new Revision is added to a ZIP, then its original deployment is
 called Revision 0. In some cases the revisions of a ZIP may have
 differing deployment Status, which is expressed in the Status field as
 described in `ZIP Status Field`_ below.
 
-The ZIP Editors are also generally responsible for adminstration and
+The ZIP Editors are also generally responsible for administration and
 access control of the ZIPs repository [#zips-repo]_.
 
 Reviewing a ZIP
@@ -362,7 +364,10 @@ Note that it is not the primary responsibility of the ZIP Editors to
 review proposals for security, correctness, or implementability.
 
 If the ZIP draft isn't ready, the Editors SHOULD make suggestions to the Owners
-for the ZIP draft to be revised.
+for the ZIP draft to be revised. A decision that a ZIP draft is not ready to be
+assigned a number or to change status is made by consensus among the current
+Editors, who will then send it back to the Owners for revision, with specific
+instructions.
 
 If a pull request exclusively updates ZIP drafts owned by the PR creator (and is
 free from spam, abusive or malicious content, etc.), then the ZIP Editors SHOULD
@@ -374,18 +379,15 @@ ZIP draft MUST be opened if one is not open already. In this situation, any
 outstanding suggestions or comments that need to be addressed before the ZIP
 draft can be converted to a numbered ZIP SHOULD be moved to this issue.
 
-If the ZIP draft isn't ready, the Editors will send it back to the Owners for
-revision, with specific instructions. This decision is made by consensus
-among the current Editors.
-
 Format review should generally occur after content review feedback has
 been addressed, to avoid unnecessary document churn or merge conflicts.
 
 When a ZIP draft is ready, the ZIP Editors will:
 
 * Ensure that a unique ZIP number has been assigned in the pull request.
-* Regenerate the corresponding HTML documents, if required.
-* Remove Draft status and merge the pull request.
+* Merge the pull request (first marking it ready for review if it is a GitHub
+  draft pull request). The ZIP's Status field remains Draft until it is changed
+  as described in `Specification of Status Workflow`_.
 
 The ZIP editors monitor ZIP changes and update ZIP headers as
 appropriate.
@@ -425,7 +427,7 @@ of the following reasons:
 * a new ZIP draft has a category that does not reflect its content, or an update
   would change a ZIP to an inappropriate category;
 * it violates any specific "MUST" or "MUST NOT" rule in this document;
-* the expressed political views of a Owner of the document are inimical
+* the expressed political views of an Owner of the document are inimical
   to the Zcash Code of Conduct [#conduct]_ (except in the case of an update
   removing that Owner);
 * it is not authorized by the stated ZIP Owners;
@@ -476,9 +478,7 @@ that the meeting is cancelled.
 ZIP format and structure
 ------------------------
 
-ZIPs SHOULD be written in reStructuredText [#rst]_, Markdown [#markdown]_,
-or LaTeX [#latex]_. For ZIPs written in LaTeX, a ``Makefile`` MUST be
-provided to build (at least) a PDF version of the document.
+ZIPs SHOULD be written in reStructuredText [#rst]_ or Markdown [#markdown]_.
 
 Each ZIP SHOULD have the following parts:
 
@@ -624,10 +624,12 @@ number MAY be reused, possibly for an entirely different ZIP.
 ZIP header preamble
 ^^^^^^^^^^^^^^^^^^^
 
-Each ZIP or ZIP stub MUST begin with a RFC 822-style header preamble.
+Each ZIP or ZIP stub MUST begin with an RFC 822-style header preamble.
 For ZIPs and ZIP stubs written in reStructuredText, this is represented
 as ``::`` on the first line, followed by a blank line, then the preamble
-indented by 2 spaces.
+indented by 2 spaces. For ZIPs and ZIP stubs written in Markdown, it is
+represented as a code block, either with each line indented by 4 spaces or
+delimited by lines consisting of three backticks.
 
 The following header fields are REQUIRED for ZIPs::
 
@@ -665,7 +667,7 @@ If there are multiple Owners, each should be on a separate line.
 Credits: and Original-Authors: fields SHOULD NOT include email addresses.
 
 The "Owners", "Credits", and "Original-Authors" headers always use
-these plural spellings even there is only one Owner, one person to be
+these plural spellings even if there is only one Owner, one person to be
 credited, or one original author.
 
 While a ZIP is in public discussions (usually during the initial Draft
@@ -689,10 +691,12 @@ surrounded by ``<`` ``>``; this ensures that the link is rendered correctly.
 Auxiliary Files
 ^^^^^^^^^^^^^^^
 
-ZIPs may include auxiliary files such as diagrams. Auxiliary files
-should be included in a subdirectory for that ZIP; that is, for any ZIP
-that requires more than one file, all of the files SHOULD be in a
-subdirectory named zip-XXXX.
+ZIPs may include auxiliary files such as diagrams. Auxiliary files SHOULD
+be named with the prefix ``zip-XXXX-`` (or, for a ZIP draft, the draft's
+name followed by ``-``). Source files such as SVG diagrams are placed in
+the ``zips`` directory alongside the ZIP. Images to be rendered are placed
+in ``static/assets/images/``, and referenced from the ZIP as
+``../rendered/assets/images/<name>``.
 
 ZIP categories
 --------------
@@ -758,8 +762,10 @@ ZIP Status Field
   the community, by changing its status to Withdrawn (in a PR or by
   request to the ZIP Editors).
 
-* Active: Typically only used for Process or Informational ZIPs, achieved
-  once rough consensus on a Proposed ZIP is reached in PR/forum posts.
+* Active: For Process or Informational ZIPs, achieved once rough consensus
+  on a Proposed ZIP is reached in PR/forum posts. Also used for ZIPs in
+  other non-Consensus categories (for example Standards, Network, RPC,
+  Wallet, or Ecosystem ZIPs) once they are deployed or otherwise in force.
 
 * Proposed: Typically the stage after Draft, added to a ZIP after
   consideration, feedback, and rough consensus from the community.
@@ -770,12 +776,13 @@ ZIP Status Field
   issues preventing consensus.
 
 * Implemented: When a Consensus or Standards ZIP has a working
-  reference implementation but before activation on the Zcash network.
+  reference implementation but before it is activated on the Zcash
+  network (for a Consensus ZIP) or deployed (for a Standards ZIP).
   The status MAY indicate which node implementation has implemented
   the ZIP, e.g. "Implemented (zebra)" or "Implemented (zcashd)".
 
-* Final: When a Consensus or Standards ZIP is both implemented and
-  activated on the Zcash network.
+* Final: When a Consensus ZIP is both implemented and activated on the
+  Zcash network.
 
 * Obsolete: The status when a ZIP is no longer relevant (typically when
   superseded by another ZIP).
@@ -783,22 +790,27 @@ ZIP Status Field
 If a ZIP has multiple Revisions, they may have differing deployment
 status. In that case the status of every Revision SHOULD be specified,
 using the format "[Revision 0] <Status-0>, [Revision 1] <Status-1>, ..."
-where "<Status-n>" is one of the alternatives above.
+where "<Status-n>" is one of the alternatives above. Consecutive Revisions
+that have the same status MAY be grouped in one pair of brackets, and each
+Revision MAY be labelled with the network upgrade that deploys it, for
+example:
 
-Once any Revision has been Released (as defined in the next section),
-all subsequent Revisions MUST also be at least Proposed (that is,
-they MUST NOT be Reserved or Draft). For example, a status such as:
+  [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU7] Draft
+
+A Revision that is not Released (as defined in the next section) MAY
+follow a Released Revision, for example:
 
   [Revision 0] Final, [Revision 1] Draft
 
-is not valid, because changes that are in Draft should not have been
-applied yet.
+In that case, all text that applies only to the non-Released Revision MUST
+be explicitly marked as such (for example, "As of Revision 1"), so that it
+can be distinguished from the Released specification.
 
 Specification of Status Workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Owners of a ZIP MAY decide on their own to change the status between
-Draft or Withdrawn. All other changes in status MUST be approved by
+Draft and Withdrawn. All other changes in status MUST be approved by
 consensus among the current ZIP Editors.
 
 A ZIP SHOULD only change status from Draft (or Rejected) to Proposed,
@@ -809,7 +821,7 @@ to change status to Proposed. Typically, although not necessarily, this
 will specify a network upgrade in which the consensus change is to activate.
 
 A ZIP's status is Released if it is Proposed, Active, Implemented, or Final
-(i.e. not Draft, Rejected, Obsolete, or Withdrawn).
+(i.e. not Reserved, Draft, Rejected, Obsolete, or Withdrawn).
 
 A ZIP that has significant security or privacy implications MUST NOT
 be changed from a non-Released status to a Released status without the
@@ -831,9 +843,9 @@ Process ZIP still reflects a consensus of the community.
 A Standards ZIP SHOULD only change status from Proposed to Implemented
 once the Owners provide an associated reference implementation. For
 Consensus ZIPs, an implementation MUST have been merged into at least
-one consensus node codebase (currently `zebra` and/or `zcashd`), typically
-in the period after the network upgrade's specification freeze but before
-the implementation audit. If the Owners miss this deadline, the Editors
+one consensus node codebase (currently `zebra`; formerly also `zcashd`),
+typically in the period after the network upgrade's specification freeze but
+before the implementation audit. If the Owners miss this deadline, the Editors
 or Owners MAY choose to update the Deployment section of the ZIP to
 target another upgrade, at their discretion.
 
@@ -978,7 +990,7 @@ See Also
 
 * `RFC 7282: On Consensus and Humming in the
   IETF <https://www.rfc-editor.org/rfc/rfc7282.html>`__
-* `Zcash Network Upgrade Pipeline <https://electriccoin.co/blog/the-zcash-network-upgrade-pipeline/>`__
+* `Zcash Network Upgrade Pipeline <https://zodl.com/the-zcash-network-upgrade-pipeline/>`__
 
 
 Acknowledgements
@@ -996,5 +1008,4 @@ References
 .. [#conduct] `Zcash Code of Conduct <https://github.com/zcash/zcash/blob/master/code_of_conduct.md>`_
 .. [#rst] `reStructuredText documentation <https://docutils.sourceforge.io/rst.html>`_
 .. [#markdown] `The Markdown Guide <https://www.markdownguide.org/>`_
-.. [#latex] `LaTeX — a document preparation system <https://www.latex-project.org/>`_
 .. [#zips-repo] `ZIPs git repository <https://github.com/zcash/zips>`_

@@ -19,9 +19,9 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "SHOULD NOT" in this document
-are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
-they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this
+document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described
 in ZIP 200. [#zip-0200]_
@@ -82,8 +82,9 @@ into a compromise that's greater than the sum of its parts:
 
 :editor-note:`for security reasons, it may be useful to refine the
 "single address" to a list of rolling addresses as described in
-section 7.8 of the current protocol specification. Other references to
+section 7.9 of the protocol specification. Other references to
 a "single address" in this document have not been changed.`
+[#protocol-foundersreward]_
 
 *Please note: a previous version of this proposal included a portion of the
 funds being tied to shielded adoption, based on ideas brought forward by
@@ -345,10 +346,11 @@ References
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
-.. [#zfnd-guidance] `Zcash Foundation Guidance on Dev Fund Proposals. Zcash Foundation blog, August 6, 2019. <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
+.. [#zfnd-guidance] `Zcash Foundation Guidance on Dev Fund Proposals. Zcash Foundation blog, August 6, 2019 (archived copy from 2019-08-22). <https://web.archive.org/web/20190822231136/https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
+.. [#protocol-foundersreward] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.9: Payment of Founders’ Reward <protocol/protocol.pdf#foundersreward>`_
 .. [#tromer-comment] `Comment on a post “How to hire ECC” in the Zcash Community Forum. Eran Tromer, August 11, 2019. <https://forum.zcashcommunity.com/t/how-to-hire-ecc/34379/55>`_
 .. [#restricted-funds] `“What Are Restricted Funds?” Foundation Group, last modified December 7, 2018. <https://www.501c3.org/kb/what-are-restricted-funds/>`_
-.. [#zfnd-grants] `ZF Grants — Funding for Zcash ecosystem projects <https://zfnd.org/grants/>`_
-.. [#zfnd-state] `The State of the Zcash Foundation in 2019. Zcash Foundation blog, January 31, 2019. <https://www.zfnd.org/blog/foundation-in-2019/>`_
+.. [#zfnd-grants] `ZF Grants — Funding for Zcash ecosystem projects (archived copy from 2020-06-28) <https://web.archive.org/web/20200628200916/https://www.zfnd.org/grants/>`_
+.. [#zfnd-state] `The State of the Zcash Foundation in 2019. Zcash Foundation blog, January 31, 2019 (archived copy from 2019-02-02). <https://web.archive.org/web/20190202094212/https://www.zfnd.org/blog/foundation-in-2019/>`_
 .. [#acityinohio-comment] `Comment on a post “Decentralizing the Dev Fee” in the Zcash Community Forum. Josh Cincinnati, October 27, 2019. <https://forum.zcashcommunity.com/t/decentralizing-the-dev-fee/35252/38>`_
 .. [#zip-1007] `ZIP 1007: Enforce Development Fund Commitments with a Legal Charter <zip-1007.rst>`_

@@ -6,8 +6,8 @@
   Status: Obsolete
   Category: Consensus Process
   Created: 2019-07-17
-  License: CC BY-SA 4.0 <https://creativecommons.org/licenses/by-sa/4.0/>
-  Discussions-To: <https://forum.zcashcommunity.com/t/zip-proposal-a-genuine-opt-in-protocol-level-development-donation-option/33846>
+  License: CC-BY-SA-4.0
+  Discussions-To: <https://forum.zcashcommunity.com/t/zip-1002-final-zip-proposal-genuine-protocol-opt-in-out-donation-feature-updated-02-sept/33846>
 
 
 Terminology
@@ -198,4 +198,4 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#zfnd-guidance] `Zcash Foundation Guidance on Dev Fund Proposals. Zcash Foundation blog, August 6, 2019. <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
+.. [#zfnd-guidance] `Zcash Foundation Guidance on Dev Fund Proposals. Zcash Foundation blog, August 6, 2019 (archived copy from 2019-08-22). <https://web.archive.org/web/20190822231136/https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_

@@ -5,7 +5,7 @@
     Credits: First Credited
              ...
     Status: Draft
-    Category: {Consensus | Standards Track | Network | RPC | Wallet | Informational | Process}
+    Category: {Consensus | Standards | Consensus Process | Process | Informational | Network | RPC | Wallet | Ecosystem; separate multiple categories with " / "}
     Created: yyyy-mm-dd
     License: {usually MIT}
     Pull-Request: <https://github.com/zcash/zips/pull/???>
@@ -22,7 +22,7 @@ The character § is used when referring to sections of the Zcash Protocol Specif
 
 The terms "Mainnet" and "Testnet" are to be interpreted as described in § 3.12 ‘Mainnet and Testnet’. [^protocol-networks]
 
-The term "full validator" in this document is to be interpreted as defined in § 3.3 ‘The Block Chain’. [^protocol-blockchain].
+The term "full validator" in this document is to be interpreted as defined in § 3.3 ‘The Block Chain’. [^protocol-blockchain]
 
 The terms below are to be interpreted as follows:
 
@@ -81,4 +81,4 @@ The terms below are to be interpreted as follows:
 
 [^protocol-blockchain]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain](protocol/protocol.pdf#blockchain)
 
-[^protocol]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
+[^protocol-networks]: [Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)

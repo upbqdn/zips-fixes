@@ -251,9 +251,9 @@ References / Background
 
 .. role:: editor-note
 
-* https://www.zfnd.org/blog/multisig-governance/
+* https://web.archive.org/web/20190604163224/https://www.zfnd.org/blog/multisig-governance/
 * https://forum.zcashcommunity.com/t/placeholder-considerations-resources-governance-and-legitimacy-in-nu4/34045
-* https://electriccoin.co/blog/ecc-initial-assessment-of-community-proposals/
+* https://zodl.com/ecc-initial-assessment-of-community-proposals/
 * https://medium.com/@socrates1024/here-are-a-couple-of-points-on-framing-the-discussion-of-a-potential-new-dev-fund-in-zcash-c13bcbf4ed5b
 * https://forum.grin.mw/t/solved-early-disappointments/3682
 * https://www.electriccapital.com/ (for disclosure of investments we’ve made).

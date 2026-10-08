@@ -7,15 +7,19 @@
   Status: Obsolete
   Category: Consensus Process
   Created: 2019-09-02
-  License: CC BY-SA 4.0 <https://creativecommons.org/licenses/by-sa/4.0/>
+  License: CC-BY-SA-4.0
   Discussions-To: <https://forum.zcashcommunity.com/t/kek-s-proposal-fund-ecc-for-2-more-years/34778>
+
+Editor's note: this proposal was not adopted. The Dev Fund adopted for the period
+from the first to the second halving is specified in ZIP 1014 [#zip-1014]_.
 
 
 Terminology
 ===========
 
-The key words "MUST" and "MUST NOT" in this document are to be interpreted as
-described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", and "SHOULD" in this document are to be
+interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in
+all capitals.
 
 For clarity this ZIP defines these terms:
 
@@ -80,7 +84,7 @@ costs a month." and "The ECC's portion of block subsidy MUST NOT be greater than
 introduced in the process of ZIP editing; they do not reflect the intent of the
 original author @kek. They are also inconsistent with the summary that was posted
 in the Community Sentiment Collection Poll blog post at
-<https://www.zfnd.org/blog/community-sentiment-collection-poll/>, which stated an
+<https://web.archive.org/web/20191213163804/https://www.zfnd.org/blog/community-sentiment-collection-poll/>, which stated an
 ECC percentage of 20%. Votes on the Community Sentiment Collection Poll, the
 Community Advisory Panel Helios poll, and/or the stake-weighted petition reported
 at <https://forum.zcashcommunity.com/t/staked-poll-on-zcash-dev-fund-debate/34846/71>,
@@ -120,3 +124,4 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <zip-0206.rst>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
+.. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_

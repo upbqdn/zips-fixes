@@ -30,6 +30,9 @@ community members assembled by the Zcash Foundation and described at [#zcap]_.
 by the Zcash Community Advisory Panel or a successor process (e.g. as established
 by FPF) to decide on the funding of grants intended to fund the Zcash ecosystem.
 
+"ZCG Committee" refers to the five-seat committee that approves ZCG awards, as
+specified in `Zcash Community Grants (ZCG)`_.
+
 "Financial Privacy Foundation", also called "FPF", refers to the Cayman
 Islands-incorporated non-profit foundation company limited by guarantee of
 that name.
@@ -37,6 +40,16 @@ that name.
 "Autonomous Entities" refers to committees, DAOs, teams or other groups to
 which FPF provides operations, administrative, and financial management
 support.
+
+"Dev Fund" refers to the 20% of the block subsidy allocated by this ZIP, as
+specified in `Funding Streams`_. It is distinct from the Dev Fund established
+by ZIP 1014 [#zip-1014]_, which ended at the second halving.
+
+"ZCG slice" refers to the part of the Dev Fund that is paid to FPF for ZCG by
+the ``FS_FPF_ZCG`` funding stream.
+
+"Deferred Dev Fund Lockbox", also called the "lockbox", refers to the deferred
+development fund lockbox described in `Lockbox`_ and in ZIP 2001 [#zip-2001]_.
 
 
 Abstract
@@ -84,7 +97,7 @@ development teams.
 For these reasons, the Zcash Community wishes to establish a new Zcash
 Development Fund after the second halving in November 2024, with the intent to
 put in place a more decentralized mechanism for allocation of development
-funds. The alternatives presented here are intended to address the following:
+funds. This proposal is intended to address the following:
 
 1. **Regulatory Risks**: The current model involves direct funding of US-based
    organizations, which can potentially attract regulatory scrutiny from
@@ -121,10 +134,10 @@ funds. The alternatives presented here are intended to address the following:
 
 7. **Promoting Decentralization**: Allocating a portion of the Dev Fund to Zcash
    Community Grants ensures small teams continue to receive funding to
-   contribute to Zcash. Allowing the Dev Fund to expire, or putting 100% into a
-   lockbox, would disproportionately impact grant recipients. This hybrid
-   approach promotes decentralization and the growth of independent development
-   teams.
+   contribute to Zcash. Allowing the ZIP 1014 Dev Fund to expire, or putting
+   100% into a lockbox, would disproportionately impact grant recipients. This
+   hybrid approach promotes decentralization and the growth of independent
+   development teams.
 
 8. **Mitigating Regulatory Risks**: The Financial Privacy Foundation (FPF) is a
    non-profit organization incorporated and based in the Cayman Islands. By
@@ -139,7 +152,7 @@ ecosystem.
 Requirements
 ============
 
-1. **In-Protocol Lockbox**: The alternatives presented in this ZIP depend upon
+1. **In-Protocol Lockbox**: This ZIP depends upon
    the Lockbox Funding Streams proposal [#zip-2001]_.
 
 2. **Regulatory Considerations**: The allocation of funds should minimize
@@ -217,7 +230,7 @@ constraints:
 2. ZCG SHOULD support well-specified work proposed by the grantee, at
    reasonable market-rate costs. They can be of any duration or ongoing without
    a duration limit. Grants of indefinite duration SHOULD be reviewed
-   periodically (on a schedule that the Zcash Community Grants Committee
+   periodically (on a schedule that the ZCG Committee
    considers appropriate for the value and complexity of the grant) for
    continuation of funding.
 
@@ -230,13 +243,13 @@ constraints:
    If one proposal substantially duplicates another’s plans, priority SHOULD be
    given to the originator of the plans.
 
-4. The ZCG committee SHOULD be restricted to funding projects that further the
+4. The ZCG Committee SHOULD be restricted to funding projects that further the
    Zcash cryptocurrency and its ecosystem (which is more specific than
    furthering financial privacy in general) as permitted by
    any relevant jurisdictional requirements.
 
 5. ZCG awards are subject to approval by a five-seat ZCG Committee. The ZCG
-   Committee SHALL be selected by the ZF’s Community Advisory Panel or a
+   Committee SHALL be selected by ZCAP or a
    successor process (e.g. as established by FPF). Elections SHALL be staggered
    to ensure continuity within the Committee.
 
@@ -257,13 +270,13 @@ constraints:
    being an officer, being a director, or having an immediate family
    relationship with any of the above.
 
-8. A portion of the ZCG Slice shall be allocated to a Discretionary Budget,
-   which may be disbursed for expenses reasonably related to the administration
+8. A portion of the ZCG slice SHALL be allocated to a Discretionary Budget,
+   which MAY be disbursed for expenses reasonably related to the administration
    of the ZCG program. The amount of funds allocated to the Discretionary
-   Budget SHALL be decided by the ZF’s Community Advisory Panel or successor
+   Budget SHALL be decided by ZCAP or successor
    process. Any disbursement of funds from the Discretionary Budget MUST be
    approved by the ZCG Committee. Expenses related to the administration of the
-   ZCG program include, without limitation the following:
+   ZCG program include, without limitation, the following:
 
     * Paying for operational management and administration services that
       support the purpose of the Zcash Community Grants program, including
@@ -286,7 +299,7 @@ constraints:
    and MUST align with the scope and responsibilities of their roles. The
    allocation and distribution of compensation to committee members SHALL be
    administered by the FPF. The compensation rate and hours for committee
-   members SHALL be determined by the ZF’s Community Advisory Panel or
+   members SHALL be determined by ZCAP or
    successor process.
 
 10. The ZCG Committee’s decisions relating to the allocation and disbursement
@@ -327,7 +340,7 @@ FPF MUST accept the following obligations in this section on behalf of ZCG:
 
 * Publication of a ZCG Dashboard, providing a snapshot of ZCG’s current
   financials and any disbursements made to grantees.
-* Bi-weekly meeting minutes documenting the decisions made by the ZCG committee
+* Bi-weekly meeting minutes documenting the decisions made by the ZCG Committee
   on grants.
 * Quarterly reports, detailing future plans, execution on previous plans, and
   finances (balances, and spending broken down by major categories).
@@ -349,15 +362,15 @@ FPF MUST contractually commit to fulfill these obligations on behalf of
 ZCG, and the prescribed use of funds, such that substantial violation, not
 promptly remedied, will result in a modified version of Zcash node software
 that removes ZCG’s Dev Fund slice and allocates it to the Deferred Dev Fund
-lockbox.
+Lockbox.
 
 Funding Streams
 ---------------
 
 * 12% of the block subsidy is to be distributed to the lockbox.
 * 8% of the block subsidy is to be distributed to the Financial Privacy
-  Foundation (FPF), for the express use of the Zcash Community Grants Committee
-  (ZCG) to fund independent teams in the Zcash ecosystem.
+  Foundation (FPF), for the express use of the Zcash Community Grants (ZCG)
+  Committee to fund independent teams in the Zcash ecosystem.
 
 As of the activation of this ZIP, the complete set of funding streams for
 Mainnet will be:
@@ -379,6 +392,34 @@ The set of funding streams for Testnet will be:
 ================= =========== ============= ============== ============
 
 
+Deployment
+==========
+
+This ZIP was deployed with NU6. [#zip-0253]_
+
+The funding streams specified above are realized as consensus rules by
+Revision 1 of ZIP 214 [#zip-0214]_, which also specifies their recipient
+addresses, using the funding stream mechanism of ZIP 207 [#zip-0207]_ as
+modified by ZIP 2001 [#zip-2001]_. As specified in ZIP 207, each funding
+stream is active from its start height (inclusive) to its end height
+(exclusive).
+
+On Mainnet, NU6 activated at the second halving, block height 2726400. On
+Testnet, the second halving occurred at block height 2796000, before NU6
+activated at block height 2976000; the Testnet funding streams therefore begin
+at NU6 activation.
+
+
+Reference implementation
+========================
+
+* https://github.com/zcash/zcash/pull/6912 (zcashd)
+* https://github.com/zcash/zcash/pull/6941 (zcashd)
+* https://github.com/zcash/zcash/pull/6958 (zcashd)
+* https://github.com/ZcashFoundation/zebra/pull/8694 (zebrad)
+* https://github.com/ZcashFoundation/zebra/pull/8914 (zebrad)
+
+
 References
 ==========
 
@@ -386,6 +427,9 @@ References
     Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs
     Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#osd] `The Open Source Definition <https://opensource.org/osd>`_
-.. [#zip-1014] `ZIP 1014: Dev Fund Proposal and Governance <zip-1014.rst>`_
+.. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
+.. [#zip-0214] `ZIP 214: Consensus rules for a Zcash Development Fund <zip-0214.rst>`_
+.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.md>`_
+.. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
-.. [#zcap] `Zcash Community Advisory Panel <https://zfnd.org/zcap/>`_
+.. [#zcap] `Zcash Community Advisory Panel <https://zfnd.org/zcash-community-advisory-panel/>`_

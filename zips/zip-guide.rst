@@ -7,10 +7,10 @@
   Credits: First Credited
            ...
   Status: Draft
-  Category: {Consensus | Standards Track | Network | RPC | Wallet | Informational | Process}
+  Category: {Consensus | Standards | Consensus Process | Process | Informational | Network | RPC | Wallet | Ecosystem; separate multiple categories with " / "}
   Created: yyyy-mm-dd
   License: {usually MIT}
-  Pull-Request: <https://github.com/zcash/zips/pull/253>
+  Pull-Request: <https://github.com/zcash/zips/pull/???>
 
 
 Don't Panic
@@ -55,7 +55,8 @@ Abstract
 {Describe what this proposal does, typically in a few paragraphs.
 
 The Abstract should only provide a summary of the ZIP; the ZIP should remain
-complete without the Abstract.
+complete without the Abstract. It should briefly mention any significant privacy
+implications.
 
 Use links where applicable, e.g. [#protocol]_ [#protocol-introduction]_.}
 
@@ -74,6 +75,25 @@ and if applicable, the history of how this area has changed. Then describe
 *at a high level* why this proposed solution addresses the perceived issues.
 It is ok if this is somewhat redundant with the abstract, but here you can
 go into a lot more detail.}
+
+
+Privacy Implications
+====================
+
+{This section should be present if the ZIP makes trade-offs or assumptions that
+could affect the privacy of Zcash users or protocol participants. It is not part
+of the specification -- don't put conformance requirements in this section.
+Instead give a high-level overview of the privacy implications that may need to
+be considered for deployment of the ZIP.
+
+For example, describe trust assumptions affecting privacy that the proposal
+introduces or modifies; privacy trade-offs or changes to anonymity guarantees;
+potential data leakage (e.g. from metadata, timing, or usage patterns); and
+exposure to known or novel privacy attacks. Consider the relevant threat models,
+and propose updates to them if the ZIP introduces privacy-relevant assumptions
+or risks that they do not address. If the ZIP changes how wallets construct,
+interpret, or expose transaction data, or changes user-facing protocol
+behaviour, assess the implications for user privacy in that context.}
 
 
 Requirements
@@ -142,11 +162,57 @@ ZIPs are different from RFCs in the following ways:
   require creating a new ZIP, although that is an option if the change is extensive
   enough to warrant it.
 * The expected structure of a ZIP is more constrained than an RFC. For example,
-  the Specification section is REQUIRED, and all of the conformance requirements
-  MUST go in that section. The ZIP editors will help you to ensure that things
-  go in the right sections.
+  ZIP 0 expects a Specification section, and conformance requirements belong in
+  that section. The ZIP editors will help you to ensure that things go in the
+  right sections.
 * Security considerations SHOULD be spread throughout the text, in the places
   where they are most relevant.
+
+Rationale subsections
+---------------------
+
+For longer ZIPs it can be easier to put rationale in subsections of the
+Specification, immediately after the content they explain, instead of (or as
+well as) in the `Rationale`_ section. Section headings must be unique, so use
+headings such as "Rationale for foobar". Make the content of these subsections
+collapsible, so that the rationale is available for review but doesn't get in
+the way of reading the specification.
+
+In reStructuredText, use this syntax::
+
+  Foobar
+  ------
+
+  Important details.
+
+  Rationale for foobar
+  ''''''''''''''''''''
+
+  .. raw:: html
+
+     <details>
+     <summary>Click to show/hide</summary>
+
+  Important but hidden rationale!
+
+  .. raw:: html
+
+     </details>
+
+In Markdown, use (note the blank line after the ``<summary>`` tag)::
+
+  ## Foobar
+
+  Important details.
+
+  <details>
+  <summary>
+
+  ### Rationale for foobar
+  </summary>
+
+  Important but hidden rationale!
+  </details>
 
 Using mathematical notation
 ---------------------------
@@ -179,7 +245,7 @@ Notes and warnings
     in Markdown (a following blank line is required for Markdown), can be used
     for warnings.
 
-    Warnings should be used very sparingly — for example to signal that a
+    Warnings should be used very sparingly — for example to signal that an
     entire specification, or part of it, may be inapplicable or could cause
     significant interoperability or security problems. In most cases, a "MUST"
     or "SHOULD" conformance requirement is more appropriate.
@@ -195,19 +261,20 @@ build ``MultiMarkdown-6``. E.g. on Debian-based distros::
 
   sudo apt install python3-pip perl sed cmake
   pip3 install 'docutils==0.21.2' 'rst2html5==2.0.1'
-  git clone -b develop https://github.com/Electric-Coin-Company/MultiMarkdown-6
+  git clone -b develop https://github.com/zcash/MultiMarkdown-6
   cd MultiMarkdown-6
+  git branch master origin/master
   make release
   cd build
   make
   sudo make install
 
-Then, with ``draft-myzip.rst`` or ``draft-myzip.md`` in the root directory of a
-clone of this repo, run::
+Then, with ``zips/draft-myzip.rst`` or ``zips/draft-myzip.md`` in a clone of this
+repo, run::
 
-  make draft-myzip.html
+  make rendered/draft-myzip.html
 
-(or just "``make``") and view ``draft-myzip.html`` in a web browser.
+(or just "``make``") and view ``rendered/draft-myzip.html`` in a web browser.
 
 Citations and references
 ------------------------
@@ -222,7 +289,7 @@ reStructuredText::
 
 or like this in Markdown::
 
-  [^snark] [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
+  [^snark]: [The Hunting of the Snark](https://www.gutenberg.org/files/29888/29888-h/29888-h.htm). Lewis Carroll, with illustrations by Henry Holiday. MacMillan and Co. London. March 29, 1876.
 
 Note that each entry must be on a single line regardless of how long that makes the
 line. In Markdown there must be a blank line between entries.
@@ -245,6 +312,26 @@ heading in most PDF viewers. References to particular sections should be version
 even though the link will point to the most recent stable version.
 
 Do not include the "``https://zips.z.cash/``" part of URLs to ZIPs or the protocol spec.
+
+
+Rationale
+=========
+
+{Describe what motivated the design and why particular design decisions were
+made. Describe alternative designs that were considered and related work. The
+rationale should provide evidence of consensus within the community and discuss
+important objections or concerns raised during discussion.
+
+Longer ZIPs can put rationale in collapsible subsections of the Specification
+instead (see `Rationale subsections`_).}
+
+
+Deployment
+==========
+
+{Describe how and when the change is planned to be deployed, for example in a
+particular network upgrade. Consensus ZIPs should have this section, and a
+Consensus ZIP must have it before its status can change to Proposed.}
 
 
 Reference implementation

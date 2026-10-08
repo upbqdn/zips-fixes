@@ -10,6 +10,12 @@
   Discussions-To: <https://forum.zcashcommunity.com/t/zip-keep-it-simple-zcashers-kisz-10-to-ecc-10-to-zfnd/35425>
   Pull-Request: <https://github.com/zcash/zips/pull/293>
 
+.. role:: editor-note
+
+:editor-note:`the "Public Domain" license is not acceptable under the ZIP
+licensing requirements of ZIP 0; it is retained only because this ZIP is
+Obsolete.` [#zip-0000]_
+
 
 Terminology
 ===========
@@ -134,3 +140,4 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_

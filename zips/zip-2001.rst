@@ -9,7 +9,7 @@
   Category: Consensus
   Created: 2024-07-02
   License: MIT
-  Pull-Request: <https://github.com/zcash/zips/pull/>
+  Pull-Request: <https://github.com/zcash/zips/pull/867>
 
 
 Terminology
@@ -28,7 +28,7 @@ Zcash ecosystem.
 
 This ZIP builds upon the funding stream mechanism defined in ZIP 207
 [#zip-0207]_. It defines a new "DEFERRED_POOL" funding stream type such that
-portions of the block reward sent to a stream of this type are deposited
+portions of the block subsidy sent to a stream of this type are deposited
 directly into the deferred funding pool instead of being sent to a recipient
 address. Other ways of adding to the pool, such as allowing for direct deposits
 or fee value currently allocated to miners may be defined in the future.
@@ -37,16 +37,17 @@ or fee value currently allocated to miners may be defined in the future.
 Motivation
 ==========
 
-In accordance with ZIP 1014, [#zip-1014]_ the Zcash block reward is allocated
-with 80% going to miners, and the remaining 20% distributed among the Major
-Grants Fund (8%), Electric Coin Company (ECC) (7%), and the Zcash Foundation
-(ZF) (5%). This funding structure supports various essential activities such as
-protocol development, security, marketing, and legal expenses. However, this
-model will expire in November 2024, leading to the entire block reward being
-allocated to miners if no changes are made.
+In accordance with ZIP 1014, [#zip-1014]_ 20% of the Zcash block subsidy is
+allocated to the Major Grants slice (8%), the Bootstrap Project (BP, the parent
+organization of the Electric Coin Company) (7%), and the Zcash Foundation (ZF)
+(5%), with the remainder of the block reward going to miners. This funding
+structure supports various essential activities such as protocol development,
+security, marketing, and legal expenses. However, this model will expire in
+November 2024, leading to the entire block subsidy being allocated to miners if
+no changes are made.
 
 Several draft ZIPs under consideration for replacing the existing direct
-allocation of block rewards suggest that part of the block reward be directed
+allocation of block subsidies suggest that part of the block subsidy be directed
 to a reserve, the distribution of which is to be determined via a future ZIP.
 This ZIP is intended to provide a common mechanism that can be used to
 implement these various proposals.
@@ -72,7 +73,7 @@ Changes to ZIP 207 [#zip-0207]_
 
 The following paragraph is added to the section **Motivation**:
 
-    As of NU6, ZIP 1015 [#zip-1015]_ directs part of the block reward to a reserve,
+    As of NU6, ZIP 1015 [#zip-1015]_ directs part of the block subsidy to a reserve,
     the distribution of which is to be determined via a future ZIP.
     ZIP 2001 [#zip-2001]_ modified the present ZIP to augment the funding stream
     mechanism with a common mechanism to implement this proposal.
@@ -84,17 +85,19 @@ In the section **Funding streams** [#zip-0207-funding-streams]_, instead of:
 
 it will be modified to read:
 
-    Each element of $\mathsf{fs.Recipients}$ MUST represent either a transparent
-    P2SH address as specified in [#protocol-transparentaddrencoding]_, or a Sapling
-    shielded payment address as specified in [#protocol-saplingpaymentaddrencoding]_,
-    or the identifier $\mathsf{DEFERRED\_POOL}$.
+    Each element of $\mathsf{FundingStream[FUND].Addresses}$ MUST represent
+    either a transparent P2SH address as specified in
+    [#protocol-transparentaddrencoding]_, or a Sapling shielded payment address
+    as specified in [#protocol-saplingpaymentaddrencoding]_, or the identifier
+    $\mathsf{DEFERRED\_POOL}$.
 
 After the section **Funding streams**, a new section is added with the heading
 "Deferred Development Fund Chain Value Pool Balance" and the following contents:
 
     Full node implementations MUST track an additional
     $\mathsf{ChainValuePoolBalance^{Deferred}}$ chain value pool balance,
-    in addition to the Sprout, Sapling, and Orchard chain value pool balances.
+    in addition to the transparent, Sprout, Sapling, and Orchard chain value pool
+    balances.
 
     Define $\mathsf{totalDeferredOutput}(\mathsf{height}) := \sum_{\mathsf{fs} \in \mathsf{DeferredFundingStreams}(\mathsf{height})} \mathsf{fs.Value}(\mathsf{height})$
     where $\mathsf{DeferredFundingStreams}(\mathsf{height})$ is the set of
@@ -129,16 +132,19 @@ it will be modified to read:
       $\mathsf{fs.Value}(\mathsf{height})$ zatoshi in the prescribed way
       to the address represented by that recipient identifier.
 
-    - $\mathsf{fs.Recipient}(\mathsf{height})$ is defined as
-      $\mathsf{fs.Recipients_{\,fs.RecipientIndex}}(\mathsf{height})$.
+    - The recipient $\mathsf{fs.Recipient}(\mathsf{height})$ and value
+      $\mathsf{fs.Value}(\mathsf{height})$ of a funding stream $\mathsf{fs}$ at block
+      height $\mathsf{height}$ are defined as
+      $\mathsf{FundingStream[fs].Address}(\mathsf{height})$ and
+      $\mathsf{FundingStream[fs].Value}(\mathsf{height})$ respectively.
 
 After the list of post-Canopy consensus rules, the following paragraphs are added:
 
     These rules are reproduced in [#protocol-fundingstreams]_.
 
     The effect of the definition of $\mathsf{ChainValuePoolBalance^{Deferred}}$
-    above is that payments to the $\mathsf{DEFERRED\_POOL}$ cause
-    $\mathsf{FundingStream[FUND].Value}(\mathsf{height})$ to be added to
+    above is that payments to the $\mathsf{DEFERRED\_POOL}$ by each funding stream
+    $\mathsf{fs}$ cause $\mathsf{fs.Value}(\mathsf{height})$ to be added to
     $\mathsf{ChainValuePoolBalance^{Deferred}}$ for the block chain including
     that block.
 
@@ -179,6 +185,12 @@ In section **4.17 Chain Value Pool Balances** [#protocol-chainvaluepoolbalances]
         &+\,\; \mathsf{ChainValuePoolBalance^{Orchard}}(\mathsf{height}) \\
         &+\,\; \mathsf{ChainValuePoolBalance^{Deferred}}(\mathsf{height})
       \end{array}
+
+Note: the second non-normative note above held until NU6.1. ZIP 271 [#zip-0271]_,
+deployed with NU6.1 [#zip-0255]_, specifies a one-time disbursement from the
+deferred development fund chain value pool. It changes section 4.17 to subtract
+that disbursement from the balance of this pool, and adds a consensus rule that
+rejects any block that would make that balance negative.
 
 In section **7.1.2 Transaction Consensus Rules** [#protocol-txnconsensus]_, instead of:
 
@@ -222,13 +234,25 @@ section of the specification is entirely non-normative, we do not give the full
 wording change here.
 
 
+Deployment
+==========
+
+This ZIP was deployed with NU6. [#zip-0253]_
+
+
+Reference implementation
+========================
+
+* https://github.com/zcash/zcash/pull/6912 (zcashd)
+* https://github.com/ZcashFoundation/zebra/pull/8694 (zebrad)
+* https://github.com/ZcashFoundation/zebra/pull/8729 (zebrad)
+
+
 References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol-overview] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 1.2: High-level Overview <protocol/protocol.pdf#overview>`_
-.. [#protocol-transactions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
-.. [#protocol-coinbasetransactions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.11: Coinbase Transactions and Issuance <protocol/protocol.pdf#coinbasetransactions>`_
 .. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 4.17: Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
 .. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.6.1.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
 .. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
@@ -239,7 +263,9 @@ References
 .. [#zip-0207-funding-streams] `ZIP 207: Funding Streams. Section: Funding streams <zip-0207.rst#funding-streams>`_
 .. [#zip-0207-consensus-rules] `ZIP 207: Funding Streams. Section: Consensus rules <zip-0207.rst#consensus-rules>`_
 .. [#zip-0207-deployment] `ZIP 207: Funding Streams. Section: Deployment <zip-0207.rst#deployment>`_
-.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.rst>`_
+.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.md>`_
+.. [#zip-0255] `ZIP 255: Deployment of the NU6.1 Network Upgrade <zip-0255.md>`_
+.. [#zip-0271] `ZIP 271: Dev Fund Extension and One-Time Disbursement <zip-0271.md>`_
 .. [#zip-1014] `ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants <zip-1014.rst>`_
-.. [#zip-1015] `ZIP 1015: Block Reward Allocation for Non-Direct Development Funding <zip-1015.rst>`_
+.. [#zip-1015] `ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding <zip-1015.rst>`_
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
