@@ -15,7 +15,7 @@
 Terminology
 ===========
 
-The key words "MUST" and "MAY" in this document are to be interpreted as described in
+The key word "MUST" in this document is to be interpreted as described in
 RFC 2119. [#RFC2119]_
 
 
@@ -47,30 +47,39 @@ their block.
 This proposal seeks to ensure reliable behaviour in locktime calculations as required by
 [#bip-0065]_ (CHECKLOCKTIMEVERIFY) and matching the behavior of [#zip-0112]_ (CHECKSEQUENCEVERIFY).
 This also matches the use of Median Time Past in difficulty adjustment as specified in
-section 7.6.3 of [#protocol]_.
+section 7.7.3 of [#protocol]_.
 
 
 Specification
 =============
 
 Let PoWMedianBlockSpan be as defined in [#protocol]_ section 5.3, and let the median
-function be as defined in [#protocol]_ section 7.6.3.
+function be as defined in [#protocol]_ section 7.7.3.
 
-The Median Time Past of a block is specified as the median of the timestamps of the
-prior PoWMedianBlockSpan blocks, as calculated by MedianTime(height) in [#protocol]_
-section 7.6.3.
+The Median Time Past of a block is its median-time-past as defined in [#protocol]_
+section 7.6: the median of the timestamps of the prior PoWMedianBlockSpan blocks (or
+of all prior blocks if there are fewer). For a block at height h, this equals
+MedianTime(h) as defined in [#protocol]_ section 7.7.3.
 
 The values for transaction locktime remain unchanged. The difference is only in the
 calculation determining whether a transaction can be included. After activation of
 this ZIP, lock-time constraints of a transaction MUST be checked according to the
 Median Time Past of the transaction's block.
 
-[FIXME make this a proper specification, independent of the zcashd implementation.]
+Let ``nLockTime`` denote the transaction's lock time field (``lock_time`` in
+[#protocol]_ section 7.1). After activation of this ZIP, a transaction included in a
+block at height h MUST satisfy at least one of the following:
 
-Lock-time constraints are checked by the consensus method ``IsFinalTx()``. This method
-takes the block time as one parameter. This ZIP proposes that after activation calls to
-``IsFinalTx()`` within consensus code use the return value of ``GetMedianTimePast(pindexPrev)``
-instead.
+* ``nLockTime`` = 0;
+* every transparent input of the transaction has ``nSequence`` = 0xFFFFFFFF (this
+  holds vacuously if the transaction has no transparent inputs);
+* ``nLockTime`` < 500000000, and ``nLockTime`` < h;
+* ``nLockTime`` is at least 500000000, and ``nLockTime`` is less than the Median Time
+  Past of the block.
+
+Before activation of this ZIP, the same rule applies except that in the last case
+``nLockTime`` is compared with the block's own timestamp (its ``nTime`` field). Only
+that time-based case changes; height-based lock times are unaffected.
 
 The new rule applies to all transactions, including the coinbase transaction.
 
@@ -115,8 +124,8 @@ References
 ==========
 
 .. [#RFC2119] `Key words for use in RFCs to Indicate Requirement Levels <https://tools.ietf.org/html/rfc2119>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2019.0.1 or later [Overwinter+Sapling+Blossom] <https://github.com/zcash/zips/blob/master/protocol/blossom.pdf>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2] or later <protocol/protocol.pdf>`_
 .. [#bip-0065] `BIP 65: OP_CHECKLOCKTIMEVERIFY <https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki>`_
-.. [#zip-0068] `ZIP 68: Consensus-enforced transaction replacement signaled via sequence numbers <https://github.com/daira/zips/blob/op-csv/zip-0068.rst>`_
-.. [#zip-0112] `ZIP 112: CHECKSEQUENCEVERIFY <https://github.com/daira/zips/blob/op-csv/zip-0112.rst>`_
+.. [#zip-0068] `ZIP 68: Relative lock-time using consensus-enforced sequence numbers <zip-0068.rst>`_
+.. [#zip-0112] `ZIP 112: CHECKSEQUENCEVERIFY <zip-0112.rst>`_
 
