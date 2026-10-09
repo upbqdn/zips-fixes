@@ -318,8 +318,8 @@ The encodings of ``OrchardZSAAction`` and ``AssetBurn`` are described below.
   index corresponds to the ``OrchardZSAAction`` at the same index.
 * If the value of ``nAGExpiryHeight`` is nonzero, it MUST be consistent with
   the ``nExpiryHeight`` of the overall transaction.
-* In NU7, ``nAGExpiryHeight`` MUST be set to ``0``; this restriction is expected
-  to be lifted in a future network upgrade.
+* In the deployment proposed for NU7, ``nAGExpiryHeight`` MUST be set to ``0``;
+  this restriction was expected to be lifted in a later network upgrade.
 
 Rationale for nAGExpiryHeight
 `````````````````````````````

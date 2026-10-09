@@ -487,7 +487,7 @@ References
 .. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
-.. [#zip-2005-binding] `ZIP 2005: Ironwood Quantum Recoverability — Informal security argument for binding of note commitments <zip-2005.md#informal-security-argument-for-binding-of-note-commitments>`_
+.. [#zip-2005-binding] `ZIP 2005: Ironwood Quantum Recoverability — Informal security argument for binding of note commitments <zip-2005.md#informalsecurityargumentforbindingofnotecommitments>`_
 .. [#zip-2006] `ZIP 2006: Restricting Transfers into the Orchard Pool <zip-2006.md>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later. <protocol/protocol.pdf>`_
 .. [#protocol-notes] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.2: Shielded Pools and Notes <protocol/protocol.pdf#notes>`_

@@ -93,8 +93,10 @@ fee is represented solely as an entry in ``mValuePoolDeltas`` with
 For non-coinbase transactions, the ``value`` field of this entry MUST be
 nonpositive, representing the fee being removed from the transparent
 transaction value pool. For coinbase transactions, the ``value`` field MUST be
-nonnegative, representing the total fees collected from other transactions in
-the block being added to the ZEC transparent transaction value pool.
+nonnegative, representing the miner's share of the fees paid by the other
+transactions in the block being added to the ZEC transparent transaction value
+pool. For the block at height $\mathsf{height}$ this share is
+$\mathsf{MinerFees}(\mathsf{height})$ as defined in ZIP 235 [#zip-0235]_.
 
 Changes to the Zcash Protocol Specification
 -------------------------------------------
@@ -119,8 +121,9 @@ ZIP 236 [#zip-0236]_), add the following consensus rules:
 
   * [NUx onward] For coinbase V7 transactions, the value of
     $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
-    nonnegative. It represents the total transaction fees collected from all
-    other transactions in the block.
+    nonnegative. It represents the miner's share of the fees paid by all other
+    transactions in the block, which for the block at height $\mathsf{height}$
+    is $\mathsf{MinerFees}(\mathsf{height})$ as defined in ZIP 235 [#zip-0235]_.
 
 In § 7.1.2 ‘Transaction Consensus Rules’ [#protocol-txnconsensus]_, add:
 
@@ -167,5 +170,6 @@ References
 .. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
 .. [#bitcointalk-fee-error] `Bitcoin Forum post by @Voiceeeeee, March 8, 2017. "PLEASE HELP.. I sent a transaction with a 2.5 BTC transaction fee" <https://bitcointalk.org/index.php?topic=1818791.0>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
 .. [#zip-0236] `ZIP 236: Blocks should balance exactly <zip-0236.rst>`_
 .. [#zip-0248] `ZIP 248: Extensible Transaction Format <zip-0248.rst>`_

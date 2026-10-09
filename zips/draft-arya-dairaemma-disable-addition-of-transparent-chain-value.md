@@ -102,8 +102,10 @@ less than or equal to its total transparent input value.
 
 Note: For a coinbase transaction, this rule is implied by the existing coinbase
 rules in § 7.1.2 ‘Transaction Consensus Rules’. [^protocol-txnconsensus] A coinbase
-transaction can therefore still pay the block subsidy and all transaction fees,
-including fees paid from shielded value, to transparent outputs.
+transaction can therefore still pay its whole total input value to transparent
+outputs. That value includes the transaction fees that the coinbase transaction
+claims (from NU7, $\mathsf{MinerFees}$ as defined in ZIP 235 [^zip-0235]),
+whether they were paid from transparent or shielded value.
 
 Note: The facility to send to transparent addresses, and/or to give out transparent
 addresses on which funds can be received, has always been OPTIONAL for a particular
@@ -172,6 +174,8 @@ TODO
 [^zip-0211]: [ZIP 211: Disabling Addition of New Value to the Sprout Chain Value Pool](zip-0211.rst)
 
 [^zip-0229]: [ZIP 229: Version 6 Transaction Format](zip-0229.md)
+
+[^zip-0235]: [ZIP 235: Remove 60% of Transaction Fees From Circulation](zip-0235.md)
 
 [^zip-0252]: [ZIP 252: Deployment of the NU5 Network Upgrade](zip-0252.rst)
 
