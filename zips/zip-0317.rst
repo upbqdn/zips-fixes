@@ -12,7 +12,7 @@
   Category: Standards / Wallet
   Obsoletes: 313
   Created: 2022-08-15
-  Last-Updated: 2026-06-26
+  Last-Updated: 2026-10-09
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/zip-proportional-output-fee-mechanism-pofm/42808>
   Pull-Request: <https://github.com/zcash/zips/pull/631>
@@ -177,15 +177,6 @@ Input                                         Units  Description
 :math:`\mathit{nA\kern-0.1em ctionsOrchard}`  number the number of Orchard actions
 ============================================= ====== ====================================================================
 
-A V7 transaction [#zip-0248]_ has no ``tx_in`` field. For such a transaction,
-$\mathit{tx\_in\_total\_size}$ is the sum over its transparent inputs of
-$40 + \mathit{size}(\mathtt{scriptSigLen}) + \mathtt{scriptSigLen} + \mathtt{sizeSighashInfo} - 1$
-bytes, where $\mathit{size}(\mathtt{scriptSigLen})$ is the length of the
-``compactSize`` encoding of ``scriptSigLen``. That is, an input is counted at
-the size of its v5 encoding, plus the size of any ``associatedData`` in its
-``sighashInfo``. Similarly, $\mathit{tx\_out\_total\_size}$ is the total size
-in bytes of the ``tx_out`` field of its transparent effecting data.
-
 As of `Revision 1`_, the $\mathit{logical\_actions}$ sum additionally includes
 a contribution for Ironwood-pool [#zip-0229]_ Actions, which use the same
 Action structure as Orchard-pool Actions:
@@ -240,6 +231,17 @@ Input                                         Units  Description
 ============================================= ====== ====================================================================
 :math:`\mathit{nMemoChunks}`                  number the number of memo chunks
 ============================================= ====== ====================================================================
+
+As of `Revision 2`_ (draft), the transparent contribution is also defined for
+V7 transactions [#zip-0248]_. A V7 transaction has no ``tx_in`` field. For such
+a transaction,
+$\mathit{tx\_in\_total\_size}$ is the sum over its transparent inputs of
+$40 + \mathit{size}(\mathtt{scriptSigLen}) + \mathtt{scriptSigLen} + \mathtt{sizeSighashInfo} - 1$
+bytes, where $\mathit{size}(\mathtt{scriptSigLen})$ is the length of the
+``compactSize`` encoding of ``scriptSigLen``. That is, an input is counted at
+the size of its v5 encoding, plus the size of any ``associatedData`` in its
+``sighashInfo``. Similarly, $\mathit{tx\_out\_total\_size}$ is the total size
+in bytes of the ``tx_out`` field of its transparent effecting data.
 
 It is not a consensus requirement that fees follow this formula; however,
 wallets SHOULD create transactions that pay this fee, in order to reduce
@@ -696,6 +698,17 @@ construction, and a $\mathit{weight\_ratio\_cap}$ of 10:
 
 * https://github.com/ZcashFoundation/zebra/pull/11290
 
+Deployment of Revision 1
+------------------------
+
+`Revision 1`_ is in effect from NU6.3 activation [#zip-0258]_. It is
+implemented by:
+
+* the `zebra` node from v6.0.0-rc.0, for transaction relaying, mempool size
+  limiting, and block template construction: https://github.com/ZcashFoundation/zebra/pull/10762
+* the ``zcash_primitives`` crate of librustzcash, for wallets:
+  https://github.com/zcash/librustzcash/pull/2484
+
 
 Considered Alternatives
 =======================
@@ -745,6 +758,16 @@ Deirdre Connolly for reviews and suggested improvements.
 
 Change History
 ==============
+
+2026-10-09
+----------
+
+- Documented the deployment of Revision 1 at NU6.3 activation.
+- The recommended block template construction algorithm keeps parent
+  transactions before their children and, from NU7, respects the shielded
+  action limits of ZIP 218.
+- Revision 2 (draft) defines the transparent contribution of V7 transactions.
+- Documented later `zcashd` and `zebra` deployment changes.
 
 2026-06-26
 ----------

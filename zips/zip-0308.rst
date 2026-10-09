@@ -329,11 +329,11 @@ submitted over the RPC interface.
 Network Upgrade 7
 -----------------
 
-ZIP 259 [#zip-0259]_ proposes to deploy ZIP 2003 [#zip-2003]_ in NU7. ZIP 2003
-makes version 4 transactions invalid, so from NU7 activation migration
-transactions cannot be mined, and funds remaining in the Sprout pool become
-unspendable. Nodes MUST NOT send migration transactions for target heights at
-or after NU7 activation. Users need to complete migration before then.
+NU7 deploys ZIP 2003 [#zip-2003]_ [#zip-0259]_, which makes version 4
+transactions invalid. From NU7 activation, migration transactions cannot be
+mined, and funds remaining in the Sprout pool become unspendable. Nodes MUST
+NOT send migration transactions for target heights at or after NU7
+activation. Users need to complete migration before then.
 
 
 Open questions

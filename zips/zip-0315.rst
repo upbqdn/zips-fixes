@@ -760,8 +760,13 @@ receiver.
 Expiration height
 '''''''''''''''''
 
-A wallet SHOULD create transactions using the default expiration height of
-40 blocks from the current height, as specified in [#zip-0203]_.
+A wallet SHOULD create a transaction with ``nExpiryHeight`` set to $H$ plus the
+default expiry delta, where $H$ is its target height (see `Anchor selection`_).
+The default expiry delta is 120 blocks if NU7 is active at height $H$ and
+40 blocks otherwise [#zip-0203-nu7]_ [#zip-0218]_. Both are approximately
+50 minutes at the target block spacing in effect. If the user has configured an
+expiry delta, the wallet SHOULD use the configured value both before and after
+NU7 activation.
 
 
 Open question
@@ -979,7 +984,9 @@ References
 .. [#zip-0032-wallet-seeds] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet seeds <zip-0032.rst#specification-wallet-seeds>`_
 .. [#zip-0032-wallet-usage] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet usage <zip-0032.rst#specification-wallet-usage>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
+.. [#zip-0203-nu7] `ZIP 203: Transaction Expiry — Changes for NU7 <zip-0203.rst#changes-for-nu7>`_
 .. [#zip-0204] `ZIP 204: Zcash P2P Network Protocol <zip-0204.rst>`_
+.. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0229-requirements] `ZIP 229: Version 6 Transaction Format — Requirements <zip-0229.md#requirements>`_
 .. [#zip-0233] `ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation <zip-0233.md>`_

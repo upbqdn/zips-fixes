@@ -213,7 +213,7 @@ determines the point).
 Keys generated in this way are $\mathsf{use\_qsk} = \mathsf{true}$ keys, and so are
 subject to the wallet key-generation restrictions of [#zip-0326]_. In particular,
 *Orchard-pool* funds must not be sent to them, and a production wallet must not
-generate them before NU6.3 has activated on Mainnet. FROST(Pallas, BLAKE2b-512)
+generate them before NU6.3 Mainnet activation. FROST(Pallas, BLAKE2b-512)
 is used unchanged to sign for spends in the *Ironwood pool* [#protocol-spendauthsig]_.
 
 

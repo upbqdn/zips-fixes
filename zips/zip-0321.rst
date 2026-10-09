@@ -5,7 +5,7 @@
   Owners: Kris Nuttycombe <kris@nutty.land>
           Daira-Emma Hopwood <daira@jacaranda.org>
   Credits: Francisco Gindre
-  Status: [Revision 0] Active, [Revision 1] Proposed
+  Status: Active
   Category: Standards / Wallet
   Created: 2020-08-28
   Discussions-To: <https://github.com/zcash/zips/issues/347>
@@ -195,12 +195,11 @@ ZIP-321 URI might fail if it requests more than 2109 distinct payments. The
 effective limit might be lower if payments to Orchard Receivers or other future
 types of address are included.
 
-ZIP 218 [#zip-0218]_, proposed for deployment in NU7 [#zip-0259]_, would add
-per-block limits under which a transaction can have at most 300 Sapling Spends
-and Outputs, and at most 330 Sapling Spends and Outputs and Orchard and Ironwood
-Actions in total. If these limits are deployed, a request for more than 300
-payments to Sapling Receivers, or for more than 330 shielded payments, cannot be
-satisfied by a single transaction.
+From NU7 activation, ZIP 218 [#zip-0218]_ [#zip-0259]_ limits each block, and
+therefore each transaction, to at most 300 Sapling Spends and Outputs, and at
+most 330 Sapling Spends and Outputs and Orchard and Ironwood Actions in total. A
+request for more than 300 payments to Sapling Receivers, or for more than 330
+shielded payments, therefore cannot be satisfied by a single transaction.
 
 A URI of the form ``zcash:<address>?...`` MUST be considered equivalent to a
 URI of the form ``zcash:?address=<address>&...`` where ``<address>`` is an

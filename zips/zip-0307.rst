@@ -393,10 +393,10 @@ Incremental Merkle trees cannot be rewound, so the light client should cache bot
 commitment trees and per-note incremental witnesses for recent block heights (see
 `Chain reorganisations`_). Cache management is implementation-dependent, but the cache
 should cover at least the maximum rollback depth of the full nodes behind the proxy server
-[#protocol-blockchain]_. That depth is not fixed by consensus. ZIP 218 raises it from NU7
-[#zip-0218]_, and Zebra already rolls back up to 1000 blocks. After a deeper chain
-reorganisation, the light client has to rebuild its note commitment trees, for example from
-a tree state obtained from the proxy server, before rescanning.
+[#protocol-blockchain]_. That depth is not fixed by consensus. From NU7 activation, ZIP 218
+recommends a depth of at least 600 blocks [#zip-0218]_; Zebra rolls back up to 1000 blocks.
+After a deeper chain reorganisation, the light client has to rebuild its note commitment
+trees, for example from a tree state obtained from the proxy server, before rescanning.
 
 Detecting spends
 ````````````````
@@ -433,8 +433,8 @@ using the block header field names of [#protocol-blockheader]_:
   $\mathsf{PoWLimit}$ for the network [#protocol-constants]_.
 - If the ``CompactBlocks`` for the preceding
   $\mathsf{PoWAveragingWindow} + \mathsf{PoWMedianBlockSpan}$ heights all have block
-  headers (heights ``X-28`` to ``X-1`` before NU7, or ``X-113`` to ``X-1`` when ZIP 218
-  [#zip-0218]_ applies at height ``X``), ``nBits`` equals
+  headers (heights ``X-28`` to ``X-1`` if NU7 is not active at height ``X``, or ``X-113``
+  to ``X-1`` if it is [#zip-0218]_), ``nBits`` equals
   $\mathsf{ThresholdBits}(\mathtt{X})$ as specified in [#protocol-diffadjustment]_,
   including on Testnet the minimum-difficulty rule [#zip-0205]_ [#zip-0208]_ [#zip-0218]_.
 - The hash ``h`` passes the difficulty filter [#protocol-difficulty]_, that is
