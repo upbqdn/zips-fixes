@@ -44,7 +44,7 @@ addresses. However, both the character set and the checksum algorithm have
 limitations:
 
 * Base58 needs a lot of space in QR codes, as it cannot use the
-  ''alphanumeric mode''.
+  *alphanumeric mode*.
 
 * The mixed case in Base58 makes it inconvenient to reliably write down, type on
   mobile keyboards, or read out loud.
@@ -73,7 +73,7 @@ for support of shielded hierarchical deterministic wallets [#zip-0032]_.
 Specification
 =============
 
-We describe the general checksummed base32 format called ''Bech32''. Its use for
+We describe the general checksummed base32 format called *Bech32*. Its use for
 Sapling payment addresses and keys is defined in the Sapling protocol specification
 [#protocol]_.
 
@@ -124,7 +124,7 @@ returns true when its arguments are:
       b = (chk >> 25)
       chk = (chk & 0x1ffffff) << 5 ^ v
       for i in range(5):
-      chk ^= GEN[i] if ((b >> i) & 1) else 0
+        chk ^= GEN[i] if ((b >> i) & 1) else 0
     return chk
   
   def bech32_hrp_expand(s):
@@ -137,7 +137,8 @@ returns true when its arguments are:
 This implements a `BCH code <https://en.wikipedia.org/wiki/BCH_code>`_;
 in the case where the encoded string is at most 90 characters, this code
 guarantees detection of *any error affecting at most 4 characters* and has
-less than a 1 in 10\ :sup:`9` chance of failing to detect more errors.
+a chance of about 1 in 10\ :sup:`9` (at most 1.127 in 10\ :sup:`9` for the cases
+tabulated in the Checksum Design section) of failing to detect more errors.
 More details about the properties can be found in the Checksum Design section.
 The human-readable part is processed by first feeding the higher 3 bits of each
 character's US-ASCII value into the checksum calculation followed by a zero
@@ -206,7 +207,8 @@ Software interpreting a Bech32-encoded address MUST first verify that the
 human-readable part matches that of a specified address type, and similarly
 for keys.
 
-If this check passes, convert the rest of the data to bytes:
+If this check passes, verify the checksum as specified in `Checksum`_, then
+convert the data part excluding its last six (checksum) characters to bytes:
 
 * Translate the values using the table above to 5 bits, most significant bit
   first.
@@ -221,7 +223,9 @@ Decoders SHOULD enforce known-length restrictions on address and key types.
 
 For example, [#protocol]_ specifies that the length of the raw encoding of a
 Sapling payment address is 43 bytes (88 + 256 bits). This results in a
-Bech32-encoded Sapling payment address being 78 characters long.
+Bech32-encoded Sapling payment address being 78 characters long on Mainnet
+(human-readable part "zs") and 88 characters long on Testnet (human-readable
+part "ztestsapling").
 
 
 Compatibility
@@ -243,8 +247,8 @@ Why use base32 at all?
 
 The lack of mixed case makes it more efficient to read out loud or to put into
 QR codes. It does come with a 15% length increase. However, the length of a
-Bech32-encoded Sapling payment address remains below 80 characters, which
-reduces the likelihood of line splitting in terminals or email. Thus,
+Mainnet Bech32-encoded Sapling payment address remains below 80 characters,
+which reduces the likelihood of line splitting in terminals or email. Thus,
 cutting-and-pasting of addresses is still reliable.
 
 Why call it Bech32?
@@ -267,7 +271,7 @@ Why include a separator in addresses?
 That way the human-readable part is unambiguously separated from the data part,
 avoiding potential collisions with other human-readable parts that share a
 prefix. It also allows us to avoid having character-set restrictions on the
-human-readable part. The separator is ''1'' because using a non-alphanumeric
+human-readable part. The separator is "1" because using a non-alphanumeric
 character would complicate copy-pasting of addresses (with no double-click
 selection in several applications). Therefore an alphanumeric character outside
 the normal character set was chosen.
@@ -296,9 +300,13 @@ retained for compatibility with Bech32 encoders/decoders written for Bitcoin.
 Reference implementations
 =========================
 
-* The encoder/decoder used by ``zcashd``:
+* The encoder/decoder used by ``zcashd`` (deprecated):
 
   * `In C++ <https://github.com/zcash/zcash/blob/master/src/bech32.cpp>`_
+
+* The encoder/decoder used by Zebra and librustzcash:
+
+  * `For Rust (the bech32 crate) <https://github.com/rust-bitcoin/rust-bech32>`_
 
 * Encoders and decoders written specifically for Zcash:
 
@@ -321,14 +329,17 @@ Reference implementations
     (`demo website <HTTP://bitcoin.sipa.be/bech32/demo/demo.html>`_)
 
 Note that the encoders written for Bitcoin may make assumptions specific to
-Segregated Witness address formats that do not apply to Zcash. Only the Python
-one has been tested with Zcash at the time of writing.
+Segregated Witness address formats that do not apply to Zcash.
 
 
 Examples
 ========
 
-TODO: add valid Sapling payment addresses and keys, and their corresponding raw encodings.
+The following Sapling payment address has the raw encoding (in hexadecimal)
+``0000000000000000000000308e119d72992b560d2650ffe0be7f3542fd97003cb7cc3abff81a7f9037f3ea``:
+
+* Mainnet: ``zs1qqqqqqqqqqqqqqqqqqcguyvaw2vjk4sdyeg0lc970u659lvhqq7t0np6hlup5lusxle75c8v35z``
+* Testnet: ``ztestsapling1qqqqqqqqqqqqqqqqqqcguyvaw2vjk4sdyeg0lc970u659lvhqq7t0np6hlup5lusxle75ss7jnk``
 
 
 Test vectors
@@ -359,8 +370,12 @@ The following strings are not valid Bech32 (with reason for invalidity):
 * ``1qzzfhee``: empty HRP
 * ``bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5``: Invalid checksum
 * ``tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7``: Mixed case
-* ``bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du``: Zero padding of more than 4 bits
-* ``tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv``: Non-zero padding in 8-to-5 conversion
+
+The following strings are valid Bech32, but are rejected by the Decoding
+procedure for a Sapling payment address (with reason for rejection):
+
+* ``zs1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavej5n``: Zero padding of more than 4 bits
+* ``zs1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpukwc66``: Non-zero padding
 
 
 Checksum design
@@ -379,9 +394,10 @@ is very simple.
 We pick 6 checksum characters as a trade-off between length of the addresses and
 the error-detection capabilities, as 6 characters is the lowest number sufficient
 for a random failure chance below 1 per billion. For the length of data we're
-most interested in protecting (up to 77 bytes excluding the separator, for a
-Sapling payment address), BCH codes can be constructed that guarantee detecting
-up to 4 errors. Longer data is also supported with slightly weaker error detection.
+most interested in protecting (up to 77 characters excluding the separator, for a
+Mainnet Sapling payment address), BCH codes can be constructed that guarantee
+detecting up to 4 errors. Longer data is also supported with slightly weaker error
+detection.
 
 Selected properties
 '''''''''''''''''''
@@ -403,7 +419,7 @@ The specific code chosen here is the result of:
   errors, resulting in 310 remaining codes.
 
 * From those, picking the code with the lowest chance for not detecting small
-  numbers of ''bit'' errors.
+  numbers of *bit* errors.
 
 As a naive search would require over 6.5 \* 10\ :sup:`19` checksum evaluations,
 a collision-search approach was used for analysis. The code can be found
@@ -435,14 +451,12 @@ The following table summarizes the chances for detection failure (as multiples o
 |   89   | Longest detecting 4 errors |   0   | 0.867 | 0.933 | 0.931                 |
 +--------+----------------------------+-------+-------+-------+-----------------------+
 
-TODO: fill in table for a Sapling payment address, and check the following paragraph.
-
 This means that when 5 changed characters occur randomly distributed in the 77
-characters (excluding the separator) of a Sapling payment address, there is a chance
-of at most 0.867 per billion that it will go undetected. When those 5 changes occur
-randomly within a 19-character window, that chance goes down to 0.093 per billion.
-As the number of errors goes up, the chance converges towards 1 in 2\ :sup:`30` =
-0.931 per billion.
+characters (excluding the separator) of a Mainnet Sapling payment address, there
+is a chance of 0.845 per billion that it will go undetected. When those 5
+changes occur randomly within a 19-character window, that chance goes down to
+0.093 per billion. As the number of errors goes up, the chance converges towards
+1 in 2\ :sup:`30` = 0.931 per billion.
 
 The chosen code performs reasonably well up to 1023 characters, but is best for
 lengths up to 89 characters (excluding the separator). Since the search for suitable

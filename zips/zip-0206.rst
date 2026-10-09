@@ -13,9 +13,8 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", and "MAY" in this document are to be
-interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in
-all capitals.
+The key words "MUST" and "SHOULD" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in
 ZIP 200. [#zip-0200]_
@@ -65,16 +64,16 @@ ACTIVATION_HEIGHT (Blossom)
   Mainnet: 653600
 
 
-Nodes compatible with Blossom activation on testnet MUST advertise protocol version
-170008 or later. Nodes compatible with Blossom activation on mainnet MUST advertise
+Nodes compatible with Blossom activation on Testnet MUST advertise protocol version
+170008 or later. Nodes compatible with Blossom activation on Mainnet MUST advertise
 protocol version 170009 or later. The minimum peer protocol version that
 Blossom-compatible nodes will connect to is 170002.
 
-Pre-Blossom testnet nodes are defined as nodes on testnet advertising a protocol
-version less than 170008. Pre-Blossom mainnet nodes are defined as nodes on mainnet
+Pre-Blossom Testnet nodes are defined as nodes on Testnet advertising a protocol
+version less than 170008. Pre-Blossom Mainnet nodes are defined as nodes on Mainnet
 advertising a protocol version less than 170009.
 
-For each network (testnet and mainnet), approximately three days (defined in terms of
+For each network (Testnet and Mainnet), approximately three days (defined in terms of
 block height) before the corresponding Blossom activation height, nodes compatible
 with Blossom activation on that network will change the behaviour of their peer 
 connection logic in order to prefer pre-Blossom peers on that network for eviction
@@ -86,7 +85,7 @@ from the set of peer connections::
 The implementation is similar to that for Overwinter which was described in
 [#zip-0201]_.
 
-Once Blossom activates on testnet or mainnet, Blossom nodes SHOULD take steps to:
+Once Blossom activates on Testnet or Mainnet, Blossom nodes SHOULD take steps to:
 
 - reject new connections from pre-Blossom nodes on that network;
 - disconnect any existing connections to pre-Blossom nodes on that network.
@@ -114,8 +113,8 @@ activation, since signatures MUST use the appropriate consensus branch ID.
 Support in zcashd
 =================
 
-Support for Blossom on testnet is implemented in ``zcashd`` version 2.0.7, which
-advertises protocol version 170008. Support for Blossom on mainnet is implemented
+Support for Blossom on Testnet is implemented in ``zcashd`` version 2.0.7, which
+advertises protocol version 170008. Support for Blossom on Mainnet is implemented
 in ``zcashd`` version 2.1.0, which advertises protocol version 170009.
 
 

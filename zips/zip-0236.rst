@@ -15,8 +15,8 @@
 Terminology
 ===========
 
-The key word "MUST" in this document is to be interpreted as described in BCP 14
-[#BCP14]_ when, and only when, it appears in all capitals.
+The key words "MUST" and "MUST NOT" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in
 ZIP 200. [#zip-0200]_
@@ -31,22 +31,23 @@ The character § is used when referring to sections of the Zcash Protocol Specif
 Abstract
 ========
 
-In the current Zcash protocol, the miner of a coinbase transaction is permitted to
-claim up to and including the total amount of miner subsidy plus fees from other
-transactions in the block, but is not required to claim the full amount.
+Before NU6, the miner of a coinbase transaction was permitted to claim up to and
+including the total amount of miner subsidy plus fees from other transactions in the
+block, but was not required to claim the full amount.
 
-This proposal would require the full amount of miner subsidy and fees to be
-collected in coinbase transactions.
+From NU6 onward, coinbase transactions are required to claim their full total input
+value (§ 7.1.2). From NU7 onward, that value excludes the 60% (rounded down) of the
+block's transaction fees that ZIP 235 removes from circulation [#zip-0235]_.
 
 
 Motivation
 ==========
 
-The current semantics of coinbase transactions creates a potential for miners to
-miscalculate the total amount of miner subsidy plus fees in a block. If they claim
-a higher amount than the actual miner subsidy plus total fees, the block will be
-invalid, but if they claim a lower amount, the excess is effectively burnt. As a
-consequence, the effective ZEC issuance can fall short of the amount calculated
+Before NU6, the semantics of coinbase transactions created a potential for miners to
+miscalculate the total amount of miner subsidy plus fees in a block. If they claimed
+a higher amount than the actual miner subsidy plus total fees, the block would be
+invalid, but if they claimed a lower amount, the excess was effectively burnt. As a
+consequence, the effective ZEC issuance could fall short of the amount calculated
 from the intended issuance curve.
 
 This unnecessarily complicates the question of how much ZEC has been issued: if it
@@ -66,15 +67,15 @@ The consensus rule change specified in this ZIP must:
   which it activates;
 * preclude errors by miners in computing the total miner subsidy plus fees for
   transactions in the mined block;
-* be deployable in the NU6 network upgrade, which is not expected to define a new
+* be deployable in the NU6 network upgrade, which does not define a new
   transaction version.
 
 
 Non-requirements
 ================
 
-Since this ZIP is intended to activate in a network upgrade that is not expected
-to support a new transaction version, it cannot resolve the issue that the amounts
+Since this ZIP activates in a network upgrade that does not support a new
+transaction version, it cannot resolve the issue that the amounts
 of fees are implicit in non-coinbase transactions. That issue results in various
 potential security difficulties and the potential for users' wallets to inadvertently
 overpay the fee, but solving that would require an explicit "fee" field.
@@ -92,8 +93,16 @@ would be demonstrably infeasible to find the spending key.
 Specification
 =============
 
-From the activation block of this ZIP onward, coinbase transactions MUST claim all
-of the available miner subsidy plus fees in their block.
+From the activation block of this ZIP onward, coinbase transactions MUST claim their
+full total input value, as defined in § 7.1.2 ‘Transaction Consensus Rules’
+[#protocol-txnconsensus]_ (as modified by later ZIPs).
+
+From NU7 activation, the transaction fees included in the total input value of a
+coinbase transaction are replaced by $\mathsf{MinerFees}(\mathsf{height})$ as specified
+in ZIP 235 [#zip-0235]_: the transaction fees paid by transactions in the block minus the
+$\mathsf{NSMFeeContribution}(\mathsf{height})$ removed from circulation. A coinbase
+transaction therefore claims $\mathsf{MinerFees}(\mathsf{height})$ rather than all of
+the fees, and cannot claim the removed amount.
 
 Changes to the Zcash Protocol Specification
 -------------------------------------------
@@ -135,6 +144,9 @@ This ZIP was deployed with NU6. [#zip-0253]_
 The wording change to § 7.1.2 depends on [#zip-2001]_ which was also deployed
 with NU6. [#zip-0253]_
 
+The change to the total input value made by ZIP 235 [#zip-0235]_ is deployed with
+NU7. [#zip-0259]_
+
 
 Reference implementation
 ========================
@@ -159,5 +171,7 @@ References
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
-.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.rst>`_
+.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
+.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_

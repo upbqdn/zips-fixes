@@ -2,7 +2,7 @@
 
   ZIP: 213
   Title: Shielded Coinbase
-  Owners: Jack Grigg <jack@z.cash>
+  Owners: Jack Grigg <thestr4d@gmail.com>
   Status: Final
   Category: Consensus
   Created: 2019-03-30
@@ -12,8 +12,8 @@
 Terminology
 ===========
 
-The key words "MUST" and "MAY" in this document are to be interpreted as described in
-BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", and "MAY" in this document are to be interpreted as
+described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200
 [#zip-0200]_.
@@ -23,6 +23,11 @@ The term "Sapling" in this document is to be interpreted as described in ZIP 205
 
 The terms "Founders' Reward" and "funding stream" in this document are to be interpreted
 as described in ZIP 207 [#zip-0207]_.
+
+The terms "*Orchard pool*" and "*Ironwood pool*" in this document are to be interpreted as
+described in ZIP 229 [#zip-0229]_. A "Sapling-pool", "Orchard-pool", or "Ironwood-pool"
+output or component is one belonging to the Sapling shielded pool, the *Orchard pool*, or
+the *Ironwood pool* respectively.
 
 
 Abstract
@@ -40,7 +45,7 @@ Zcash inherited the concept of "coinbase transactions" from Bitcoin: special tra
 inside each block that are allowed to have no inputs. These transactions are created by
 miners during block creation, and collect the block subsidy and transaction fees into new
 transparent outputs that can then be spent. They are also leveraged in Zcash for the
-Founders' Reward (and potentially for funding streams [#zip-0207]_).
+Founders' Reward (and, from Canopy, for funding streams [#zip-0207]_).
 
 On the path to deprecating and removing Bitcoin-inherited transparent addresses within the
 Zcash network, a required step is to be able to create coinbase transactions that have no
@@ -58,8 +63,8 @@ rules preventing coinbase transactions from containing shielded outputs were ext
 cover Sapling outputs. Therefore, it is now necessary to modify the consensus rules in
 order to enable miners to start using Sapling addresses. It will also be possible for
 miners to use Orchard addresses starting from activation of the NU5 upgrade [#zip-0252]_.
-After the NU6.3 upgrade, it is only possible to mine to an Orchard address by sending the
-funds to the *Ironwood pool*.
+After the NU6.3 upgrade [#zip-0258]_, it is only possible to mine to an Orchard address by
+sending the funds to the *Ironwood pool*.
 
 
 Specification
@@ -97,8 +102,9 @@ Once the Heartwood network upgrade activates:
 
         A transaction MUST NOT spend a transparent output of a coinbase transaction from a
         block less than 100 blocks prior to the spend. Note that outputs of coinbase
-        transactions include Founders’ Reward outputs [and potentially funding stream
-        outputs].
+        transactions include Founders’ Reward outputs, transparent funding stream outputs
+        (from Canopy) [#zip-0207]_, and lockbox disbursement outputs (from NU6.1)
+        [#zip-0271]_.
 
 - Full note decryption of shielded coinbase outputs MUST succeed using the all-zero
   outgoing viewing key. More precisely, all shielded coinbase outputs MUST have valid
@@ -194,7 +200,7 @@ transparent coinbase outputs.
 Deployment
 ==========
 
-This proposal will be deployed with the Heartwood network upgrade. [#zip-0250]_
+This proposal was deployed with the Heartwood network upgrade. [#zip-0250]_
 
 
 Reference Implementation
@@ -210,7 +216,9 @@ References
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
-.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0250] `ZIP 250: Deployment of the Heartwood Network Upgrade <zip-0250.rst>`_
 .. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
+.. [#zip-0271] `ZIP 271: Dev Fund Extension and One-Time Disbursement <zip-0271.md>`_
 .. [#zip-0315-anchor-selection] `ZIP 315: Best Practices for Wallet Implementations — Anchor selection <zip-0315.rst#anchor-selection>`_

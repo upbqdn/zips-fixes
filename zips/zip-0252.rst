@@ -15,8 +15,8 @@
 Terminology
 ===========
 
-The key words "MUST" and "SHOULD" in this document are to be interpreted as
-described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted
+as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in
 ZIP 200. [#zip-0200]_
@@ -42,7 +42,7 @@ changes are:
 
 - The Zcash Protocol Specification [#protocol]_ [#protocol-txnencoding]_
 - ZIP 200: Network Upgrade Mechanism [#zip-0200]_
-- ZIP 216: Require Canonical Point Encodings [#zip-0216]_
+- ZIP 216: Require Canonical Jubjub Point Encodings [#zip-0216]_
 - ZIP 224: Orchard Shielded Protocol [#zip-0224]_
 - ZIP 225: Version 5 Transaction Format [#zip-0225]_
 - ZIP 239: Relay of Version 5 Transactions [#zip-0239]_
@@ -88,7 +88,7 @@ MIN_NETWORK_PROTOCOL_VERSION (NU5)
 Note: A first activation of NU5, with a previous version of the Orchard circuit
 and other NU5 consensus rules, occurred on Testnet at block height 1599200 with
 consensus branch ID 0x37519621 and peer protocol version 170015. With the release
-of `zcashd` v4.7.0, Testnet is being rolled back to another chain that forks from
+of `zcashd` v4.7.0, Testnet was rolled back to another chain that forks from
 the block immediately preceding that activation, at height 1599199. This chain
 had been continuously mined by `zcashd` v4.0.0 nodes modified to disable
 End-of-Service halt.
@@ -113,9 +113,11 @@ Backward compatibility
 ======================
 
 Prior to the network upgrade activating on each network, NU5 and pre-NU5
-nodes are compatible and can connect to each other. (In the case of Testnet,
+nodes are compatible and can connect to each other. However, NU5 nodes will
+have a preference for connecting to other NU5 nodes, so pre-NU5 nodes will
+gradually be disconnected in the run up to activation. (In the case of Testnet,
 there was a prolonged period of network fracturing due to a consensus bug,
-but this is expected to be resolved with the release of `zcashd` v4.7.0.)
+which was resolved with the release of `zcashd` v4.7.0.)
 
 Once the network upgrades, even though pre-NU5 nodes can still accept the
 numerically larger protocol version used by NU5 as being valid, NU5 nodes
@@ -144,13 +146,13 @@ rules on Testnet:
   above. This revision also had a consensus bug that caused many nodes to
   stall at or near height 1779199, shortly after the first block containing
   an Orchard output.
-- `zcashd` v4.7.0 implements what is expected to be the final revision
-  of the NU5 consensus rules, causing a long rollback to an alternate
-  Testnet chain. It is necessary to use the ``-reindex`` and ``-rescan``
-  options to `zcashd` in order to follow this chain as intended.
+- `zcashd` v4.7.0 implemented the final revision of the NU5 consensus
+  rules, causing a long rollback to an alternate Testnet chain. It was
+  necessary to use the ``-reindex`` and ``-rescan`` options to `zcashd` in
+  order to follow this chain as intended.
 
-Support for NU5 on Mainnet will be implemented in `zcashd` version 5.0.0,
-which will advertise protocol version 170100.
+Support for NU5 on Mainnet was implemented in `zcashd` version 5.0.0,
+which advertised protocol version 170100.
 
 Backward compatibility in zcashd
 --------------------------------
@@ -177,9 +179,6 @@ from the set of peer connections::
 The implementation is similar to that for Overwinter which was described in
 [#zip-0201]_.
 
-However, NU5 nodes will have a preference for connecting to other NU5 nodes, so
-pre-NU5 nodes will gradually be disconnected in the run up to activation.
-
 
 Support in Zebra
 ================
@@ -191,15 +190,15 @@ rules on Testnet:
   validating a strict subset of the NU5 consensus rules. This version had an
   activation height of 1599200, as described in section `NU5 deployment`_
   above.
-- `zebrad` v1.0.0-beta.8 will fully validate what is expected to be the final
-  revision of the NU5 consensus rules. As part of these consensus rule changes,
-  `zebrad` v1.0.0-beta.8 will automatically re-download the entire chain from
-  genesis, then follow an alternate chain starting at height 1599200. It will
-  advertise protocol version 170050.
+- `zebrad` v1.0.0-beta.8 fully validated the final revision of the NU5
+  consensus rules. As part of these consensus rule changes, `zebrad`
+  v1.0.0-beta.8 automatically re-downloaded the entire chain from genesis,
+  then followed an alternate chain starting at height 1599200. It advertised
+  protocol version 170050.
   
 
-Support for NU5 on Mainnet will be implemented in `zebrad` version v1.0.0-beta.10,
-which will advertise protocol version 170100.
+Support for NU5 on Mainnet was implemented in `zebrad` v1.0.0-beta.10, which
+advertised protocol version 170100.
 
 Backward compatibility in Zebra
 -------------------------------
@@ -233,7 +232,7 @@ References
 .. [#zip-0209] `ZIP 209: Prohibit Out-of-Range Chain Value Pool Balances <zip-0209.rst>`_
 .. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
 .. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
-.. [#zip-0216] `ZIP 216: Require Canonical Point Encodings <zip-0216.rst>`_
+.. [#zip-0216] `ZIP 216: Require Canonical Jubjub Point Encodings <zip-0216.rst>`_
 .. [#zip-0221] `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`_
 .. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_

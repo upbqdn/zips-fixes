@@ -27,10 +27,11 @@ section 3.12 of the Zcash Protocol Specification [#protocol-networks]_.
 
 The term "txid" means a transaction identifier, computed as a SHA-256d hash of
 the transaction data for v4 and earlier transactions, or as specified in [#zip-0244]_
-for v5 and later transactions.
+for v5 transactions and in [#zip-0229]_ for v6 transactions.
 
 The term "authorizing data commitment" (denoted ``auth_digest``), defined only for v5
-and later transactions, is to be interpreted as described in [#zip-0244]_.
+and later transactions, is to be interpreted as described in [#zip-0244]_ for v5
+transactions and in [#zip-0229]_ for v6 transactions.
 
 The term "witnessed transaction identifier" ("wtxid"), defined only for v5 and later
 transactions, is a 64-byte value given by concatenating the txid and the authorizing
@@ -42,6 +43,8 @@ Abstract
 
 This ZIP describes changes to the Zcash peer-to-peer protocol to support transaction
 relay based on a transaction's authorizing data commitment as well as its txid.
+It applies to v5 transactions, introduced in NU5, and to v6 transactions, introduced
+in NU6.3.
 
 
 Motivation
@@ -94,18 +97,18 @@ Specification
 A new inv type ``MSG_WTX`` (0x00000005) is added, for use in both ``inv`` messages
 and ``getdata`` requests, indicating that the hash being referenced is the wtxid
 (i.e. the 64-byte value ``txid`` || ``auth_digest``). This inv type MUST be used
-when announcing v5 transactions. The ``txid`` and ``auth_digest`` are as defined in
-[#zip-0244]_.
+when announcing v5 or v6 transactions. The ``txid`` and ``auth_digest`` are as defined
+in [#zip-0244]_ for v5 transactions and in [#zip-0229]_ for v6 transactions.
 
-In the case of ``getdata`` requests, the format of a v5 transaction obtained by a
-``MSG_WTX`` inv type is as given in the Zcash protocol specification.
+In the case of ``getdata`` requests, the format of a v5 or v6 transaction obtained by
+a ``MSG_WTX`` inv type is as given in the Zcash protocol specification.
 [#protocol-txnencoding]_
 
 An ``inv`` or ``getdata`` message MUST NOT use the ``MSG_WTX`` inv type for v4
 or earlier transactions, or on peer connections that have not negotiated at least
 the peer protocol version specified in `Deployment`_.
 
-Note that ``MSG_WTX`` might also be used for future transaction versions after v5.
+Note that ``MSG_WTX`` might also be used for future transaction versions after v6.
 Since such versions are not currently consensus-valid, this is left unspecified
 for now.
 
@@ -137,6 +140,12 @@ Nevertheless, it is possible for a node to receive an ``inv`` or ``getdata`` mes
 containing an inventory entry of type ``MSG_WTX``, on a peer connection that has
 negotiated protocol version 170014 or later, before NU5 has activated. In this case,
 the node MUST NOT advertise, fetch, or provide v5 transactions.
+
+Likewise, v6 transactions [#zip-0229]_ are consensus-valid only from NU6.3 activation
+[#zip-0258]_, so a correctly functioning node will not announce them until it has
+received the block preceding the NU6.3 activation block. No new peer protocol version
+is needed for v6 transactions, since the minimum peer protocol versions for NU6.3 are
+greater than 170014.
 
 Note that the behaviour of a node receiving an ``inv`` or ``getdata`` message with
 one or more inventory entries of an unrecognized type was previously unspecified.
@@ -195,8 +204,10 @@ References
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#bip-0141] `BIP 141: Segregated Witness (Consensus layer) <https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki>`_
 .. [#bip-0339] `BIP 339: WTXID-based transaction relay <https://github.com/bitcoin/bips/blob/master/bip-0339.mediawiki>`_
 .. [#p2p-inv] `Bitcoin Developer Reference: P2P Network — Inv <https://developer.bitcoin.org/reference/p2p_networking.html#inv>`_

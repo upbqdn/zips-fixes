@@ -17,8 +17,9 @@
 Terminology
 ===========
 
-The key words "MUST" and "MAY" in this document are to be interpreted as described in
-BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are
+to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all
+capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200
 [#zip-0200]_.
@@ -91,8 +92,8 @@ kinds of encumbrance within the extension's overall protocol.
 The following three values are made available to the extension (in addition to ``type``):
 
 - A numeric ``mode``.
-- A byte sequence ``precondition`` containing an encoding of the precondition that is
-  prefix-free within this ``(type, mode)``.
+- A byte sequence ``precondition`` containing an encoding of the precondition. This
+  encoding MUST be prefix-free within this ``(type, mode)``.
 - A byte sequence ``witness`` containing an encoding of evidence purporting 
   to satisfy the precondition. This encoding MUST be prefix-free within this 
   ``(type, mode)``.
@@ -126,7 +127,9 @@ constant-length, but SHOULD be solely determined by the pair ``(type, mode)``.
 
 The introduction of TZEs by this ZIP produces a new transparent unspent
 outpoint set, distinct from the UTXO set, such that indices into this set of
-outpoints may be referred to by TZE inputs in spending transactions.
+outpoints may be referred to by TZE inputs in spending transactions. The TZE outputs
+of each transaction in a block are added to this set, and the TZE outputs spent by its
+TZE inputs are removed from it.
 
 Encoding in transactions
 ------------------------
@@ -150,10 +153,10 @@ transaction ID. This will be specified in a separate ZIP.
 
 A new version <TBD> transaction format and corresponding version group
 identifier <TBD> will be introduced in the hard-fork network upgrade that
-introduces TZE functionality. The version <TBD> format differs from the version 4 
-transaction format as follows: a length-prefixed encoding of TZE inputs and outputs are
-added to the serialized transaction format immediately following the fields
-representing transparent inputs and outputs.
+introduces TZE functionality. The version <TBD> format differs from the version 6
+transaction format specified in ZIP 229 [#zip-0229]_ as follows: a length-prefixed
+encoding of TZE inputs and outputs are added to the serialized transaction format
+immediately following the fields representing transparent inputs and outputs.
 
 ======== ====================== =========================== ===============
 Version  Field                  Description                 Type
@@ -167,7 +170,7 @@ Version  Field                  Description                 Type
 >= <TBD> ``tze_in``             list of TZE inputs          ``vector``
 >= <TBD> ``tze_out_count``      variable-length integer     ``compactSize``
 >= <TBD> ``tze_out``            list of TZE outputs         ``vector``
->= 1     ``lock_time``          block height or timestamp   ``uint32``
+>= 5     ``nSpendsSapling``     number of Sapling Spends    ``compactSize``
 ``...``  ``...`` as before      ``...``                     ``...``
 ======== ====================== =========================== ===============
 
@@ -192,7 +195,7 @@ TZE Input Encoding:
 Field                  Description                          Type           
 ====================== ==================================== ===============
 ``prevout_hash``       previous txid                        ``uint256``    
-``prevout_in``         index into previous txn's outputs    ``uint32``
+``prevout_in``         index into that txn's ``tze_out``    ``uint32``
 ``witness``            witness for prevout's precondition   ``tze_data``
 ====================== ==================================== ===============
 
@@ -214,8 +217,10 @@ Once this ZIP becomes active, the following new consensus rules are enforced:
 
 - For each ``(outpoint, witness)`` pair in ``tze_inputs``:
 
-  - ``outpoint`` MUST reference a precondition of the same type and mode in an already-mined
-    transaction.
+  - ``outpoint`` MUST refer to a unique unspent TZE output in either a preceding block,
+    or a previous transaction in the same block.
+  - The ``precondition`` of that TZE output MUST have the same ``type`` and ``mode`` as
+    ``witness``.
   - ``tze_verify(mode, precondition, witness, context)`` MUST return ``true``.
 
 - If a transaction has non-empty ``tze_inputs`` and non-empty ``tze_outputs``,
@@ -224,26 +229,28 @@ Once this ZIP becomes active, the following new consensus rules are enforced:
   consideration in the case that only ``tze_inputs`` or only ``tze_outputs``
   are present, the extension ``type`` MAY vary between elements in that case.
 
-- Non-coinbase transactions MUST have at least one of the following:
-  - nonempty transparent inputs
-  - nonempty shielded inputs
-  - nonempty ``tze_inputs``
+- A coinbase transaction MUST NOT have any ``tze_inputs`` or ``tze_outputs``.
 
-The above rule replaces ``[Sapling onward] At least one of tx_in_count,
-nShieldedSpend, and nJoinSplit MUST be nonzero`` in [#protocol-txnconsensus]_.
+- For version <TBD> transactions, the following two rules replace the rules in section
+  7.1.2 of the Zcash Protocol Specification [#protocol-txnconsensus]_ that require a
+  transaction with version 6 or later to have at least one input and at least one output:
 
-- Transactions MUST have at least one of the following:
-  - nonempty transparent outputs
-  - nonempty shielded outputs
-  - nonempty ``tze_outputs``
+  - At least one of the following conditions MUST hold: ``tx_in_count > 0``;
+    ``nSpendsSapling > 0``; ``nActionsOrchard > 0`` and ``enableSpendsOrchard = 1``;
+    ``nActionsIronwood > 0`` and ``enableSpendsIronwood = 1``; ``tze_in_count > 0``.
+  - At least one of the following conditions MUST hold: ``tx_out_count > 0``;
+    ``nOutputsSapling > 0``; ``nActionsOrchard > 0`` and ``enableOutputsOrchard = 1``;
+    ``nActionsIronwood > 0`` and ``enableOutputsIronwood = 1``; ``tze_out_count > 0``.
 
 - All ``amount`` field values of ``tze_output`` records MUST be nonnegative and not greater
   than ``MAX_MONEY``.
 
-- The sum of amounts going out of the transparent value pool of a transaction (that is,
-  Bitcoin-style outputs and TZE outputs, plus JoinSplit ``vpub_old`` values) MUST NOT
-  exceed the sum of amounts going into that pool (that is, Bitcoin-style inputs and TZE
-  inputs, plus JoinSplit ``vpub_new`` values, plus the Sapling ``valueBalance`` amount).
+- TZE inputs insert value into, and TZE outputs remove value from, the transparent
+  transaction value pool of the transaction [#protocol-transactions]_, in the same way as
+  transparent inputs and outputs. The value inserted by a TZE input is the ``amount`` of
+  the TZE output that it spends. The consensus rules on the transparent transaction value
+  pool, including the requirement that its remaining value be nonnegative, are otherwise
+  unchanged.
 
 Changes to signatures over transaction digests
 ----------------------------------------------
@@ -269,7 +276,7 @@ ZIPs for specific combinations of ``(type, mode)`` pairs that have been analyzed
 cross-protocol attacks, but we opt here for a fail-safe default behaviour.
 
 Transactions with TZE inputs which do not contain TZE outputs are not subject
-to single-extension or single-mode restrictions; likewise, transactions which
+to the single-extension restriction; likewise, transactions which
 contain TZE outputs without any TZE inputs may produce TZE outputs for multiple
 extension-type/mode pairs as the potential for cross-protocol attacks in this
 situation is negligible.
@@ -279,6 +286,11 @@ outputs. Although this had the advantage of not requiring a transaction format c
 the consensus rules were significantly more complicated, and the design coupled the
 extension logic too tightly to the transparent address logic. Instead, this ZIP uses
 dedicated transaction fields, and a separate unspent output set.
+
+Coinbase transactions cannot have TZE inputs or TZE outputs. This leaves unchanged the
+consensus rules on the total output value of a coinbase transaction, which counts no TZE
+outputs, and the coinbase maturity rule, which applies only to transparent outputs. A
+future ZIP could relax this restriction.
 
 
 Security and Privacy Considerations for Future TZE Implementations
@@ -323,12 +335,12 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later <protocol/protocol.pdf>`_
 .. [#protocol-constants] `Zcash Protocol Specification, Version 2021.2.16. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
-.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2021.2.16. Section 7.1: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
-.. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#protocol-transactions] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
-.. [#zip-0244] `ZIP 244: Transaction Non-Malleability Support <zip-0244.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0245] `ZIP 245: Transaction Identifier Digests & Signature Validation for Transparent Zcash Extensions <zip-0245.rst>`_
 .. [#zip-draft-bolt] `Draft ZIP: Add support for Blind Off-chain Lightweight Transactions (Bolt) protocol <https://github.com/zcash/zips/pull/216>`_
 .. [#librustzcash_zip222] `Rust language reference implementation of TZE API <https://github.com/zcash/librustzcash/pull/286>`_

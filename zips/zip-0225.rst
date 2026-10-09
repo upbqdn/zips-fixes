@@ -33,9 +33,8 @@ The new transaction format defines well-bounded regions of the serialized form t
 each of the existing pools of funds, and adds and describes a new region containing
 Orchard-specific elements.
 
-This ZIP also depends upon and defines modifications to the computation of the values
-**TxId Digest**, **Signature Digest**, and **Authorizing Data Commitment** defined by ZIP
-244 [#zip-0244]_.
+The transaction identifier, signature digest, and authorizing data commitment for this
+format are defined in ZIP 244 [#zip-0244]_.
 
 
 Motivation
@@ -95,9 +94,10 @@ Transaction Format
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``4``                        |``lock_time``             |``uint32``                              |Unix-epoch UTC time or block height, encoded as in Bitcoin.          |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``4``                        |``nExpiryHeight``         |``uint32``                              |A block height in the range {1 .. 499999999} after which             |
-|                             |                          |                                        |the transaction will expire, or 0 to disable expiry.                 |
-|                             |                          |                                        |[ZIP-203]                                                            |
+|``4``                        |``nExpiryHeight``         |``uint32``                              |A block height after which the transaction will expire, or 0 to      |
+|                             |                          |                                        |disable expiry; at most 499999999 for non-coinbase transactions,     |
+|                             |                          |                                        |and equal to the block height for coinbase transactions              |
+|                             |                          |                                        |[#zip-0203]_.                                                        |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 | **Transparent Transaction Fields**                                                                                                                                    |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
@@ -116,7 +116,7 @@ Transaction Format
 |``96 * nSpendsSapling``      |``vSpendsSapling``        |``SpendDescriptionV5[nSpendsSapling]``  |A sequence of Sapling Spend descriptions, encoded per                |
 |                             |                          |                                        |protocol §7.3 ‘Spend Description Encoding and Consensus’.            |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``nOutputsSapling``       |``compactSize``                         |Number of Sapling Output Decriptions in ``vOutputsSapling``.         |
+|``varies``                   |``nOutputsSapling``       |``compactSize``                         |Number of Sapling Output descriptions in ``vOutputsSapling``.        |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``756 * nOutputsSapling``    |``vOutputsSapling``       |``OutputDescriptionV5[nOutputsSapling]``|A sequence of Sapling Output descriptions, encoded per               |
 |                             |                          |                                        |protocol §7.4 ‘Output Description Encoding and Consensus’.           |
@@ -153,9 +153,11 @@ Transaction Format
 |                             |                          |                                        |height in the past.                                                  |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``varies``                   |``sizeProofsOrchard``     |``compactSize``                         |Length in bytes of ``proofsOrchard``. Value is                       |
-|                             |                          |                                        |:math:`2720 + 2272 \cdot \mathtt{nActionsOrchard}\!`.                |
+|                             |                          |                                        |:math:`2720 + 2272 \cdot \mathtt{nActionsOrchard}`                   |
+|                             |                          |                                        |(required from NU6.2 onward [#zip-0257]_; see §7.5 ‘Action           |
+|                             |                          |                                        |Description Encoding and Consensus’).                                |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
-|``sizeProofsOrchard``        |``proofsOrchard``         |``byte[sizeProofsOrchard]``             |Encoding of aggregated zk-SNARK proofs for Orchard Actions.          |
+|``sizeProofsOrchard``        |``proofsOrchard``         |``byte[sizeProofsOrchard]``             |Encoding of the aggregated zk-SNARK proof for Orchard Actions.       |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 |``64 * nActionsOrchard``     |``vSpendAuthSigsOrchard`` |``byte[64 * nActionsOrchard]``          |Authorizing signatures for each Orchard Action.                      |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
@@ -182,14 +184,19 @@ Transaction Format
   ``vOutputsSapling`` and MUST be ordered such that the proof at a given index corresponds
   to the ``OutputDescriptionV5`` at the same index.
 
-* The proofs aggregated in ``proofsOrchard``, and the elements of
-  ``vSpendAuthSigsOrchard``, each have a 1:1 correspondence to the elements of
-  ``vActionsOrchard`` and MUST be ordered such that the proof or signature at a given
-  index corresponds to the ``OrchardAction`` at the same index.
+* The field ``proofsOrchard`` encodes a single Halo 2 proof covering all of the Orchard
+  Actions in the transaction, with one instance of the Action circuit per element of
+  ``vActionsOrchard``. The proof MUST be verified with the instance at each index set to
+  the primary input (§4.6 ‘Action Descriptions’) of the ``OrchardAction`` at the same
+  index.
+
+* The elements of ``vSpendAuthSigsOrchard`` have a 1:1 correspondence to the elements of
+  ``vActionsOrchard`` and MUST be ordered such that the signature at a given index
+  corresponds to the ``OrchardAction`` at the same index.
 
 * For coinbase transactions, the ``enableSpendsOrchard`` bit MUST be set to $0$.
 
-The encodings of ``tx_in``, and ``tx_out`` are as in a version 4 transaction (i.e.
+The encodings of ``tx_in`` and ``tx_out`` are as in a version 4 transaction (i.e.
 unchanged from Canopy). The encodings of ``SpendDescriptionV5``, ``OutputDescriptionV5``
 and ``OrchardAction`` are described below. The encoding of Sapling Spends and Outputs has
 changed relative to prior versions in order to better separate data that describe the
@@ -207,11 +214,12 @@ Sapling Spend Description (``SpendDescriptionV5``)
 |``32``                       |``nullifier``             |``byte[32]``                          |The nullifier of the input note.                            |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 |``32``                       |``rk``                    |``byte[32]``                          |The randomized validating key for the element of            |
-|                             |                          |                                      |spendAuthSigsSapling corresponding to this Spend.           |
+|                             |                          |                                      |``vSpendAuthSigsSapling`` corresponding to this Spend.      |
 +-----------------------------+--------------------------+--------------------------------------+------------------------------------------------------------+
 
 The encodings of each of these elements are defined in §7.3 ‘Spend Description Encoding
-and Consensus’ of the Zcash Protocol Specification [#protocol-spenddesc]_.
+and Consensus’ of the Zcash Protocol Specification
+[#protocol-spendencodingandconsensus]_.
 
 Sapling Output Description (``OutputDescriptionV5``)
 ----------------------------------------------------
@@ -232,7 +240,8 @@ Sapling Output Description (``OutputDescriptionV5``)
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
 
 The encodings of each of these elements are defined in §7.4 ‘Output Description Encoding
-and Consensus’ of the Zcash Protocol Specification [#protocol-outputdesc]_.
+and Consensus’ of the Zcash Protocol Specification
+[#protocol-outputencodingandconsensus]_.
 
 Orchard Action Description (``OrchardAction``)
 ----------------------------------------------
@@ -246,7 +255,7 @@ Orchard Action Description (``OrchardAction``)
 |``32``                       |``nullifier``             |``byte[32]``                          |The nullifier of the input note.                                      |
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
 |``32``                       |``rk``                    |``byte[32]``                          |The randomized validating key for the element of                      |
-|                             |                          |                                      |spendAuthSigsOrchard corresponding to this Action.                    |
+|                             |                          |                                      |``vSpendAuthSigsOrchard`` corresponding to this Action.               |
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
 |``32``                       |``cmx``                   |``byte[32]``                          |The :math:`x\!`-coordinate of the note commitment for the output note.|
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
@@ -259,7 +268,8 @@ Orchard Action Description (``OrchardAction``)
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
 
 The encodings of each of these elements are defined in §7.5 ‘Action Description Encoding
-and Consensus’ of the Zcash Protocol Specification [#protocol-actiondesc]_.
+and Consensus’ of the Zcash Protocol Specification
+[#protocol-actionencodingandconsensus]_.
 
 
 Alternatives
@@ -283,7 +293,7 @@ Removing these fields reduces the complexity of the NU5 upgrade in the following
   data commitment computations are simplified by excluding consideration of
   these fields.
 
-Removal of these fields means that that in the future, removing the support for the V4
+Removal of these fields means that in the future, removing the support for the V4
 transaction format will also effectively end support for Sprout transactions on the Zcash
 network, though it might be possible to restore limited support for migration via a future
 ZIP 222 [#zip-0222]_ extension or by other means not yet determined.
@@ -301,7 +311,7 @@ The original definitions for the transaction fields that have been removed are:
 |``32``                       |``joinSplitPubKey``       |``byte[32]``                          |An encoding of a JoinSplitSig public validating key.                  |
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
 |``64``                       |``joinSplitSig``          |``byte[64]``                          |A signature on a prefix of the transaction encoding,                  |
-|                             |                          |                                      |to be verfied using joinSplitPubKey as specified in §4.11             |
+|                             |                          |                                      |to be verified using joinSplitPubKey as specified in §4.11            |
 |                             |                          |                                      |‘Non-malleability (Sprout)’.                                          |
 +-----------------------------+--------------------------+--------------------------------------+----------------------------------------------------------------------+
 
@@ -320,10 +330,11 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2021.2.16 or later [NU5 proposal] <protocol/protocol.pdf>`_
-.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
-.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
-.. [#protocol-actiondesc] `Zcash Protocol Specification, Version 2021.2.16 [NU5 proposal]. Section 4.6: Action Descriptions <protocol/protocol.pdf#actiondesc>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2] or later <protocol/protocol.pdf>`_
+.. [#protocol-spendencodingandconsensus] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.3: Spend Description Encoding and Consensus <protocol/protocol.pdf#spendencodingandconsensus>`_
+.. [#protocol-outputencodingandconsensus] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.4: Output Description Encoding and Consensus <protocol/protocol.pdf#outputencodingandconsensus>`_
+.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2]. Section 7.5: Action Description Encoding and Consensus <protocol/protocol.pdf#actionencodingandconsensus>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
 .. [#zip-0222] `ZIP 222: Transparent Zcash Extensions <zip-0222.rst>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
-.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
+.. [#zip-0257] `ZIP 257: Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade <zip-0257.md>`_
