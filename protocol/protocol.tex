@@ -2247,6 +2247,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\FoundersFraction}{\mathsf{FoundersFraction}}
 \newcommand{\FSRecipientChangeInterval}{\mathsf{FSRecipientChangeInterval}}
 \newcommand{\FSRecipientPeriod}{\mathsf{FSRecipientPeriod}}
+\newcommand{\FSRecipientAdjustedHeight}{\mathsf{FSRecipientAdjustedHeight}}
 \newcommand{\BlockHeight}{\mathsf{height}}
 \newcommand{\FounderAddressAdjustedHeight}{\mathsf{FounderAddressAdjustedHeight}}
 \newcommand{\FoundersRewardLastBlockHeight}{\mathsf{FoundersRewardLastBlockHeight}}
@@ -2260,6 +2261,18 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\heightBytes}{\mathsf{heightBytes}}
 \newcommand{\ChainValuePoolBalance}[1]{\ensuremath{\mathsf{ChainValuePoolBalance}^{#1}}}
 \newcommand{\IssuedSupply}{\mathsf{IssuedSupply}}
+\newcommand{\ScheduledBlockSubsidy}{\mathsf{ScheduledBlockSubsidy}}
+\newcommand{\AdditionalBlockSubsidy}{\mathsf{AdditionalBlockSubsidy}}
+\newcommand{\HalvingIntervalFunc}{\mathsf{HalvingInterval}}
+\newcommand{\BlockSubsidyFraction}{\mathsf{BLOCK\_SUBSIDY\_FRACTION}}
+\newcommand{\LNTwoScaled}{\mathsf{LN2\_SCALED}}
+\newcommand{\InitialNSMValueBalance}{\mathsf{INITIAL\_NSM\_VALUE\_BALANCE}}
+\newcommand{\NSMReissuanceHeight}{\mathsf{NSMReissuanceHeight}}
+\newcommand{\NSMValueBalance}{\mathsf{NSMValueBalance}}
+\newcommand{\TransactionFees}{\mathsf{TransactionFees}}
+\newcommand{\NSMFeeContribution}{\mathsf{NSMFeeContribution}}
+\newcommand{\MinerFees}{\mathsf{MinerFees}}
+\newcommand{\nsmValueBalance}{\term{NSM value balance}}
 
 \newcommand{\blockSubsidy}{\term{block subsidy}}
 \newcommand{\minerSubsidy}{\term{miner subsidy}}
@@ -3562,7 +3575,8 @@ The following integer constants will be instantiated in \crossref{constants}:
     $\PRFOutputLengthNfSapling$,} $\NoteCommitRandLengthSprout$, $\RandomSeedLength$, $\AuthPrivateLength$,
     $\NoteUniquePreRandLength$,\sapling{ $\SpendingKeyLength$, $\DiversifierLength$,\nufive{ $\DiversifierKeyLength$,}\nusixthree{ $\QuantumSpendingKeyLength$, $\QuantumIntermediateKeyLength$,}
     $\InViewingKeyLength{Sapling}$, $\OutViewingKeyLength$, $\ScalarLength{Sapling}$,\nufive{ $\ScalarLength{Orchard}$, $\BaseLength{Orchard}$,}}
-    $\MAXMONEY$,\blossom{ $\BlossomActivationHeight$,}\strut\canopy{ $\CanopyActivationHeight$, $\ZIPTwoOneTwoGracePeriod$,}\nuseven{ $\NUSevenActivationHeight$,}
+    $\MAXMONEY$,\blossom{ $\BlossomActivationHeight$,}\strut\canopy{ $\CanopyActivationHeight$, $\ZIPTwoOneTwoGracePeriod$,}\nuseven{ $\NUSevenActivationHeight$,
+    $\NSMReissuanceHeight$, $\InitialNSMValueBalance$, $\LNTwoScaled$,}
     $\SlowStartInterval$, $\PreBlossomHalvingInterval$, $\MaxBlockSubsidy$, $\NumFounderAddresses$,
     $\PoWLimit$, $\PreNUSevenPoWAveragingWindow$,\nuseven{ $\PostNUSevenPoWAveragingWindow$,} $\PoWMedianBlockSpan$, $\PoWDampingFactor$,
     \notblossom{and }$\PreBlossomPoWTargetSpacing$\blossom{,\notnuseven{ and} $\PostBlossomPoWTargetSpacing$}\nuseven{,
@@ -4152,14 +4166,22 @@ following sections:
 \end{itemize}
 \vspace{-2ex}
 
-As in \Bitcoin, the remaining value in the \transparentTxValuePool of a non-coinbase \transaction
+\notnuseven{As in \Bitcoin, the remaining value in the \transparentTxValuePool of a non-coinbase \transaction
 is available to miners as a \defining{\transactionFee}. That is, the sum of those values for non-coinbase \transactions
-in each \block is treated as an implicit input to the \transparentTxValuePool balance of the
+in each \block is treated}\nuseven{As in \Bitcoin, the remaining value in the \transparentTxValuePool of a non-coinbase
+\transaction is a \defining{\transactionFee}. The sum of those values for non-coinbase \transactions in
+each \block before \NUSeven, or $\MinerFees(\BlockHeight)$ for the \block at \blockHeight
+$\BlockHeight$ from \NUSeven onward, is available to miners: it is treated} as an implicit input to the \transparentTxValuePool balance of the
 \block's \coinbaseTransaction (in addition to the implicit input created by issuance\nusixone{ and
 the one-time \lockboxDisbursement from the \deferredDevFundLockbox \cite{ZIP-271}}).
+\nuseven{From \NUSeven, the remaining \transactionFees of the \block, $\NSMFeeContribution(\BlockHeight)$,
+are removed from circulation and credited to the \nsmValueBalance (\crossref{chainvaluepoolbalances})
+\cite{ZIP-235}. The functions $\MinerFees$ and $\NSMFeeContribution$ are defined in \shortcrossref{subsidies}.}
 
 The remaining value in the \transparentTxValuePool of \coinbaseTransactions\nusix{ in \blocks
-prior to \NUSix} is destroyed. \nusix{From \NUSix, this remaining value is required to be zero;
+prior to \NUSix} \notnuseven{is destroyed}\nuseven{is left unclaimed, and is not added to any
+\chainValuePool. It is included in $\InitialNSMValueBalance$, and so is reissued as specified in
+\shortcrossref{subsidies} \cite{ZIP-237}}. \nusix{From \NUSix, this remaining value is required to be zero;
 that is, all of the available balance \MUST be consumed by outputs of the \coinbaseTransaction
 and by payments into the \deferredDevFundLockbox, as specified in \crossref{txnconsensus}.}
 
@@ -4480,10 +4502,15 @@ mining a \block is called the \defining{\blockSubsidy}.
 
 \canopyonward{The \blockSubsidy is composed of a \minerSubsidy and a series of \defining{\fundingStreams}.}
 
-As in \Bitcoin, the miner of a \block also receives \defining{\transactionFees}.
+As in \Bitcoin, the miner of a \block also receives \defining{\transactionFees}\nuseven{; from \NUSeven,
+it receives only the part $\MinerFees(\BlockHeight)$ of them that is not removed from circulation
+\cite{ZIP-235}}.
 
 The calculations of the \blockSubsidy, \minerSubsidy, \notcanopy{and }\foundersReward\canopy{, and \fundingStreams}
 depend on the \blockHeight, as defined in \crossref{blockchain}.
+\nuseven{From $\NSMReissuanceHeight$, the \blockSubsidy also includes value reissued from the
+\nsmValueBalance (\crossref{chainvaluepoolbalances}), and so these calculations also depend on the
+\nsmValueBalance after the preceding \block \cite{ZIP-237}.}
 
 \crossref{subsidies}\notbeforenusixone{\\} describes these calculations.
 
@@ -4494,7 +4521,8 @@ A \transaction that has a single \transparentInput with a null \prevoutField{} f
 called a \defining{\coinbaseTransaction}. Every \block has a single \coinbaseTransaction
 as the first \transaction in the \block. The purpose of this \coinbaseTransaction is to
 collect and spend any \minerSubsidy, and \transactionFees paid by other \transactions included
-in the \block.
+in the \block\nuseven{ (from \NUSeven, only $\MinerFees(\BlockHeight)$ of those fees, as described in
+\crossref{transactions})}.
 
 \precanopy{\crossref{foundersreward} specifies that the \coinbaseTransaction \MUST also pay
 the \foundersReward.}
@@ -8069,6 +8097,36 @@ $$
 greater than $\MAXMONEY$ \zatoshi in the \blockChain created as a result of accepting a \block, then
 all nodes \MUST reject the block as invalid.}
 
+\nuseven{
+\vspace{1.5ex}
+Let $\InitialNSMValueBalance$ and $\NUSevenActivationHeight$ be as defined in \crossref{constants},
+and let $\AdditionalBlockSubsidy$ and $\NSMFeeContribution$ be as defined in \shortcrossref{subsidies}.
+
+The Network Sustainability Mechanism (NSM) value balance, or \defining{\nsmValueBalance}, of a
+\blockChain at \blockHeight $\BlockHeight$ is the value held outside the \totalIssuedSupply awaiting
+reissuance \cite{ZIP-237}. It is given by the function:
+$$
+\NSMValueBalance(\BlockHeight) := \begin{cases}
+  0, &\caseif \BlockHeight < \NUSevenActivationHeight - 1 \\
+  \InitialNSMValueBalance, &\caseif \BlockHeight = \NUSevenActivationHeight - 1 \\
+  \multicolumn{2}{@{}l}{\NSMValueBalance(\BlockHeight - 1) - \AdditionalBlockSubsidy(\BlockHeight)} \\
+  \multicolumn{2}{@{}l}{\hspace{2em} +\; \NSMFeeContribution(\BlockHeight),\hspace{0.85em}\caseotherwise.}
+\end{cases}
+$$
+
+The \nsmValueBalance is tracked as consensus state alongside the \chainValuePools. It is not a
+\chainValuePool and is not included in $\IssuedSupply(\BlockHeight)$. The constant $\InitialNSMValueBalance$
+is the \blockSubsidy and \transactionFees left unclaimed by \coinbaseTransactions before \NUSix
+(\crossref{transactions}). The amount $\NSMFeeContribution(\BlockHeight)$ moves value from circulation
+into the \nsmValueBalance, and $\AdditionalBlockSubsidy(\BlockHeight)$ reissues value from it
+through the \blockSubsidy.
+
+\vspace{-2ex}
+\consensusrule{\nusevenonward{If $\NSMValueBalance(\BlockHeight)$ would become negative in the
+\blockChain created as a result of accepting a \block at \blockHeight $\BlockHeight$, then all nodes
+\MUST reject the \block as invalid.}}
+} %nuseven
+
 \pagebreak
 \lsubsection{Zk-SNARK Statements}{snarkstatements}
 
@@ -9485,6 +9543,15 @@ Define:
           \mathrm{\detokenize{NU7_MAINNET_ACTIVATION_HEIGHT}},&\squash\text{for \Mainnet} \\
           4465026,&\squash\text{for \Testnet}
         \end{cases}$
+  \item $\NSMReissuanceHeight \typecolon \Nat := \begin{cases}
+          16026474 - 2 \mult \NUSevenActivationHeight,&\squash\text{for \Mainnet} \\
+          7305222,&\squash\text{for \Testnet}
+        \end{cases}$
+  \item $\InitialNSMValueBalance \typecolon \Nat := \begin{cases}
+          36858445520,&\squash\text{for \Mainnet} \\
+          55768414957,&\squash\text{for \Testnet}
+        \end{cases}$ (\zatoshi)
+  \item $\LNTwoScaled \typecolon \Nat := 6931680000$
 } %nuseven
   \item $\SlowStartInterval \typecolon \Nat := 20000$
   \item $\PreBlossomHalvingInterval \typecolon \Nat := 840000$
@@ -14400,15 +14467,19 @@ of the \transaction encoding in the \notbeforenufive{pre-v5} format described ab
                 of the signature prohibits \nonCanonicalPoint encodings.
         \end{itemize}}
         \vspace{-1ex}
-  \item \nusix{Let $\totalDeferredOutput$\nusixone{ and $\totalDeferredInput$} be as defined in \shortcrossref{subsidies}.}
+  \item \nusix{Let $\totalDeferredOutput$\nusixone{\notnuseven{ and}\nuseven{,} $\totalDeferredInput$}\nuseven{, and
+        $\MinerFees$} be as defined in \shortcrossref{subsidies}.}
         For the \block at \blockHeight $\mathsf{height}$:
-        \begin{itemize}
+        \begin{itemize}\iftoggle{isnusixthree}{\raggedright}{}
           \item define the \totalOutputValue of its \coinbaseTransaction to be the total value
                 in \zatoshi of its \transparentOutputs\heartwood{, minus $\vBalance{\SaplingPoolId}$}\nufive{,
-                minus $\vBalance{\OrchardPoolId}$}\nusix{, plus $\totalDeferredOutput(\mathsf{height})$};
+                minus $\vBalance{\OrchardPoolId}$}\nusixthree{, minus $\vBalance{\IronwoodPoolId}$}\nusix{,
+                plus $\totalDeferredOutput(\mathsf{height})$};
           \item define the \totalInputValue of its \coinbaseTransaction to be the value in \zatoshi
-                of the \blockSubsidy, plus the \transactionFees paid by \transactions in the
-                \block\nusixone{, plus $\totalDeferredInput(\mathsf{height})$}.
+                of the \blockSubsidy, plus \notnuseven{the \transactionFees paid by \transactions in the
+                \block}\nuseven{$\MinerFees(\mathsf{height})$ (before \NUSeven, the \transactionFees paid by
+                \transactions in the \block; from \NUSeven, the part of them that is not removed from
+                circulation \cite{ZIP-235})}\nusixone{, plus $\totalDeferredInput(\mathsf{height})$}.
         \end{itemize}
         \vspace{-1ex}
         \prenusix{The \totalOutputValue of a \coinbaseTransaction \MUSTNOT be greater than its \totalInputValue.}
@@ -15530,8 +15601,8 @@ and Founders' Reward}{subsidies}
 
 \vspace{-0.5ex}
 In \crossref{subsidyconcepts} the \blockSubsidy, \minerSubsidy,\notcanopy{ and} \foundersReward\canopy{,
-and \fundingStreams} are defined. Their amounts in \zatoshi are calculated from the \blockHeight using
-the formulae below.
+and \fundingStreams} are defined. Their amounts in \zatoshi are calculated from the \blockHeight\nuseven{
+(and, from $\NSMReissuanceHeight$, the \nsmValueBalance)} using the formulae below.
 
 Let $\SlowStartInterval$,\, $\PreBlossomHalvingInterval$,\,
 \blossom{$\BlossomActivationHeight$,\, }\canopy{$\CanopyActivationHeight$,\, }$\MaxBlockSubsidy$,
@@ -15541,7 +15612,8 @@ and $\FoundersFraction$ be as defined in \crossref{constants}.
 $\IsNUSevenActivated$, $\NUSevenPoWTargetSpacingRatio$, and $\PostNUSevenHalvingInterval$}
 be as defined in \shortcrossref{diffadjustment}.\par}}
 
-\nuseven{Let $\NUSevenActivationHeight$ be as defined in \crossref{constants}.}
+\nuseven{Let $\NUSevenActivationHeight$, $\NSMReissuanceHeight$, and $\LNTwoScaled$ be as defined in
+\crossref{constants}, and let $\NSMValueBalance$ be as defined in \crossref{chainvaluepoolbalances}.}
 
 \canopy{Let $\FundingStreams$ be as specified in \crossref{zip214fundingstreams}.}
 
@@ -15574,7 +15646,13 @@ be as defined in \shortcrossref{diffadjustment}.\par}}
   \item $\HeightForHalving(\HalvingNum \typecolon \PosInt) :=
           \minimum\Of{\setof{\BlockHeight \typecolon \Nat \suchthat \Halving(\BlockHeight) = \HalvingNum}}$
         \vspace{1ex}
+\iftoggle{isnuseven}{
+  \item $\nuseven{\ScheduledBlockSubsidy}(\BlockHeight \typecolon \Nat) :=$
+        \vspace{-0.5ex}
+  \item \tab $\begin{cases}
+}{
   \item $\BlockSubsidy(\BlockHeight \typecolon \Nat) := \begin{cases}
+}
           \SlowStartRate \mult \BlockHeight,&\caseif \BlockHeight < \SlowStartShift \\[1.2ex]
           \SlowStartRate \mult (\BlockHeight + 1),&\caseif \SlowStartShift \leq \BlockHeight \\[-0.8ex]
                                                   &\text{ and } \BlockHeight < \SlowStartInterval \\[1.2ex]
@@ -15589,6 +15667,26 @@ be as defined in \shortcrossref{diffadjustment}.\par}}
           \multicolumn{2}{@{}l}{\nuseven{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult \NUSevenPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}}\kern-0.25em,\hspace{0.85em}\caseotherwise}}
 } %notbeforenuseven
         \end{cases}$
+\nuseven{
+        \vspace{0.5ex}
+  \item $\HalvingIntervalFunc(\BlockHeight \typecolon \Nat) := \begin{cases}
+          \PostNUSevenHalvingInterval,&\caseif \IsNUSevenActivated(\BlockHeight) \\
+          \PostBlossomHalvingInterval,&\caseotherwise
+        \end{cases}$
+  \item $\BlockSubsidyFraction(\BlockHeight \typecolon \Nat) :=
+          \hfrac{\floor{\LNTwoScaled / \HalvingIntervalFunc(\BlockHeight)}}{10^{10}}$
+        \vspace{0.5ex}
+  \item $\AdditionalBlockSubsidy(\BlockHeight \typecolon \Nat) :=$
+        \vspace{-0.5ex}
+  \item \tab $\begin{cases}
+          0,&\caseif \BlockHeight < \NSMReissuanceHeight \\
+          \multicolumn{2}{@{}l}{\ceiling{\BlockSubsidyFraction(\BlockHeight) \mult \NSMValueBalance(\BlockHeight - 1)}\kern-0.1em,\hspace{0.85em}\caseotherwise}
+        \end{cases}$
+        \vspace{0.5ex}
+  \item $\BlockSubsidy(\BlockHeight \typecolon \Nat) :=$
+        \vspace{-0.5ex}
+  \item \tab $\ScheduledBlockSubsidy(\BlockHeight) + \AdditionalBlockSubsidy(\BlockHeight)$
+} %nuseven
         \vspace{0.5ex}
   \item $\FoundersReward(\BlockHeight \typecolon \Nat) := \begin{cases}
           \BlockSubsidy(\BlockHeight) \mult \FoundersFraction,&\caseif \Halving(\BlockHeight) < 1\notbeforecanopy{ \\[-0.8ex]
@@ -15622,6 +15720,18 @@ be as defined in \shortcrossref{diffadjustment}.\par}}
            0,&\caseotherwise.
          \end{cases}$
 } %nusixone
+\nuseven{
+        \vspace{1ex}
+  \item Let $\TransactionFees(\BlockHeight)$ be the total of the \transactionFees paid by the non-coinbase
+        \transactions in the \block at \blockHeight $\BlockHeight$, in \zatoshi (\crossref{transactions}).
+        \vspace{0.5ex}
+  \item $\NSMFeeContribution(\BlockHeight \typecolon \Nat) := \begin{cases}
+          0,&\caseif \text{not } \IsNUSevenActivated(\BlockHeight) \\
+          \floor{\hfrac{6 \mult \TransactionFees(\BlockHeight)}{10}},&\caseotherwise
+        \end{cases}$
+        \vspace{0.5ex}
+  \item $\MinerFees(\BlockHeight \typecolon \Nat) := \TransactionFees(\BlockHeight) - \NSMFeeContribution(\BlockHeight)$
+} %nuseven
 
   \item $\MinerSubsidy(\BlockHeight) := \BlockSubsidy(\BlockHeight) - \FoundersReward(\BlockHeight)
            \canopy{\,- \ssum{\fs\, \in\, \FundingStreams}{} \fsValue(\BlockHeight)}$.
@@ -15630,6 +15740,38 @@ be as defined in \shortcrossref{diffadjustment}.\par}}
 The \defining{\halvings} are the \blockHeights at which $\Halving$ increases: the first
 \halving is at \blockHeight $\HeightForHalving(1)$, the second at $\HeightForHalving(2)$,
 and so on.
+
+\nuseven{
+\begin{pnotes}
+  \item From $\NSMReissuanceHeight$, $\BlockSubsidy(\BlockHeight)$ depends on
+        $\NSMValueBalance(\BlockHeight - 1)$, and not only on $\BlockHeight$. The \fundingStreams
+        receive their fraction of the total of the scheduled and additional \blockSubsidy
+        \cite{ZIP-237}.
+  \item Since $\NSMReissuanceHeight \geq \NUSevenActivationHeight$, the fraction
+        $\BlockSubsidyFraction(\BlockHeight)$ is $\hfrac{1375}{10^{10}}$ wherever it is used. This
+        reissues about half of the \nsmValueBalance per \halvingInterval.
+  \item The height $\NSMReissuanceHeight$ is the least $\BlockHeight$ such that
+        $\maximum(\NUSevenActivationHeight, \HeightForHalving(3) + 1) \leq \BlockHeight$,
+        $\BlockHeight < \HeightForHalving(4)$, and
+        \begin{formulae}
+          \item $\ceiling{\hfrac{1375 \mult \big(\MAXMONEY - \ssum{i=0}{\BlockHeight - 1}
+                \ScheduledBlockSubsidy(i)\big)}{10^{10}}} < \ScheduledBlockSubsidy(\BlockHeight)$
+        \end{formulae}
+        \cite{ZIP-237}. That is, reissuance starts at the first \block after the third \halving at
+        which reissuing from a balance equal to the scheduled issuance not yet paid would give less
+        than the scheduled \blockSubsidy. On \Mainnet and \Testnet, \NUSeven activates after the
+        second \halving and before $\mathsf{H}_3$, the \blockHeight of the third \halving without
+        \NUSeven ($4406400$ on \Mainnet and $4476000$ on \Testnet). Then
+        $\HeightForHalving(3) = \NUSevenActivationHeight + \NUSevenPoWTargetSpacingRatio \mult
+        (\mathsf{H}_3 - \NUSevenActivationHeight)$ and
+        $\NSMReissuanceHeight = \HeightForHalving(3) + 2807274$; that is, $13219200 - 2 \mult
+        \NUSevenActivationHeight$ and $16026474 - 2 \mult \NUSevenActivationHeight$ on \Mainnet, and
+        $4497948$ and $7305222$ on \Testnet.
+  \item From \NUSeven, $\MinerFees(\BlockHeight) = \ceiling{\hfrac{4 \mult \TransactionFees(\BlockHeight)}{10}}$.
+        The fraction applies to the total \transactionFees of the \block, not to the fee of each
+        \transaction, and rounding favours the miner \cite{ZIP-235}.
+\end{pnotes}
+} %nuseven
 
 
 \vspace{-2ex}
@@ -15783,9 +15925,11 @@ as its $\scriptPubKey$.
 \extralabel{lockbox}{\lsubsection{Payment of Funding Streams\notbeforenusix{,\notnusixone{ and} Deferred Lockbox}\notbeforenusixone{, and Lockbox Disbursement}}{fundingstreams}}
 
 \vspace{-2ex}
-Let $\PostBlossomHalvingInterval$ be as defined in \crossref{diffadjustment}.
+Let $\PostBlossomHalvingInterval$\nuseven{, $\IsNUSevenActivated$, and $\NUSevenPoWTargetSpacingRatio$} be as
+defined in \notnuseven{\crossref{diffadjustment}}\nuseven{\shortcrossref{diffadjustment}}.
 
 Let $\HeightForHalving$ be as defined in \shortcrossref{subsidies}.
+\nuseven{Let $\NUSevenActivationHeight$ be as defined in \crossref{constants}.}
 
 \nusixone{
 Let $\ZIPTwoSevenOneActivationHeight$, $\ZIPTwoSevenOneDisbursementAmount$,
@@ -15828,9 +15972,25 @@ Define:
 
 \begin{formulae}
   \item $\FSRecipientChangeInterval := \PostBlossomHalvingInterval / 48$
+\nuseven{
+  \item $\FSRecipientAdjustedHeight(\BlockHeight) :=$
+        \vspace{-0.5ex}
+  \item \tab $\begin{cases}
+          \BlockHeight,&\caseif \text{not } \IsNUSevenActivated(\BlockHeight) \\
+          \NUSevenActivationHeight + \floor{\hfrac{\BlockHeight - \NUSevenActivationHeight}{\NUSevenPoWTargetSpacingRatio}}\kern-0.25em,&\caseotherwise
+        \end{cases}$
+} %nuseven
   \item $\FSRecipientPeriod(\BlockHeight) :=
-          \floor{\hfrac{\BlockHeight - (\HeightForHalving(1) - \PostBlossomHalvingInterval)}{\FSRecipientChangeInterval}}$.
+          \floor{\hfrac{\nuseven{\FSRecipientAdjustedHeight(}\BlockHeight\nuseven{)} - (\HeightForHalving(1) - \PostBlossomHalvingInterval)}{\FSRecipientChangeInterval}}$.
 \end{formulae}
+
+\nuseven{
+\pnote{The definition of $\FSRecipientPeriod$ from \NUSeven is equivalent to that in \cite{ZIP-207}
+Revision 2. If \NUSeven activates partway through a recipient period, the number of \blocks remaining
+in that period is multiplied by $\NUSevenPoWTargetSpacingRatio$, and each later period lasts
+$\NUSevenPoWTargetSpacingRatio \mult \FSRecipientChangeInterval = 105000$ \blocks. Each period
+therefore keeps approximately its duration and funding amount.}
+} %nuseven
 
 \introlist
 For each \fundingStream $\fs$, define:
@@ -15841,10 +16001,11 @@ For each \fundingStream $\fs$, define:
   \item $\fsNumRecipients := \fsRecipientIndex(\fsEndHeight - 1)$.
 \end{formulae}
 
-$\fsRecipients$ \MUST be of length $\fsNumRecipients$. Each element of $\fsRecipients$
-\MUST represent either a \transparentPtoSHAddress as specified in \crossref{transparentaddrencoding},
+{\iftoggle{isnuseven}{\raggedright}{}$\fsRecipients$ \MUST be of length $\fsNumRecipients$. Each element of $\fsRecipients$
+\MUST represent either a \transparentPtoSHAddress\nuseven{ or, for a recipient used only from \NUSeven onward,
+a \transparentPtoPKHAddress} as specified in \crossref{transparentaddrencoding},
 or a \Sapling \shieldedPaymentAddress as specified in \crossref{saplingpaymentaddrencoding}\nusix{,
-or the identifier $\DeferredPoolRecipient$}.
+or the identifier $\DeferredPoolRecipient$}.\par}
 
 A \fundingStream $\fs$ is ``active'' at \blockHeight $\BlockHeight$ when $\fsValue(\BlockHeight) > 0$,
 where $\fsValue$ is defined in \crossref{subsidies}.
@@ -15879,6 +16040,15 @@ The term \defining{\quotedPrescribedWay} is defined as follows:
         \defining{\xStandardRedeemScript} hashes are defined in \cite{ZIP-48} for
         \PtoSHMultisigAddresses, or \cite{Bitcoin-P2SH} for other \PtoSHAddresses.
         \vspace{0.5ex}
+  \nusevenonwarditem{The \prescribedWay to pay a \transparentPtoPKHAddress $A$ is to use a standard
+        \PtoPKH script of the form
+        $\ScriptOP{DUP}$ $\ScriptOP{HASH160}$ $\mathsf{ValidatingKeyHash}(A)\; \ScriptOP{EQUALVERIFY}$ $\ScriptOP{CHECKSIG}$
+        as the $\scriptPubKey$ \cite{Bitcoin-P2PKH} \cite{ZIP-207}, that is, the bytes
+        $[\hexint{76}, \hexint{A9}, \hexint{14}]$, then $\mathsf{ValidatingKeyHash}(A)$, then
+        $[\hexint{88}, \hexint{AC}]$. Here $\mathsf{ValidatingKeyHash}(A)$ is the $20$-byte
+        \validatingKey hash encoded in the \BaseFiftyEightCheck form of $A$
+        (\crossref{transparentaddrencoding}).}
+        \vspace{0.5ex}
   \item The \defining{\prescribedWay} to pay a \SaplingOrOrchard \paymentAddress is
         defined in \cite{ZIP-213}, using the post-\NUHeartwood consensus rules specified
         for the \SaplingAndOrchardPoolsAdj \shieldedOutputs of \coinbaseTransactions in
@@ -15898,7 +16068,7 @@ The term \defining{\quotedPrescribedWay} is defined as follows:
   \item For clarification, if there are multiple active \fundingStreams\nusixone{ or
         \lockboxDisbursements} with the same recipient identifier and/or value, there
         \MUST be at least the given number of distinct outputs for each of them.
-  \item Up to and including \NUSixOne there have been no \fundingStreams\nusixone{ or
+  \item Up to and including \notnuseven{\NUSixOne}\nuseven{\NUSeven} there have been no \fundingStreams\nusixone{ or
         \lockboxDisbursements} defined with a \shieldedPaymentAddress as a recipient.
         That might change in future, so implementations are encouraged to support
         \SaplingAndOrchard \shieldedPaymentAddresses as recipients, as permitted by
@@ -16010,6 +16180,26 @@ Stream                   & Numerator & Denominator & Start height & End height \
 \end{tabular}
 \end{formulae}
 } %nusixone
+
+\nuseven{
+\vspace{1ex}
+\nusevenonward{\cite{ZIP-214} Revision 3 changes the end height of \texttt{FS\_FPF\_ZCG\_H3} and
+\texttt{FS\_CCF\_H3} on each \network to $\HeightForHalving(3)$, which is
+$\NUSevenActivationHeight + \NUSevenPoWTargetSpacingRatio \mult (4406400 - \NUSevenActivationHeight)
+= 13219200 - 2 \mult \NUSevenActivationHeight$ on \Mainnet and
+$4465026 + 3 \mult (4476000 - 4465026) = 4497948$ on \Testnet. Their start heights,
+numerators, and denominators, and their numbers of recipients ($36$ on \Mainnet and $27$ on
+\Testnet), are unchanged.}
+
+\nusevenonward{\cite{ZIP-214} Revision 3 also changes the \Mainnet recipients of
+\texttt{FS\_FPF\_ZCG\_H3} \cite{ZIP-2008}. Let $N := \FSRecipientPeriod(\NUSevenActivationHeight - 1)
+- \FSRecipientPeriod(3146400) + 1 = \floor{\hfrac{\NUSevenActivationHeight + 633599}{35000}} - 107$.
+The recipients of \texttt{FS\_FPF\_ZCG\_H3} with index $1$ to $N$ are
+\ascii{t3cFfPt1Bcvgez9ZbMBFWeZsskxTkPzGCow}, as in Revision 2; the one with index $N$ is used for the
+\block before \NUSeven activation. Those with index $N+1$ to $36$ are the \transparentPtoPKHAddress
+\ascii{t1MkHnkxVjNpNbCrSs3AJ8J7ZSp6NTYiUcG}.
+The \Testnet recipients are unchanged.}
+} %nuseven
 
 
 \lsubsection{Changes to the Script System}{scripts}
@@ -16857,6 +17047,20 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           $\PreNUSevenPoWAveragingWindow$.
     \item In \crossref{txnconsensus}, require the \transactionVersionNumber to be $5$ or $6$ from
           \NUSeven, as described in \cite{ZIP-2003}.
+    \item Apply the \NUSeven changes described in \cite{ZIP-235} and \cite{ZIP-237}: remove $60\%$
+          of the \transactionFees of each \block from circulation, crediting them to the new
+          \nsmValueBalance (\shortcrossref{chainvaluepoolbalances}), and from $\NSMReissuanceHeight$
+          reissue that balance through an additional \blockSubsidy (\shortcrossref{subsidies}).
+          Amend accordingly the descriptions of \transactionFees and of unclaimed \coinbaseTransaction
+          value in \shortcrossref{transactions}, \shortcrossref{subsidyconcepts}, and
+          \shortcrossref{coinbasetransactions}, and the \totalInputValue of a \coinbaseTransaction in
+          \shortcrossref{txnconsensus}. Add the constants they use to \shortcrossref{constants}.
+    \item Apply the \NUSeven changes described in Revision 2 of \cite{ZIP-207}, Revision 3 of
+          \cite{ZIP-214}, and \cite{ZIP-2008} to \crossref{fundingstreams}: scale the recipient
+          periods of \fundingStreams from \NUSeven, permit \transparent \PtoPKHAddresses as recipients
+          and define the \prescribedWay to pay them, end \texttt{FS\_FPF\_ZCG\_H3} and
+          \texttt{FS\_CCF\_H3} at the third \halving, and change the \Mainnet recipients of
+          \texttt{FS\_FPF\_ZCG\_H3}.
 } %nuseven
 \nusixthree{
     \item Apply the \NUSixThree changes described in \cite{ZIP-258}, \cite{ZIP-229}, and
@@ -16880,6 +17084,8 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
               \item In \crossref{txnencoding}, specify the version 6 \transaction format and
                     \transactionID, and add consensus rules for version 6 \transactions and
                     \IronwoodPoolAdj \actionDescriptions.
+              \item In \crossref{txnconsensus}, subtract $\vBalance{\IronwoodPoolId}$ in the
+                    \totalOutputValue of a \coinbaseTransaction.
               \item Note in \crossref{networks} that \zcashd will not support \NUSixThree.
           \end{itemize}
           \vspace{-1.5ex}
