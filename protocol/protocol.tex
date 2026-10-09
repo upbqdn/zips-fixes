@@ -83,7 +83,8 @@
 \newcommand{\NUSixSpec}{NU6}
 \newcommand{\NUSixOneSpec}{NU6.1}
 \newcommand{\NUSixTwoSpec}{NU6.2}
-\newcommand{\NUSixThreeSpec}{NU6.3 proposal}
+\newcommand{\NUSixThreeSpec}{NU6.3}
+\newcommand{\NUSevenSpec}{NU7}
 \newtoggle{issapling}
 \togglefalse{issapling}
 \newtoggle{isblossom}
@@ -647,6 +648,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
   \colorlet{pink}{magenta!70}
   \definecolor{burgundy}{RGB}{210,20,80}
   \definecolor{brown}{RGB}{160,50,50}
+  \definecolor{teal}{RGB}{0,170,170}
   \colorlet{warningred}{BrickRed}
   \colorlet{cream}{yellow!20}
 
@@ -691,10 +693,17 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\nusixtwocolorname}{\nusixtwocolor}
 \newcommand{\nusixthreecolor}{blue}
 \newcommand{\nusixthreecolorname}{bright blue}
+\newcommand{\nusevencolor}{teal}
+\newcommand{\nusevencolorname}{\nusevencolor}
 \newcommand{\labelcolor}{cream}
 
 \iftoggle{isnuseven}{
-  \errmessage{NU7 is not defined yet}
+  \providecommand{\baseurl}{https://zips.z.cash/protocol/nu7.pdf}
+  \toggletrue{isnusixthree}
+  \newcommand{\setnuseven}{\color{\nusevencolor}}
+  \newcommand{\nuseven}[1]{\texorpdfstring{{\setnuseven{#1}}}{#1}}
+  \newcommand{\notnuseven}[1]{}
+  \newcommand{\notbeforenuseven}[1]{#1}
 } {
   \newcommand{\setnuseven}{}
   \newcommand{\nuseven}[1]{}
@@ -703,7 +712,11 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 }
 
 \iftoggle{isnusixthree}{
-  \providecommand{\baseurl}{https://zips.z.cash/protocol/nu6_3.pdf}
+  \iftoggle{darkmode}{
+    \providecommand{\baseurl}{https://zips.z.cash/protocol/protocol-dark.pdf}
+  }{
+    \providecommand{\baseurl}{https://zips.z.cash/protocol/protocol.pdf}
+  }
   \toggletrue{isnusixtwo}
   \newcommand{\setnusixthree}{\color{\nusixthreecolor}}
   \newcommand{\nusixthree}[1]{\texorpdfstring{{\setnusixthree{#1}}}{#1}}
@@ -717,11 +730,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 }
 
 \iftoggle{isnusixtwo}{
-  \iftoggle{darkmode}{
-    \providecommand{\baseurl}{https://zips.z.cash/protocol/protocol-dark.pdf}
-  }{
-    \providecommand{\baseurl}{https://zips.z.cash/protocol/protocol.pdf}
-  }
+  \providecommand{\baseurl}{https://zips.z.cash/protocol/nu6_2.pdf}
   \toggletrue{isnusixone}
   \newcommand{\setnusixtwo}{\color{\nusixtwocolor}}
   \newcommand{\nusixtwo}[1]{\texorpdfstring{{\setnusixtwo{#1}}}{#1}}
@@ -3056,7 +3065,6 @@ memory-hard \proofOfWork algorithm.
 
 \vspace{1.5ex}
 \newcommand{\thisspecdefines}[1]{This specification defines the \Zcash consensus protocol at launch, and after each of the upgrades codenamed {#1}. }
-\newcommand{\thisspecdefinesandproposes}[2]{This specification defines the \Zcash consensus protocol at launch; after each of the upgrades codenamed {#1}; and proposed changes for {#2}. }
 \noindent \notblossom{\sapling{\thisspecdefines{\NUOverwinter and \NUSapling}}}%
 \notheartwood{\blossom{\thisspecdefines{\NUOverwinter, \NUSapling, and \NUBlossom}}}%
 \notcanopy{\heartwood{\thisspecdefines{\NUOverwinter, \NUSapling, \NUBlossom, and \NUHeartwood}}}%
@@ -3065,7 +3073,8 @@ memory-hard \proofOfWork algorithm.
 \notnusixone{\nusix{\thisspecdefines{\NUOverwinter, \NUSapling, \NUBlossom, \NUHeartwood, \NUCanopy, \NUFive, and \NUSix}}}%
 \notnusixtwo{\nusixone{\thisspecdefines{\NUOverwinter, \NUSapling, \NUBlossom, \NUHeartwood, \NUCanopy, \NUFive, \NUSix, and \NUSixOne}}}%
 \notnusixthree{\nusixtwo{\thisspecdefines{\NUOverwinter, \NUSapling, \NUBlossom, \NUHeartwood, \NUCanopy, \NUFive, \NUSix, \NUSixOne, and \NUSixTwo}}}%
-\nusixthree{\thisspecdefinesandproposes{\NUOverwinter, \NUSapling, \NUBlossom, \NUHeartwood, \NUCanopy, \NUFive, \NUSix, \NUSixOne, and \NUSixTwo}{\NUSixThree}}%
+\notnuseven{\nusixthree{\thisspecdefines{\NUOverwinter, \NUSapling, \NUBlossom, \NUHeartwood, \NUCanopy, \NUFive, \NUSix, \NUSixOne, \NUSixTwo, and \NUSixThree}}}%
+\nuseven{\thisspecdefines{\NUOverwinter, \NUSapling, \NUBlossom, \NUHeartwood, \NUCanopy, \NUFive, \NUSix, \NUSixOne, \NUSixTwo, \NUSixThree, and \NUSeven}}%
 It is a work in progress. Protocol differences from \Zerocash and \Bitcoin are also explained.
 
 \vspace{2ex}
@@ -3144,8 +3153,11 @@ are highlighted in \nusixone{\nusixonecolorname}.}
 \notbeforenusixtwo{Changes specific to the \NUSixTwo upgrade following \NUSixOne
 are highlighted in \nusixtwo{\nusixtwocolorname}.}
 
-\notbeforenusixthree{Changes specific to the proposed \NUSixThree upgrade following \NUSixTwo
+\notbeforenusixthree{Changes specific to the \NUSixThree upgrade following \NUSixTwo
 are highlighted in \nusixthree{\nusixthreecolorname}.}
+
+\notbeforenuseven{Changes specific to the \NUSeven upgrade following \NUSixThree
+are highlighted in \nuseven{\nusevencolorname}.}
 
 All of these are also changes from \Zerocash.
 
@@ -7258,6 +7270,8 @@ and \MAY be used for that reason whether or not \actionTransfers are present.
         as defined in \cite{ZIP-257}.}
   \nusixthreeonlyitem{All \transactions \MUST use the \NUSixThree \consensusBranchID \hexint{37A5165B}
         as defined in \cite{ZIP-258}.}
+  \nusevenonlyitem{All \transactions \MUST use the \NUSeven \consensusBranchID \hexint{77190AD9}
+        as defined in \cite{ZIP-259}.}
 \end{consensusrules}
 
 
@@ -13857,6 +13871,13 @@ and \cite{ZIP-2006}, with updates to \cite{ZIP-209}, \cite{ZIP-213}, \cite{ZIP-2
 Specifications relating to wallet support and migration to the \IronwoodPool are in
 \cite{ZIP-318} and \cite{ZIP-326}.}
 
+\nuseven{An eleventh upgrade, called \defining{\NUSeven}, activated on \Testnet at \blockHeight
+$4465026$, and activates on \Mainnet at \blockHeight
+$\mathrm{\detokenize{NU7_MAINNET_ACTIVATION_HEIGHT}}$ \cite{ZIP-259}.
+Its specifications are described in this document, \cite{ZIP-259}, \cite{ZIP-218}, \cite{ZIP-235},
+\cite{ZIP-237}, \cite{ZIP-2003}, and \cite{ZIP-2008}, with updates to \cite{ZIP-207} and
+\cite{ZIP-214}.}
+
 \introlist
 \vspace{1.5ex}
 This section summarizes the strategy for upgrading from the Sprout epoch to the subsequent
@@ -14369,7 +14390,7 @@ of the \transaction encoding in the \notbeforenufive{pre-v5} format described ab
   \nufiveonwarditem{In a \versionsForOrchardPool \coinbaseTransaction, the \enableSpendsField{Orchard} flag \MUST be $0$.}
   \nusixthreeonwarditem{In a v6 \coinbaseTransaction, the \enableSpendsField{Ironwood} flag \MUST be $0$.}
   \nufiveonwarditem{In a \versionsForOrchardPool \transaction, the reserved bits $\barerange{2}{7}$ of the
-        \flagsField{Orchard} field \MUST be zero. \todo{Is bit 2 reserved after \NUSixThree?}}
+        \flagsField{Orchard} field \MUST be zero.}
   \nusixthreeonwarditem{In a v6 \transaction, the reserved bits $\barerange{3}{7}$ of the
         \flagsField{Ironwood} field \MUST be zero.}
   \item A \coinbaseTransaction for a \block at \blockHeight greater than $0$ \MUST have a script that,
@@ -16736,12 +16757,18 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \historyentry{\docversion}{}
 
 \begin{itemize}
+\nuseven{
+    \item Add boilerplate support for \NUSeven.
+    \item Describe \NUSeven and the documents that specify it in \crossref{networkupgrades}, and
+          add the \NUSeven \consensusBranchID in \crossref{sighash}.
+} %nuseven
 \nusixthree{
     \item Apply the \NUSixThree changes described in \cite{ZIP-258}, \cite{ZIP-229}, and
           \cite{ZIP-2005}, which add the \IronwoodPool:
           \vspace{0.5ex}
           \begin{itemize}
-              \item Describe \NUSixThree and the documents that specify it in \crossref{networkupgrades}.
+              \item Describe \NUSixThree, which activated on \Mainnet at \blockHeight $3428143$,
+                    and the documents that specify it in \crossref{networkupgrades}.
               \item Define the \IronwoodPool, which uses the \OrchardShieldedProtocol, and generalize
                     descriptions of the \OrchardPool to \AllOrchardLikePools.
               \item In \shortcrossref{actiondesc}, add the $\enableCrossAddress$ flag and the
@@ -16783,6 +16810,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
                     $\PRFexpand{}$ in \crossref{abstractprfs}.
           \end{itemize}
           \vspace{-1.5ex}
+    \item Remove ``proposal'' from the version string.
 } %nusixthree
 \nufive{
     \item Change the type of $\AuthSignPublic$ from $\range{0}{\ParamP{q}-1}$ to
