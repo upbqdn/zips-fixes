@@ -776,13 +776,13 @@ ZIP Status Field
   issues preventing consensus.
 
 * Implemented: When a Consensus or Standards ZIP has a working
-  reference implementation but before it is activated on the Zcash
-  network (for a Consensus ZIP) or deployed (for a Standards ZIP).
+  reference implementation but before it is activated on Mainnet (for a
+  Consensus ZIP) or deployed (for a Standards ZIP).
   The status MAY indicate which node implementation has implemented
   the ZIP, e.g. "Implemented (zebra)" or "Implemented (zcashd)".
 
-* Final: When a Consensus ZIP is both implemented and activated on the
-  Zcash network.
+* Final: When a Consensus ZIP is both implemented and activated on
+  Mainnet.
 
 * Obsolete: The status when a ZIP is no longer relevant (typically when
   superseded by another ZIP).
@@ -795,7 +795,7 @@ that have the same status MAY be grouped in one pair of brackets, and each
 Revision MAY be labelled with the network upgrade that deploys it, for
 example:
 
-  [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU7] Draft
+  [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU7] Implemented (zebra)
 
 A Revision that is not Released (as defined in the next section) MAY
 follow a Released Revision, for example:

@@ -54,7 +54,8 @@ NU6.3 is described in `ZIP 258: Deployment of the NU6.3 Network Upgrade <zips/zi
 NU7 ZIPs
 --------
 
-The following ZIPs are planned for deployment in NU7:
+NU7 activated on Testnet at block height 4465026, and activates on Mainnet at
+block height NU7_MAINNET_ACTIVATION_HEIGHT. It deploys the following ZIPs:
 
 - `ZIP 207: Funding Streams <zips/zip-0207.rst>`__ (Revision 2)
 - `ZIP 214: Consensus rules for a Zcash Development Fund <zips/zip-0214.rst>`__ (Revision 3)
