@@ -5,5 +5,5 @@
   Owners: Daira-Emma Hopwood <daira@jacaranda.org>
           Jack Grigg <thestr4d@gmail.com>
   Status: Reserved
-  Category: RPC / Mining
+  Category: RPC
   Discussions-To: <https://github.com/zcash/zips/issues/405>

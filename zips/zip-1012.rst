@@ -4,6 +4,7 @@
   Title: Dev Fund to ECC + ZF + Major Grants
   Owners: Eran Tromer <eran@tromer.org>
   Status: Obsolete
+  Obsoleted-By: 1014
   Category: Consensus Process
   Created: 2019-11-10
   License: MIT
@@ -416,6 +417,6 @@ all of the above for their excellent ideas and many insightful discussions, and
 to Howard Loo and forum users *@aristarchus* and *@dontbeevil* for valuable
 initial comments on this proposal.
 
-.. _20% split between the ECC and the Foundation: https://forum.zcashcommunity.com/t/dev-fund-proposal-20-split-between-the-ecc-and-the-foundation/33862
+.. _20% split between the ECC and the Foundation: https://forum.zcashcommunity.com/t/zip-1003-dev-fund-proposal-20-split-between-the-ecc-and-the-foundation/33862
 .. _A Grand Compromise/Synthesis ZIP Proposal: https://forum.zcashcommunity.com/t/a-grand-compromise-synthesis-zip-proposal/34812
 .. _Zcash Community Forum: https://forum.zcashcommunity.com/

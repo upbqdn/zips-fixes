@@ -7,7 +7,7 @@
   Category: Consensus Process
   Created: 2019-06-19
   License: MIT
-  Discussions-To: <https://forum.zcashcommunity.com/t/dev-fund-proposal-20-split-between-the-ecc-and-the-foundation/33862>
+  Discussions-To: <https://forum.zcashcommunity.com/t/zip-1003-dev-fund-proposal-20-split-between-the-ecc-and-the-foundation/33862>
 
 
 Terminology
@@ -155,8 +155,8 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#zfnd-state] `The State of the Zcash Foundation in 2019. Zcash Foundation blog, January 31, 2019. <https://www.zfnd.org/blog/foundation-in-2019/>`_
-.. [#zfnd-guidance] `Zcash Foundation Guidance on Dev Fund Proposals. Zcash Foundation blog, August 6, 2019. <https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
+.. [#zfnd-state] `The State of the Zcash Foundation in 2019. Zcash Foundation blog, January 31, 2019 (archived copy from 2019-02-02). <https://web.archive.org/web/20190202094212/https://www.zfnd.org/blog/foundation-in-2019/>`_
+.. [#zfnd-guidance] `Zcash Foundation Guidance on Dev Fund Proposals. Zcash Foundation blog, August 6, 2019 (archived copy from 2019-08-22). <https://web.archive.org/web/20190822231136/https://www.zfnd.org/blog/dev-fund-guidance-and-timeline/>`_
 
 .. raw:: html
 

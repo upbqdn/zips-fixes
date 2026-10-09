@@ -18,9 +18,8 @@
 Terminology
 ===========
 
-The key words "SHOULD" and "RECOMMENDED" in this document are to be
-interpreted as described in BCP 14 [#BCP14]_ when, and only when, they
-appear in all capitals.
+The key word "SHOULD" in this document is to be interpreted as described
+in BCP 14 [#BCP14]_ when, and only when, it appears in all capitals.
 
 The term "conventional transaction fee" in this document is in reference
 to the value of a transaction fee that is conventionally used by wallets,
@@ -42,14 +41,14 @@ both), as proposed in [#zcash-2942]_.
 
 .. warning::
     This ZIP has been obsoleted by ZIP 317 [#zip-0317]_. In particular,
-    transactions using the 1,000-zatoshi fee specified in this ZIP will be
-    treated as having no "paid actions", and therefore will be deprioritized
-    by the RECOMMENDED block template construction algorithm in ZIP 317.
-    If they have more than 50 logical actions, they will never be included
-    by that algorithm, and so will not appear in block templates created by
-    `zcashd` or `zebrad` with the default parameters. They will also incur
-    the low fee penalty specified in ZIP 401 [#zip-0401]_, which will make
-    them more likely to be evicted from the mempool without being mined.
+    transactions using the 1,000-zatoshi fee specified in this ZIP pay less
+    than the ZIP 317 conventional fee whatever their number of logical
+    actions, so they have at least one "unpaid action" as defined in ZIP 317.
+    With their default unpaid-action limit of 0 (since `zcashd` v6.0.0 and
+    `zebrad` v1.8.0), `zcashd` and `zebrad` neither accept such transactions
+    to the mempool nor relay them, and never include them in block templates.
+    Earlier releases used a limit of 50, which excluded only transactions with
+    more than 50 logical actions.
 
     Wallets SHOULD move to using ZIP 317 fees with all due haste.
 
@@ -77,7 +76,7 @@ paying the premium for shielded transactions.
 With reduced fees, it will be cheaper to transact on the Zcash network,
 while also inviting novel use cases for privacy-preserving applications
 that would benefit from the privacy, security, and programmable money
-aspects of the Zcash chain.
+aspects of the Zcash chain. [#zooko-1]_
 
 The harmonization of fees between different kinds of transaction can be
 expected to improve usability, consistency, and predictability.
@@ -210,9 +209,8 @@ References
 .. [#nathan-1] `Conventional Shielded Fees <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/40>`_
 .. [#ian-1] `Ian Miers. Mechanism for fee suggester/oracle <https://forum.zcashcommunity.com/t/zip-reduce-default-shielded-transaction-fee-to-1000-zats/37566/31>`_
 .. [#zooko-1] `Zooko Wilcox. Tweet on reducing tx fees <https://twitter.com/zooko/status/1295032258282156034?s=20>`_
-.. [#zooko-2] `Zooko Wilcox. Tweet on sharing tx fee with wallet developer <https://twitter.com/zooko/status/1295032621294956545?s=20>`_
 .. [#zcash-4916] `Reduce default fee to 1000 zatoshis <https://github.com/zcash/zcash/pull/4916>`_
-.. [#zcash-2942] `Ecosystem-wide standard transaction fee <https://github.com/zcash/zcash/pull/2942>`_
+.. [#zcash-2942] `Ecosystem-wide standard transaction fee <https://github.com/zcash/zcash/issues/2942>`_
 .. [#zcash-relaying] `zcashd commit e6a44ff: Always allow transactions paying at least DEFAULT_FEE to be relayed <https://github.com/zcash/zcash/pull/4916/commits/e6a44ff833bce280a30115d10ef0070ad4d52b38>`_
 .. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_
 .. [#zip-0401] `ZIP 401: Addressing Mempool Denial-of-Service <zip-0401.rst>`_

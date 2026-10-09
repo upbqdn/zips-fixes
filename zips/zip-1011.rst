@@ -259,6 +259,15 @@ diligence behind the assignment and disbursement of a development fee. This
 development fee shall be funded by 20% of the block reward, with as much as
 half of the fee burned in case of extraordinary growth in the price of ZEC.
 
+.. role:: editor-note
+
+:editor-note:`no burn mechanism is specified in this proposal. An earlier
+version burned any excess above monthly caps on both the Foundation's and the
+principal developer's allocations. Later revisions purpose-restricted the
+Foundation's excess to the Foundation grants program, as described below, and
+removed the cap on the principal developer's allocation, but the preceding
+sentence was not updated.`
+
 The Foundation shall receive 25% of the dev fee. If the volume-weighted
 average price of ZEC over the month means the foundation would receive greater
 than $500k that month, the Foundation shall set aside enough ZEC such that
@@ -267,6 +276,13 @@ their max monthly budget is
 .. math::
 
   \mathsf{MaxBenefit}(\mathsf{RewardDollarAmount}) = \mathsf{min}\left(500000, 500000 * \sqrt{\frac{\mathsf{RewardDollarAmount}}{500000}}\right)
+
+:editor-note:`as written, this formula evaluates to 500000 whenever
+RewardDollarAmount exceeds 500000, which is the only case in which it applies,
+so it does not ease the cap. The easing curve evidently intended is
+500000 × √(RewardDollarAmount / 500000) in that case. RewardDollarAmount is
+not defined; from context it is the dollar value of the Foundation's 25% share
+of the dev fee for the month, at the month's volume-weighted average price.`
 
 The excess ZEC should be purpose-restricted to the Foundation grants program,
 ensuring the funds are earmarked to grow outside community talent and
@@ -452,8 +468,8 @@ Foundation for coordinating discussions around these different proposals.
 .. _Antoinette Marie: https://forum.zcashcommunity.com/t/zcash-dev-fund-results-based-financing-equity-proposal-amendment/35052/31
 .. _Josh Cincinnati, ED: https://forum.zcashcommunity.com/t/a-grand-compromise-synthesis-zip-proposal/34812
 .. _Jacob Phillips: https://forum.zcashcommunity.com/t/asp-founders-reward-positioning-support-for-avichal-garg-s-proposal-with-amendments/35184
-.. _Andrew Miller: https://forum.zcashcommunity.com/t/dev-fund-proposal-miner-directed-dev-fund-was-20-to-any-combination-of-ecc-zfnd-parity-or-burn/33864
-.. _Blocktown: https://forum.zcashcommunity.com/t/blocktown-development-fund-proposal-10-to-a-2-of-3-multisig-with-community-involved-third-entity/34782
+.. _Andrew Miller: https://forum.zcashcommunity.com/t/zip-1004-dev-fund-proposal-miner-directed-dev-fund-was-20-to-any-combination-of-ecc-zfnd-parity-or-burn/33864
+.. _Blocktown: https://forum.zcashcommunity.com/t/zip-1006-blocktown-development-fund-proposal-10-to-a-2-of-3-multisig-with-community-involved-third-entity/34782
 .. _Chris Burniske: https://twitter.com/cburniske
 .. _Eran Tromer: https://forum.zcashcommunity.com/t/dev-fund-proposal-dev-fund-to-ecc-zfnd-major-grants/35364/15
 .. _Sonya Mann: https://github.com/sonyamann

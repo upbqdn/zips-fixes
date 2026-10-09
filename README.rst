@@ -54,16 +54,16 @@ NU6.3 is described in `ZIP 258: Deployment of the NU6.3 Network Upgrade <zips/zi
 NU7 ZIPs
 --------
 
-The following ZIPs are planned for deployment in NU7:
+NU7 activated on Testnet at block height 4465026, and activates on Mainnet at
+block height NU7_MAINNET_ACTIVATION_HEIGHT. It deploys the following ZIPs:
 
+- `ZIP 207: Funding Streams <zips/zip-0207.rst>`__ (Revision 2)
+- `ZIP 214: Consensus rules for a Zcash Development Fund <zips/zip-0214.rst>`__ (Revision 3)
 - `ZIP 218: 25-second Block Target Spacing <zips/zip-0218.md>`__
-- `ZIP 235: Network Sustainability Mechanism: Remove 60% of Transaction Fees From Circulation <zips/zip-0235.md>`__
+- `ZIP 235: Remove 60% of Transaction Fees From Circulation <zips/zip-0235.md>`__
 - `ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance <zips/zip-0237.md>`__
 - `ZIP 2003: Disallow version 4 transactions <zips/zip-2003.rst>`__
-- `ZIP 2008: Update to `FS_FPF_ZCG_H3` address list <zips/zip-2008.md>`__
-
-In addition, `ZIP 317: Proportional Transfer Fee Mechanism <zips/zip-0317.rst>`__
-may be updated.
+- `ZIP 2008: Update to FS_FPF_ZCG_H3 address list <zips/zip-2008.md>`__
 
 `ZIP 259: Deployment of the NU7 Network Upgrade <zips/zip-0259.md>`__
 defines which ZIPs are included in NU7.
@@ -202,7 +202,7 @@ written.
     <tr> <td>400</td> <td class="left"><a href="zips/zip-0400.rst">Wallet.dat format</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zips/zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/365">zips#365</a></td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zips/zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/404">zips#404</a></td>
-    <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Spending Key Derivation in the `zcashd` wallet</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1175">zips#1175</a></td>
+    <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Spending Key Derivation in the zcashd wallet</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1175">zips#1175</a></td>
     <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/803">zips#803</a></td>
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/825">zips#825</a></td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/917">zips#917</a></td>
@@ -231,8 +231,7 @@ be deleted.
     <tr> <td class="left">draft-arya-jvff-p2p-quic-transport</td> <td class="left"><a href="zips/draft-arya-jvff-p2p-quic-transport.md">Version 2 Zcash P2P Network Protocol</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/352">zips#352</a></td>
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1230">zips#1230</a></td>
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
-    <tr> <td class="left">draft-mcgee-keyholders-organizations</td> <td class="left"><a href="zips/draft-mcgee-keyholders-organizations.md">Update to ZIP 1016 & ZIP 271: Key-Holder Organizations</a></td> <td class="left"><a href="URL TBD">URL TBD</a></td>
-    <tr> <td class="left">draft-nuttycom-vizor-payment-links</td> <td class="left"><a href="zips/draft-nuttycom-vizor-payment-links.md">Mnemonic-Encapsulated Payment Links</a></td> <td class="left"></td>
+    <tr> <td class="left">draft-mcgee-keyholders-organizations</td> <td class="left"><a href="zips/draft-mcgee-keyholders-organizations.md">Update to ZIP 1016 & ZIP 271: Key-Holder Organizations</a></td> <td class="left"><a href="https://forum.zcashcommunity.com/t/draft-zip-to-replace-ecc-with-zodl-as-a-key-holder-organization/57618">https://forum.zcashcommunity.com/t/draft-zip-to-replace-ecc-with-zodl-as-a-key-holder-organization/57618</a></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
   </table></embed>
 
@@ -379,7 +378,7 @@ Index of ZIPs
     <tr> <td>401</td> <td class="left"><a href="zips/zip-0401.rst">Addressing Mempool Denial-of-Service</a></td> <td>Active</td>
     <tr> <td><span class="reserved">402</span></td> <td class="left"><a class="reserved" href="zips/zip-0402.rst">New Wallet Database Format</a></td> <td>Reserved</td>
     <tr> <td><span class="reserved">403</span></td> <td class="left"><a class="reserved" href="zips/zip-0403.rst">Verification Behaviour of zcashd</a></td> <td>Reserved</td>
-    <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Spending Key Derivation in the `zcashd` wallet</a></td> <td>Reserved</td>
+    <tr> <td><span class="reserved">416</span></td> <td class="left"><a class="reserved" href="zips/zip-0416.rst">Spending Key Derivation in the zcashd wallet</a></td> <td>Reserved</td>
     <tr> <td><strike>1001</strike></td> <td class="left"><strike><a href="zips/zip-1001.rst">Keep the Block Distribution as Initially Defined — 90% to Miners</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1002</strike></td> <td class="left"><strike><a href="zips/zip-1002.rst">Opt-in Donation Feature</a></strike></td> <td>Obsolete</td>
     <tr> <td><strike>1003</strike></td> <td class="left"><strike><a href="zips/zip-1003.rst">20% Split Evenly Between the ECC and the Zcash Foundation, and a Voting System Mandate</a></strike></td> <td>Obsolete</td>

@@ -7,8 +7,8 @@
   Status: Obsolete
   Category: Consensus Process
   Created: 2019-08-24
-  License: CC BY-SA 4.0 <https://creativecommons.org/licenses/by-sa/4.0/>
-  Discussions-To: <https://forum.zcashcommunity.com/t/dev-fund-supplemental-proposal-enforce-devfund-commitments-with-legal-charter/34709>
+  License: CC-BY-SA-4.0
+  Discussions-To: <https://forum.zcashcommunity.com/t/zip-1007-dev-fund-supplemental-proposal-enforce-devfund-commitments-with-legal-charter/34709>
 
 
 Terminology

@@ -5,7 +5,8 @@
     Category: Process
     Created: 2026-09-14
     License: MIT
-    Discussions-To: <URL TBD>
+    Discussions-To: <https://forum.zcashcommunity.com/t/draft-zip-to-replace-ecc-with-zodl-as-a-key-holder-organization/57618>
+    Pull-Request: <https://github.com/zcash/zips/pull/1362>
     Updates: 1016, 271
 
 
@@ -33,8 +34,8 @@ Development Lab.
 
 This ZIP updates ZIP 1016 [^zip-1016] and ZIP 271 [^zip-0271] to replace the
 Electric Coin Company with Zcash Open Development Lab as one of the three
-Key-Holder Organizations for the Coinholder-Controlled Fund, and to define the
-term "Key-Holder Organizations" in ZIP 1016 as Zcash Foundation, Shielded Labs,
+Key-Holder Organizations for the Coinholder-Controlled Fund, so that the term
+"Key-Holder Organizations" in ZIP 1016 means Zcash Foundation, Shielded Labs,
 and Zcash Open Development Lab.
 
 
@@ -82,8 +83,9 @@ obligations of a Key-Holder Organization under ZIP 1016 and ZIP 271.
 
 ## Changes to ZIP 1016
 
-ZIP 1016 uses the term "Key-Holder Organizations" but does not define it. This
-ZIP adds the definition.
+ZIP 1016 defines the term "Key-Holder Organizations" as Zcash Foundation, the
+Electric Coin Company, and Shielded Labs. This ZIP replaces the Electric Coin
+Company with Zcash Open Development Lab in that definition.
 
 In the section **Terminology**, instead of:
 
@@ -100,8 +102,12 @@ it will be modified to read:
 > corporation of that name, recognized as a public charity under Section
 > 501(c)(3) of the U.S. Internal Revenue Code.
 
-After the paragraph defining "Shielded Labs", the following paragraphs are
-added:
+In the same section, instead of:
+
+> The "Key-Holder Organizations" are Zcash Foundation, the Electric Coin
+> Company, and Shielded Labs.
+
+it will be modified to read:
 
 > "Zcash Open Development Lab" (or "ZODL") refers to Znewco, Inc., a
 > corporation incorporated in the State of Texas, USA, doing business as Zcash
@@ -119,19 +125,19 @@ ZIP 1015 in respect of the previous `FS_FPF_ZCG` funding stream.
 
 In the section **One-time lockbox disbursement**, instead of:
 
-> The coinbase transaction of the activation block of this ZIP MUST include one
-> or more lockbox disbursement output(s) to a 2-of-3 P2SH multisig with keys
-> held by the following "Key-Holder Organizations": Zcash Foundation, the
-> Electric Coin Company, and Shielded Labs.
+> The coinbase transaction of the activation block of this ZIP MUST include
+> $\mathsf{ZIP271DisbursementChunks}$ lockbox disbursement outputs, as specified
+> below, to a 2-of-3 P2SH multisig with keys held by the following "Key-Holder
+> Organizations": Zcash Foundation, the Electric Coin Company, and Shielded Labs.
 
 it will be modified to read:
 
-> The coinbase transaction of the activation block of this ZIP MUST include one
-> or more lockbox disbursement output(s) to a 2-of-3 P2SH multisig with keys
-> held by the Key-Holder Organizations. At the time of the disbursement, the
-> Key-Holder Organizations were Zcash Foundation, the Electric Coin Company,
-> and Shielded Labs. The Key-Holder Organizations are defined in ZIP 1016, as
-> updated by ZIP XXX.
+> The coinbase transaction of the activation block of this ZIP MUST include
+> $\mathsf{ZIP271DisbursementChunks}$ lockbox disbursement outputs, as specified
+> below, to a 2-of-3 P2SH multisig with keys held by the Key-Holder
+> Organizations. At the time of the disbursement, the Key-Holder Organizations
+> were Zcash Foundation, the Electric Coin Company, and Shielded Labs. The
+> Key-Holder Organizations are defined in ZIP 1016, as updated by ZIP XXX.
 
 This change does not alter any consensus rule. The disbursement address,
 amount, and activation height are unchanged.
@@ -145,7 +151,7 @@ amount, and activation height are unchanged.
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
 
-[^zip-0271]: [ZIP 271: Deferred Dev Fund Lockbox Disbursement](zip-0271.md)
+[^zip-0271]: [ZIP 271: Dev Fund Extension and One-Time Disbursement](zip-0271.md)
 
 [^coindesk-1]: [CoinDesk, 8 January 2026: Top privacy token Zcash falls 14% after key developer team quits over governance clash](https://www.coindesk.com/tech/2026/01/08/zcash-developer-team-behind-ecc-quits-after-governance-clash-with-bootstrap-board)
 

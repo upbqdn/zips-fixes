@@ -5,15 +5,16 @@
     Credits: Josh Swihart
              Kris Nuttycombe
              Jack Grigg
-    Category: Consensus / Process
+    Category: Consensus Process
     Created: 2025-02-21
     License: MIT
-    Pull-Request: <https://github.com/zcash/zips/pull/???>
+    Pull-Request: <https://github.com/zcash/zips/pull/989>
+                  <https://github.com/zcash/zips/pull/994>
 
 
 # Terminology
 
-The key words "MUST", "REQUIRED", "MUST NOT", "SHOULD", and "MAY" in this document are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they appear in all capitals.
 
 The terms "Mainnet" and "Testnet" in this document are to be interpreted as defined in the Zcash protocol specification [^protocol-networks].
 
@@ -64,11 +65,11 @@ Honestly constructed Proposals SHOULD take into account any planned change in th
 
 ## Proposal Transactions
 
-A transaction is considered to be a Proposal Transaction if and only if it includes exactly one Specification Output, exactly one Approval Output, and exactly one Rejection Output, as specified below.
+A transaction is considered to be a Proposal Transaction if and only if it includes exactly one Description Output, exactly one Approval Output, and exactly one Rejection Output, as specified below.
 
 ### Description Output
 
-A Proposal Transaction MUST reference a human-readable Description of what is being voted on. This is represented by a Description Output encrypted to the zero $\mathsf{ovk}$, in the same way as for shielded coinbase transactions [^zip-0213]. The plaintext memo of the Description Output MUST use the following format:
+A Proposal Transaction MUST reference a human-readable Description of what is being voted on. This is represented by a Description Output: a shielded output whose note plaintext and memo can be recovered using the all-zero $\mathsf{ovk}$, in the same way as for shielded coinbase transactions [^zip-0213], and whose memo begins with the string $\texttt{“b2-256:”}$. Other outputs that can be recovered in this way have no significance for this mechanism. The plaintext memo of the Description Output MUST use the following format:
 
 * the string $\texttt{“b2-256:”}$
 * a hex-encoded BLAKE2b-256 hash of the contents of the file specifying the proposal
@@ -76,6 +77,8 @@ A Proposal Transaction MUST reference a human-readable Description of what is be
 * a stable URL to the contents of that file.
 
 The URL MUST be encoded as US-ASCII, but MAY use %-encoding to specify UTF-8 characters as described in [^uri-utf8].
+
+If the memo of a transaction's Description Output does not use this format, that transaction is not a Proposal Transaction.
 
 For example, to refer to the contents of ZIP 1015 at time of writing:
 
@@ -88,7 +91,7 @@ The contents of the file at the given URL MUST NOT be automatically downloaded u
 
 ## Approval and Rejection Outputs
 
-Let DeadlineHeight be the last block height at which a Decision can be made for this Proposal.
+Let the Deadline Height be the last block height at which a Decision can be made for this Proposal.
 
 An Approval Output is a P2SH output with a script of the following form:
 
@@ -97,6 +100,8 @@ An Approval Output is a P2SH output with a script of the following form:
 A Rejection Output is a P2SH output with a script of the following form:
 
 * TBD
+
+The file specifying the proposal (see [Description Output]) MUST contain the redeem scripts of both the Approval Output and the Rejection Output (which encode the Deadline Height). This allows these outputs to be identified, and an Implicit Rejection to be determined, before either output is spent.
 
 ## Decisions
 
@@ -152,21 +157,19 @@ Thank you to Josh Swihart and Kris Nuttycombe for discussions about [^draft-ecc-
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^protocol]: [Zcash Protocol Specification, Version 2024.5.1 or later](protocol/protocol.pdf)
-
 [^protocol-networks]: [Zcash Protocol Specification, Version 2024.5.1. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
 [^zip-0213]: [ZIP 213: Shielded Coinbase](zip-0213.rst)
 
-[^zip-0231]: [ZIP 231: Memo Bundles](zip-0231.rst)
+[^zip-0231]: [ZIP 231: Memo Bundles](zip-0231.md)
 
-[^draft-ecc-zbloc]: [draft-ecc-zbloc: Zcash Governance Bloc](draft-ecc-zbloc.md)
+[^draft-ecc-zbloc]: [draft-ecc-zbloc: Zcash Governance Bloc (Obsolete)](https://github.com/zcash/zips/blob/c00c77c01a1e881769ead93785f1c8db12182931/zips/draft-ecc-zbloc.md)
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
 
 [^forum-loan-directed-retroactive-grants]: [Zcash forum: Loan-Directed Retroactive Grants](https://forum.zcashcommunity.com/t/loan-directed-retroactive-grants/48230)
 
-[^tfl-book-assured-finality]: [Zcash Trailing Finality Layer. Section 2: Terminology — Assured Finality](https://electric-coin-company.github.io/tfl-book/terminology.html#definition-assured-finality)
+[^tfl-book-assured-finality]: [Zcash Trailing Finality Layer. Section 2: Terminology — Assured Finality](https://github.com/Electric-Coin-Company/tfl-book/blob/main/src/terminology.md#definition-assured-finality)
 
 [^uri-utf8]: [RFC 3986: Uniform Resource Identifier (URI). Section 2.5: Identifying Data](https://www.rfc-editor.org/rfc/rfc3986.html#section-2.5)
 
