@@ -218,10 +218,10 @@ for subsequent blocks.
 
 This change does not affect Mainnet.
 
-ZIP 218 [#zip-0218]_, which is a Draft, proposes changing the
-minimum-difficulty threshold to 18 times the block target spacing from the
-Testnet NU7 activation height. The six-spacing threshold specified here
-continues to apply before NU7.
+From the Testnet NU7 activation height [#zip-0259]_, ZIP 218 [#zip-0218]_
+changes this threshold to $18 \cdot \mathsf{PoWTargetSpacing}(\mathsf{height})$
+seconds, which is 450 seconds at the 25-second target spacing. The six-spacing
+threshold specified here applies before NU7 activation.
 
 
 Non-consensus node behaviour
@@ -394,7 +394,7 @@ decision was made not to change them::
 Deployment
 ==========
 
-This proposal will be deployed with the Blossom network upgrade. [#zip-0206]_
+This proposal was deployed with the Blossom network upgrade. [#zip-0206]_
 
 
 Backward compatibility
@@ -428,5 +428,6 @@ References
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <zip-0206.rst>`_
 .. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-0308] `ZIP 308: Sprout to Sapling Migration <zip-0308.rst>`_
 .. [#slowfastblocks] `On Slow and Fast Block Times <https://blog.ethereum.org/2015/09/14/on-slow-and-fast-block-times/>`_

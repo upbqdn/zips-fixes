@@ -101,11 +101,11 @@ ACTIVATION_HEIGHT
   consensus rules, and would be the last common block in the event of a persistent pre-upgrade consensus
   branch.
 
-  On Mainnet, it MUST be greater than the End-of-Service height of the last release that does not support the
-  network upgrade, for each consensus node implementation named in the ZIP that specifies the deployment of
-  the network upgrade, unless that ZIP states that this requirement is not met and gives the rationale (for
-  example, an urgent fix for a vulnerability). This requirement does not apply on Testnet, where node releases
-  do not undergo End-of-Service halt.
+  On Mainnet, it MUST be greater than the End-of-Service height of every release that does not support the
+  network upgrade on Mainnet, for each consensus node implementation named in the ZIP that specifies the
+  deployment of the network upgrade, unless that ZIP states that this requirement is not met and gives the
+  rationale (for example, an urgent fix for a vulnerability). This requirement does not apply on Testnet,
+  where node releases do not undergo End-of-Service halt.
 
   It SHOULD be chosen to be reached approximately three months after the first software version containing
   support for the network upgrade is released, for the following reason:
@@ -243,7 +243,7 @@ valid under the change in the next block to be mined (at the current chain tip h
 Deployment
 ==========
 
-This proposal will be deployed with the Overwinter network upgrade. [#zip-0201]_
+This proposal was deployed with the Overwinter network upgrade. [#zip-0201]_
 
 
 Backward compatibility

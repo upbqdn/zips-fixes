@@ -4,10 +4,10 @@
   Title: Consensus rules for a Zcash Development Fund
   Owners: Daira-Emma Hopwood <daira@jacaranda.org>
           Kris Nuttycombe <kris@nutty.land>
-  Status: [Revision 0: Canopy, Revision 1: NU6, Revision 2: NU6.1] Final, [Revision 3: NU7] Draft
+  Status: [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU6.1] Proposed, [Revision 3: NU7] Draft
   Category: Consensus
   Created: 2020-02-28
-  Last-Updated: 2026-10-08
+  Last-Updated: 2026-10-09
   License: MIT
   Discussions-To: <https://forum.zcashcommunity.com/t/community-sentiment-polling-results-nu4-and-draft-zip-1014/35560>
 
@@ -67,19 +67,19 @@ Abstract
 ========
 
 `Revision 0`_ of this ZIP describes consensus rule changes interpreting the
-proposed structure of the Zcash Development Fund, which is to be enacted in
-Network Upgrade 4 and last for 4 years.
+proposed structure of the Zcash Development Fund, which was enacted in
+Network Upgrade 4 and lasted for 4 years.
 
 `Revision 1`_ of this ZIP describes consensus rule changes related to funding
-of Zcash development via block subsidies, to be enacted at Network Upgrade 6
+of Zcash development via block subsidies, enacted at Network Upgrade 6
 and lasting for 1 year.
 
 `Revision 2`_ of this ZIP describes consensus rule changes related to funding
-of Zcash development via block subsidies, to be enacted at Network Upgrade 6.1
+of Zcash development via block subsidies, enacted at Network Upgrade 6.1
 and lasting for 3 years.
 
-`Revision 3`_ of this ZIP describes consensus rule changes related to block
-target spacing changes to 25 seconds in ZIP 218 [#zip-0218]_, to be enacted
+`Revision 3`_ of this ZIP describes consensus rule changes related to the
+change of block target spacing to 25 seconds in ZIP 218 [#zip-0218]_, enacted
 at Network Upgrade 7. It preserves the end of the `Revision 2`_ funding
 streams at the third halving, and updates the ``FS_FPF_ZCG_H3`` recipient
 address per ZIP 2008 [#zip-2008]_.
@@ -255,6 +255,9 @@ funding stream.
 On Testnet, ZIP 259 [#zip-0259]_ assigns the NU7 activation height
 $A = 4465026$. The new end height of ``FS_FPF_ZCG_H3`` and ``FS_CCF_H3``
 on Testnet is therefore $4465026 + 3 \cdot (4476000 - 4465026) = 4497948$.
+On Mainnet, ZIP 259 assigns the NU7 activation height
+$A$ = NU7_MAINNET_ACTIVATION_HEIGHT, and the new end height is
+$A + 3 \cdot (4406400 - A) = 13219200 - 2A$ = NU7_MAINNET_FS_END_HEIGHT.
 
 The value of each stream at a post-NU7 height SHALL continue to be
 calculated separately using the floor operation in ZIP 207 [#zip-0207]_
@@ -539,16 +542,29 @@ Deployment
 
 `Revision 2`_ of this proposal was deployed with NU6.1. [#zip-0255]_
 
-`Revision 3`_ of this proposal is intended to be deployed with NU7. [#zip-0259]_
+`Revision 3`_ of this proposal is deployed with NU7. [#zip-0259]_
+
+
+Reference Implementation
+========================
+
+* `Revision 3`_: https://github.com/ZcashFoundation/zebra/pull/11529 and
+  https://github.com/ZcashFoundation/zebra/pull/11527 (zebrad)
 
 
 Change History
 ==============
 
+2026-10-09
+----------
+
+- Gave the Mainnet end height of the Revision 2 funding streams under
+  Revision 3, added the reference implementation of Revision 3, and corrected
+  tense and protocol specification citations.
+
 2026-10-08
 ----------
 
-- Marked Revision 2 as Final.
 - Restored the deployed Mainnet recipients for Revision 2, and gave the
   Revision 3 recipients in a separate section.
 - Defined the upgrade code-names used, and corrected citations, tense, and
@@ -608,10 +624,10 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol-subsidyconcepts] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.10: Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidyconcepts>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders’ Reward <protocol/protocol.pdf#subsidies>`_
-.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
+.. [#protocol-subsidyconcepts] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.10: Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidyconcepts>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders’ Reward <protocol/protocol.pdf#subsidies>`_
+.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
 .. [#trademark] `Zcash Trademark Donation and License Agreement <https://electriccoin.co/wp-content/uploads/2019/11/Final-Consolidated-Version-ECC-Zcash-Trademark-Transfer-Documents-1.pdf>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_

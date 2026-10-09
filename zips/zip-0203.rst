@@ -124,13 +124,12 @@ specification [#protocol-txnconsensus]_.
 Changes for NU7
 ---------------
 
-ZIP 218 [#zip-0218]_, which is a Draft, proposes that from NU7 activation
-[#zip-0259]_, implementations creating transactions change the default expiry
-delta from 40 to 120 blocks, which remains approximately 50 minutes at the
-25-second target spacing. An explicitly configured ``-txexpirydelta`` value
-would continue to apply before and after activation. This would change neither
-the expiry consensus rule nor the maximum expiry height above. The NU7 Mainnet
-activation height has not yet been set.
+From NU7 activation [#zip-0259]_, ZIP 218 [#zip-0218]_ recommends that implementations
+creating transactions change the default expiry delta from 40 to 120 blocks after the
+height of the next block to be mined, which remains approximately 50 minutes at the
+25-second target spacing. An explicitly configured expiry delta, such as a
+``-txexpirydelta`` value, continues to apply before and after activation. This changes
+neither the expiry consensus rule nor the maximum expiry height above.
 
 Expiry across network upgrades
 ------------------------------
@@ -188,8 +187,7 @@ The default will be user-configurable with the option ``-txexpirydelta``; for ex
 Deployment
 ----------
 
-This feature will be deployed with Overwinter. The activation blockheight proposal is in
-[#zip-0201]_.
+This feature was deployed with Overwinter. [#zip-0201]_
 
 
 Reference Implementation

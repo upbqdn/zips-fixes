@@ -7,7 +7,7 @@
   Status: [Revision 0: Canopy, Revision 1: NU6] Final, [Revision 2: NU7] Draft
   Category: Consensus
   Created: 2019-01-04
-  Last-Updated: 2026-10-08
+  Last-Updated: 2026-10-09
   License: MIT
 
 
@@ -370,7 +370,7 @@ Rule 5 has subsequently been clarified as follows:
 
 Note: The recipient identifiers permitted above do not include Orchard
 addresses; the "prescribed way" to pay an Orchard address is defined in
-anticipation of a future change. Up to and including NU6.3 there have been no
+anticipation of a future change. Up to and including NU7 there have been no
 funding streams defined with a shielded payment address as a recipient. That
 might change in future, so implementations are encouraged to support Sapling
 and Orchard outputs as recipients, which ZIP 213 [#zip-0213]_ permits in
@@ -398,8 +398,7 @@ This proposal was initially deployed with Canopy. [#zip-0251]_
 
 Changes to support deferred funding streams were deployed with NU6. [#zip-0253]_
 
-Revision 2 is intended to activate with NU7 as specified in ZIP 259
-[#zip-0259]_.
+Revision 2 is deployed with NU7 as specified in ZIP 259 [#zip-0259]_.
 
 
 Backward compatibility
@@ -418,10 +417,18 @@ Reference Implementation
 * https://github.com/zcash/zcash/pull/4560
 * https://github.com/zcash/zcash/pull/4675
 * https://github.com/zcash/zcash/pull/4830
+* Revision 2: https://github.com/ZcashFoundation/zebra/pull/11529 and
+  https://github.com/ZcashFoundation/zebra/pull/11527 (zebrad)
 
 
 Change History
 ==============
+
+2026-10-09
+----------
+
+- Added the reference implementation of Revision 2, and updated the
+  Deployment section and protocol specification citations.
 
 2026-10-08
 ----------
@@ -473,17 +480,17 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol-subsidyconcepts] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.10: Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidyconcepts>`_
-.. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
-.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 4.17: Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
-.. [#protocol-constants] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
-.. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.1.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
-.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
-.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
-.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
-.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders’ Reward <protocol/protocol.pdf#subsidies>`_
-.. [#protocol-foundersreward] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.9: Payment of Founders’ Reward <protocol/protocol.pdf#foundersreward>`_
-.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.0 [NU6.1 proposal]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
+.. [#protocol-subsidyconcepts] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.10: Block Subsidy, Funding Streams, and Founders’ Reward <protocol/protocol.pdf#subsidyconcepts>`_
+.. [#protocol-networks] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-transparentaddrencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.6.1.1: Transparent Addresses <protocol/protocol.pdf#transparentaddrencoding>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 5.6.3.1: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
+.. [#protocol-subsidies] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.8: Calculating Block Subsidy, Funding Streams, Lockbox Disbursement, and Founders’ Reward <protocol/protocol.pdf#subsidies>`_
+.. [#protocol-foundersreward] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.9: Payment of Founders’ Reward <protocol/protocol.pdf#foundersreward>`_
+.. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
