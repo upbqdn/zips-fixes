@@ -16,8 +16,8 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", and "SHOULD" in this document are to be interpreted as
-described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST" and "SHOULD" in this document are to be interpreted as described in
+BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The terms "consensus branch", "epoch", and "network upgrade" in this document are to be
 interpreted as described in ZIP 200. [#zip-0200]_
@@ -63,7 +63,7 @@ In all cases, but particularly in order to support the use of transactions in
 higher-level protocols, any modification of the transaction that has not been
 explicitly permitted (such as via anyone-can-spend inputs) should invalidate
 attestations to spend authority or to the included outputs. Following the activation
-of this proposed change, transaction identifiers will be stable irrespective of
+of this change, transaction identifiers are stable irrespective of
 any possible malleation of "witness data" such as proofs and transaction
 signatures.
 
@@ -780,14 +780,14 @@ In the case that the transaction has no Orchard Actions, ``orchard_auth_digest``
 Block Header Changes
 --------------------
 
-The nonmalleable transaction identifier specified by this ZIP will be used
+The nonmalleable transaction identifier specified by this ZIP is used
 in the place of the current malleable transaction identifier within the
 Merkle tree committed to by the ``hashMerkleRoot`` value. However, this
 change now means that ``hashMerkleRoot`` is not sufficient to fully commit
 to the transaction data, including witnesses, that appear within the block.
 
 As a consequence, we now need to add a new commitment to the block header.
-This commitment will be the root of a Merkle tree having leaves that are
+This commitment is the root of a Merkle tree having leaves that are
 transaction authorizing data commitments: for v5 transactions, ``auth_digest``
 as produced according to the `Authorizing Data Commitment`_ part of this
 specification; for v6 transactions, ``auth_digest_v6`` as specified in ZIP 229

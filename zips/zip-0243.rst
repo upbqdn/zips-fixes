@@ -73,7 +73,8 @@ in [#zip-0205]_) until NU5 activation used the new algorithm.
 Note: from NU5 activation, version 5 transactions use the transaction digest algorithm defined in
 ZIP 244 [#zip-0244]_, and from NU6.3 activation, version 6 transactions use the algorithm defined in
 ZIP 229, as specified in § 4.10 of the protocol specification [#protocol-sighash]_. The algorithm
-defined in this ZIP continues to apply to version 4 transactions.
+defined in this ZIP continues to apply to version 4 transactions, which are invalid from NU7 activation
+[#zip-2003]_.
 
 The BLAKE2b-256 personalization field [#BLAKE2-personalization]_ is set to::
 
@@ -546,5 +547,6 @@ References
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-2003] `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`_
 .. [#test-vectors] `ZIP 243 Test Vectors <https://github.com/zcash/zcash-test-vectors/blob/master/zcash_test_vectors/zip_0243.py>`_
 .. [#sighash-tests] `SignatureHash Test Vectors <https://github.com/zcash/zcash/blob/master/src/test/data/sighash.json>`_

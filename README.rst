@@ -154,7 +154,7 @@ written.
     <tr> <td><span class="reserved">2</span></td> <td class="left"><a class="reserved" href="zips/zip-0002.rst">Design Considerations for Network Upgrades</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/362">zips#362</a></td>
     <tr> <td>48</td> <td class="left"><a href="zips/zip-0048.md">Transparent Multisig Wallets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1059">zips#1059</a></td>
     <tr> <td>68</td> <td class="left"><a href="zips/zip-0068.rst">Relative lock-time using consensus-enforced sequence numbers</a></td> <td>Draft</td> <td class="left"></td>
-    <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/130">zips#130</a></td>
+    <tr> <td>76</td> <td class="left"><a href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/130">zips#130</a></td>
     <tr> <td>112</td> <td class="left"><a href="zips/zip-0112.rst">CHECKSEQUENCEVERIFY</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td>113</td> <td class="left"><a href="zips/zip-0113.rst">Median Time Past as endpoint for lock-time calculations</a></td> <td>Draft</td> <td class="left"></td>
     <tr> <td><span class="reserved">129</span></td> <td class="left"><a class="reserved" href="zips/zip-0129.md">Zcash Transparent Multisig Setup</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1060">zips#1060</a></td>
@@ -232,7 +232,6 @@ be deleted.
     <tr> <td class="left">draft-ecc-authenticated-reply-addrs</td> <td class="left"><a href="zips/draft-ecc-authenticated-reply-addrs.md">Authenticated Reply Addresses</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1230">zips#1230</a></td>
     <tr> <td class="left">draft-ecc-onchain-accountable-voting</td> <td class="left"><a href="zips/draft-ecc-onchain-accountable-voting.md">On-chain Accountable Voting</a></td> <td class="left"></td>
     <tr> <td class="left">draft-mcgee-keyholders-organizations</td> <td class="left"><a href="zips/draft-mcgee-keyholders-organizations.md">Update to ZIP 1016 & ZIP 271: Key-Holder Organizations</a></td> <td class="left"><a href="URL TBD">URL TBD</a></td>
-    <tr> <td class="left">draft-nuttycom-vizor-payment-links</td> <td class="left"><a href="zips/draft-nuttycom-vizor-payment-links.md">Mnemonic-Encapsulated Payment Links</a></td> <td class="left"></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
   </table></embed>
 
@@ -281,7 +280,7 @@ Index of ZIPs
     <tr> <td>32</td> <td class="left"><a href="zips/zip-0032.rst">Shielded Hierarchical Deterministic Wallets</a></td> <td>Final</td>
     <tr> <td>48</td> <td class="left"><a href="zips/zip-0048.md">Transparent Multisig Wallets</a></td> <td>Draft</td>
     <tr> <td>68</td> <td class="left"><a href="zips/zip-0068.rst">Relative lock-time using consensus-enforced sequence numbers</a></td> <td>Draft</td>
-    <tr> <td><span class="reserved">76</span></td> <td class="left"><a class="reserved" href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Reserved</td>
+    <tr> <td>76</td> <td class="left"><a href="zips/zip-0076.rst">Transaction Signature Validation before Overwinter</a></td> <td>Draft</td>
     <tr> <td>112</td> <td class="left"><a href="zips/zip-0112.rst">CHECKSEQUENCEVERIFY</a></td> <td>Draft</td>
     <tr> <td>113</td> <td class="left"><a href="zips/zip-0113.rst">Median Time Past as endpoint for lock-time calculations</a></td> <td>Draft</td>
     <tr> <td><span class="reserved">129</span></td> <td class="left"><a class="reserved" href="zips/zip-0129.md">Zcash Transparent Multisig Setup</a></td> <td>Reserved</td>

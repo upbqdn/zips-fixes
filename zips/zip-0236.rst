@@ -36,7 +36,8 @@ including the total amount of miner subsidy plus fees from other transactions in
 block, but was not required to claim the full amount.
 
 From NU6 onward, coinbase transactions are required to claim their full total input
-value (§ 7.1.2).
+value (§ 7.1.2). From NU7 onward, that value excludes the 60% (rounded down) of the
+block's transaction fees that ZIP 235 removes from circulation [#zip-0235]_.
 
 
 Motivation
@@ -96,6 +97,13 @@ From the activation block of this ZIP onward, coinbase transactions MUST claim t
 full total input value, as defined in § 7.1.2 ‘Transaction Consensus Rules’
 [#protocol-txnconsensus]_ (as modified by later ZIPs).
 
+From NU7 activation, the transaction fees included in the total input value of a
+coinbase transaction are replaced by $\mathsf{MinerFees}(\mathsf{height})$ as specified
+in ZIP 235 [#zip-0235]_: the transaction fees paid by transactions in the block minus the
+$\mathsf{NSMFeeContribution}(\mathsf{height})$ removed from circulation. A coinbase
+transaction therefore claims $\mathsf{MinerFees}(\mathsf{height})$ rather than all of
+the fees, and cannot claim the removed amount.
+
 Changes to the Zcash Protocol Specification
 -------------------------------------------
 
@@ -136,6 +144,9 @@ This ZIP was deployed with NU6. [#zip-0253]_
 The wording change to § 7.1.2 depends on [#zip-2001]_ which was also deployed
 with NU6. [#zip-0253]_
 
+The change to the total input value made by ZIP 235 [#zip-0235]_ is deployed with
+NU7. [#zip-0259]_
+
 
 Reference implementation
 ========================
@@ -160,5 +171,7 @@ References
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
-.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.rst>`_
+.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
+.. [#zip-0253] `ZIP 253: Deployment of the NU6 Network Upgrade <zip-0253.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_

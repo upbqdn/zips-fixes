@@ -42,7 +42,10 @@ Abstract
 .. note::
     This ZIP reflects the changes made to note encryption for the Canopy upgrade.
 
-    It does not include subsequent changes in ZIP 2005 [#zip-2005]_.
+    It does not include subsequent changes in ZIP 2005 [#zip-2005]_, deployed with
+    the NU6.3 network upgrade [#zip-0258]_, which define the note plaintext format
+    with lead byte $\mathtt{0x03}$ used for every note in the *Ironwood pool*
+    [#zip-0229]_.
 
 This ZIP proposes a new note plaintext format for Sapling Outputs (later
 extended to include Orchard Actions) in transactions. The new format allows
@@ -267,9 +270,11 @@ note plaintext lead byte equal to $\mathtt{0x02}$.
 This applies even during the “grace period”, and also applies to funding stream
 outputs [#zip-0207]_ sent to shielded payment addresses, if there are any.
 
-Since NU5 activates after the end of the grace period [#zip-0252]_, Orchard
-outputs will always require a note plaintext lead byte equal to
-$\mathtt{0x02}$.
+Since NU5 activated after the end of the grace period [#zip-0252]_, Orchard
+outputs to the *Orchard pool* always require a note plaintext lead byte equal
+to $\mathtt{0x02}$. From NU6.3 activation, Orchard outputs of coinbase
+transactions to the *Ironwood pool* instead require a note plaintext lead byte
+equal to $\mathtt{0x03}$ as specified in ZIP 2005 [#zip-2005]_.
 
 
 Rationale
@@ -378,7 +383,9 @@ References
 .. [#protocol-notept] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
 .. [#zip-0207] `ZIP 207: Funding Streams <zip-0207.rst>`_
 .. [#zip-0213] `ZIP 213: Shielded Coinbase <zip-0213.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
 .. [#zip-0252] `ZIP 252: Deployment of the NU5 Network Upgrade <zip-0252.rst>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
 .. [#zecwallet-grace-extension] `Commit c31a04a in adityapk00/librustzcash: Move ZIP-212 grace period to end of April <https://github.com/adityapk00/librustzcash/commit/c31a04a4dbfa5a2ac013139db229f41cd421754d>`_

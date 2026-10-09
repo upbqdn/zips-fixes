@@ -899,13 +899,13 @@ deficiencies.
 Deployment
 ==========
 
-On the Zcash Mainnet and Testnet, this proposal will be deployed with the Heartwood
+On the Zcash Mainnet and Testnet, this proposal was deployed with the Heartwood
 network upgrade. [#zip-0250]_
 
-Additional fields are added on activation of the NU5 network upgrade [#zip-0252]_,
+Additional fields were added on activation of the NU5 network upgrade [#zip-0252]_,
 to support the new Orchard shielded protocol.
 
-Additional fields are added on activation of the NU6.3 network upgrade [#zip-0258]_,
+Additional fields were added on activation of the NU6.3 network upgrade [#zip-0258]_,
 to support the Ironwood pool.
 
 

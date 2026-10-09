@@ -131,7 +131,11 @@ height, there is no additional client distinguisher.
 Deployment
 ==========
 
-This proposal will be deployed with the Canopy network upgrade. [#zip-0251]_
+This proposal was deployed with the Canopy network upgrade. [#zip-0251]_
+
+From NU7 activation, version 4 transactions are invalid [#zip-2003]_. Since no later
+transaction version can contain JoinSplit descriptions, value can no longer be extracted
+from the Sprout chain value pool from that height.
 
 
 Reference Implementation
@@ -150,5 +154,6 @@ References
 .. [#zip-0209] `ZIP 209: Prohibit Out-of-Range Chain Value Pool Balances <zip-0209.rst>`_
 .. [#zip-0251] `ZIP 251: Deployment of the Canopy Network Upgrade <zip-0251.rst>`_
 .. [#zip-0308] `ZIP 308: Sprout to Sapling Migration <zip-0308.rst>`_
+.. [#zip-2003] `ZIP 2003: Disallow version 4 transactions <zip-2003.rst>`_
 .. [#zerocash] `Zerocash: Decentralized Anonymous Payments from Bitcoin (extended version) <https://eprint.iacr.org/2014/349>`_
 .. [#counterfeiting] `Zcash Counterfeiting Vulnerability Successfully Remediated <https://zodl.com/zcash-counterfeiting-vulnerability-successfully-remediated/>`_
