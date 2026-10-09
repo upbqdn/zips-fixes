@@ -15,8 +15,9 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", and "MAY" in this document are to be interpreted as
-described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are
+to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all
+capitals.
 
 The terms below are to be interpreted as follows:
 
@@ -27,8 +28,8 @@ Light client
 Abstract
 ========
 
-This proposal defines a protocol for a Zcash light client supporting Sapling shielded
-transactions.
+This proposal defines a protocol for a Zcash light client supporting shielded transactions
+in the Sapling, Orchard, and Ironwood pools.
 
 Motivation
 ==========
@@ -46,12 +47,12 @@ There are three logical components to a Zcash light client system:
 
 - **Zcash node** that provides chain state and serves as a root of trust for the system.
 
-- **Proxy server** that extracts block chain data from zcashd to store and serve it in a
-  lower-bandwidth format.
+- **Proxy server** that extracts block chain data from a full node to store and serve it in
+  a lower-bandwidth format.
 
 - **Light client** that subscribes to the stream from a proxy server and uses that data to
   update its own view of the chain state. The light client MAY be attached to a wallet
-  backend that will track particular Sapling notes.
+  backend that will track particular shielded notes.
 
 .. figure:: ../rendered/assets/images/zip-0307-arch.png
     :align: center
@@ -66,82 +67,129 @@ In this model, we propose **payment detection privacy** as our main security goa
 is, the proxy should not learn which transactions (received from the block chain) are
 addressed to a given light wallet. If we further assume network privacy (via Tor or
 similar), the proxy should not be able to link different connections or queries as
-deriving from the the same wallet.
+deriving from the same wallet.
 
 In particular, the underlying Zcash node / proxy combination is assumed to be "honest but
 curious" and is trusted to provide a correct view of the current best chain state and to
-faithfully transmit queries and responses.
+faithfully transmit queries and responses. The light client SHOULD connect to the proxy
+server using TLS [#RFC8446]_ with authentication of the server, so that a network attacker
+can neither impersonate the proxy server nor read or alter the queries and responses.
 
 This ZIP does not address how to spend notes privately.
 
 Compact Stream Format
 =====================
 
-A key observation in this protocol is that the current zcashd encrypted field is several
+A key observation in this protocol is that the encrypted note field (``encCiphertext``) of
+each Sapling Output description and each Orchard or Ironwood Action description is several
 hundred bytes long, due to the inclusion of a transaction “memo”. The need to download
 this entire field imposes a substantial bandwidth cost on each light wallet, which may be
 a limited mobile device on a restricted-bandwidth plan. While more efficient techniques
 can be developed in the future, for the moment we propose ignoring the memo field during
-payment detection. Futhermore, we can also ignore any information that is not directly
-relevant to a Sapling shielded transaction.
+payment detection. Furthermore, we can also ignore any information that is not directly
+relevant to a shielded transaction.
 
 A **compact block** is a packaging of ONLY the data from a block needed to:
 
-1. Detect a payment to your shielded Sapling address
-2. Detect a spend of your shielded Sapling notes
-3. Update your witnesses to generate new Sapling spend proofs.
+1. Detect a payment to your shielded address
+2. Detect a spend of your shielded notes
+3. Update your witnesses to generate new spend proofs
+4. Detect and spend transparent outputs of your wallet, if transparent data is requested
 
 A compact block and its component compact transactions are encoded on the wire using the
-following Protocol Buffers [#protocolbuffers]_ format:
+following Protocol Buffers [#protocolbuffers]_ format. It is that of
+``compact_formats.proto`` in version 0.5.0 of the light wallet protocol definitions
+[#lightwallet-protocol]_, with comments abridged:
 
 .. code:: proto
 
-    message BlockID {
-         uint64 blockHeight = 1;
-         bytes blockHash = 2;
+    message CompactBlock {
+        reserved 1;                      // was protoVersion
+        reserved "protoVersion";
+        uint64 height = 2;               // the height of this block
+        bytes hash = 3;                  // if present, the hash of this block
+        bytes prevHash = 4;              // if present, the hash of the previous block
+        uint32 time = 5;                 // if non-zero, Unix time when the block was mined
+        bytes header = 6;                // if present, the full block header
+        repeated CompactTx vtx = 7;      // compact transactions from this block
+        ChainMetadata chainMetadata = 8; // the state of the chain as of this block
     }
 
-    message CompactBlock {
-        BlockID id = 1;
-        repeated CompactTx vtx = 3;
+    message ChainMetadata {
+        uint32 saplingCommitmentTreeSize = 1;  // tree sizes as of the end of this block
+        uint32 orchardCommitmentTreeSize = 2;
+        uint32 ironwoodCommitmentTreeSize = 3;
     }
 
     message CompactTx {
-        uint64 txIndex = 1;
-        bytes txHash = 2;
-
-        repeated CompactSpend spends = 3;
-        repeated CompactOutput outputs = 4;
+        uint64 index = 1;                // the index of the transaction within the block
+        bytes txid = 2;                  // the transaction ID
+        uint32 fee = 3;                  // the transaction fee, if the server knows it
+        repeated CompactSaplingSpend spends = 4;
+        repeated CompactSaplingOutput outputs = 5;
+        repeated CompactOrchardAction actions = 6;          // Orchard-pool Actions
+        repeated CompactOrchardAction ironwoodActions = 9;  // Ironwood-pool Actions
+        repeated CompactTxIn vin = 7;    // transparent inputs, omitting the coinbase input
+        repeated TxOut vout = 8;         // transparent outputs
     }
 
-    message CompactSpend {
-        bytes nf = 1;
+    message CompactSaplingSpend {
+        bytes nf = 1;                    // [32] nullifier
     }
 
-    message CompactOutput {
-        bytes cmu = 1;
-        bytes epk = 2;
-        bytes ciphertext = 3;
+    message CompactSaplingOutput {
+        bytes cmu = 1;                   // [32] u-coordinate of the note commitment
+        bytes ephemeralKey = 2;          // [32] ephemeral public key
+        bytes ciphertext = 3;            // [52] first 52 bytes of encCiphertext
+    }
+
+    message CompactOrchardAction {
+        bytes nullifier = 1;             // [32] nullifier of the input note
+        bytes cmx = 2;                   // [32] x-coordinate of the note commitment
+        bytes ephemeralKey = 3;          // [32] ephemeral public key
+        bytes ciphertext = 4;            // [52] first 52 bytes of encCiphertext
+    }
+
+    message CompactTxIn {
+        bytes prevoutTxid = 1;           // txid of the transaction whose output is spent
+        uint32 prevoutIndex = 2;         // index of that output in its vout
+    }
+
+    message TxOut {
+        uint64 value = 1;                // value in zatoshis
+        bytes scriptPubKey = 2;
     }
 
 Encoding Details
 ----------------
 
-``blockHash``, ``txHash``, ``nf``, ``cmu``, and ``epk`` are encoded as
-specified in the Zcash Protocol Spec.
+The fields ``hash``, ``prevHash``, ``txid``, and ``prevoutTxid`` are 32-byte values in
+protocol byte order (not byte-reversed or hex-encoded): a block hash as it appears in the
+``hashPrevBlock`` field of a block header [#protocol-blockheader]_, and a transaction ID as
+defined in [#protocol-txnidentifiers]_. The fields ``nf``, ``cmu``, ``nullifier``, ``cmx``,
+and ``ephemeralKey`` are encoded as the corresponding fields of a Spend, Output, or Action
+description [#protocol-spendencodingandconsensus]_ [#protocol-outputencodingandconsensus]_
+[#protocol-actionencodingandconsensus]_. If present, ``header`` is the block header encoded
+as in [#protocol-blockheader]_. The coinbase transaction has ``index`` 0. Within a
+``CompactTx``, spends, outputs, and Actions are in the order in which they appear in the
+transaction.
 
-The output and spend descriptions are handled differently, as described in the following
-sections.
+Outputs, spends, and Actions are compressed as described in the following sections.
 
 Output Compression
 ------------------
 
-In the normal Zcash protocol, the output ciphertext consists of the AEAD-encrypted form of
-a *note plaintext* [#protocol-notept]_:
+In the normal Zcash protocol, the output ciphertext [#protocol-outputencodingandconsensus]_
+consists of the AEAD-encrypted form of a *note plaintext* [#protocol-notept]_:
 
-+------------+----------+----------+---------------+-----------------------------------+
-| 8-bit 0x01 | 88-bit d | 64-bit v | 256-bit rseed | memo (512 bytes) + tag (16 bytes) |
-+------------+----------+----------+---------------+-----------------------------------+
++----------------+----------+----------+---------------+-----------------------------------+
+| 8-bit leadByte | 88-bit d | 64-bit v | 256-bit rseed | memo (512 bytes) + tag (16 bytes) |
++----------------+----------+----------+---------------+-----------------------------------+
+
+The allowed values of ``leadByte`` depend on the pool and the block height
+[#protocol-noteptconcept]_. For Sapling it is 0x01 before Canopy, 0x01 or 0x02 during the
+ZIP 212 grace period, and 0x02 after it [#zip-0212]_. Orchard notes use 0x02, and
+Ironwood notes use 0x03 [#zip-2005]_.
 
 A recipient detects their transactions by trial-decrypting this ciphertext. On a full node
 that has the entire block chain, the primary cost is computational. For light clients
@@ -156,7 +204,9 @@ data needed to spend the note and to verify that the note is spendable. If we ig
 memo and the authentication tag, we're left with a 32-byte ephemeral public key, the 32-byte
 note commitment, and only the first 52 bytes of the ciphertext for each output needed to
 decrypt, verify, and spend a note. This totals to 116 bytes per output, for an 80%
-reduction in bandwidth use.
+reduction in bandwidth use. The same applies to Orchard and Ironwood Actions, where the
+compact form also carries the 32-byte nullifier of the Action's spent note (needed both to
+detect spends and to decrypt the output), for a total of 148 bytes per Action.
 
 However, skipping the full ciphertext means that we can no longer calculate the
 authentication tag for the entire ciphertext and will need to do something else to
@@ -172,7 +222,8 @@ and spendable.
 Spend Compression
 -----------------
 
-Recall that a full Sapling Spend description is 384 bytes long [#protocol-spendencodingandconsensus]_:
+Recall that in a version 4 transaction, a Sapling Spend description is 384 bytes long
+[#protocol-spendencodingandconsensus]_:
 
 +-------+--------------+-----------+
 | Bytes | Name         | Type      |
@@ -190,6 +241,11 @@ Recall that a full Sapling Spend description is 384 bytes long [#protocol-spende
 | 64    | spendAuthSig | char[64]  |
 +-------+--------------+-----------+
 
+In version 5 and later transactions, a Spend description is 96 bytes (``cv``,
+``nullifier``, and ``rk``). The 192-byte proof and the 64-byte spend authorization signature
+are carried in separate arrays, and the anchor is shared by all spends in the transaction
+[#zip-0225]_.
+
 The only part necessary for detection is the nullifier, which allows a light client to
 detect when one of its own notes has been spent. This means we only need to take 32 bytes
 of each Spend, for a 90% improvement in bandwidth use.
@@ -202,45 +258,56 @@ Zcash node and any number of light clients. It accomplishes this by parsing a bl
 stream of transactions from the node and converting them into the compact format described
 above.
 
-*The details of the API described below may differ from the implementation.*
+The proxy offers to light clients the ``CompactTxStreamer`` gRPC service defined in
+``service.proto`` in version 0.5.0 of the light wallet protocol definitions
+[#lightwallet-protocol]_. The light client operations in this ZIP use the following
+methods:
 
-The proxy offers the following API to clients:
+``GetLatestBlock(ChainSpec)``
+  Returns the ``BlockID`` (``height`` and ``hash``) of the tip of the server's best chain.
 
-.. code:: proto
+``GetBlock(BlockID)``
+  Returns the ``CompactBlock`` at the given height, with data for all pools.
 
-    service CompactTxStreamer {
-        rpc GetLatestBlock(ChainSpec) returns (BlockID) {}
-        rpc GetBlock(BlockID) returns (CompactBlock) {}
-        rpc GetBlockRange(RangeFilter) returns (stream CompactBlock) {}
-        rpc GetTransaction(TxFilter) returns (FullTransaction) {}
-    }
+``GetBlockRange(BlockRange)``
+  Streams the ``CompactBlocks`` from ``start`` to ``end`` inclusive, in decreasing height
+  order if ``start`` is greater than ``end``. If ``poolTypes`` is empty, the blocks contain
+  only data for the Sapling, Orchard, and Ironwood pools, and omit ``CompactTxs`` with no
+  such data. Otherwise they contain only data for the requested pools. A light client MUST
+  verify that the server supports this filtering before setting ``poolTypes`` to a
+  non-empty value.
 
-    // Remember that proto3 fields are all optional.
+``GetTreeState(BlockID)`` and ``GetLatestTreeState()``
+  Return a ``TreeState``: the height, hash, and time of a block, and the Sapling, Orchard,
+  and Ironwood note commitment tree states as of the end of that block.
 
-    // Someday we may want to specify e.g. a particular chain fork.
-    message ChainSpec {}
+``GetSubtreeRoots(GetSubtreeRootsArg)``
+  Streams the roots of complete subtrees of the note commitment tree of a given pool, each
+  with the hash and height of the block that completed it.
 
+``GetTransaction(TxFilter)``
+  Returns as a ``RawTransaction`` the full transaction whose txid is ``hash``. Selection by
+  block and index is not supported. In the result, a ``height`` of 0 means that the
+  transaction is in the mempool, a ``height`` of 0xffffffffffffffff means that it was mined
+  in a block that is not in the best chain, and any other ``height`` is that of the block
+  in the best chain that contains it.
 
-    // A BlockID message contains identifiers to select a block: either a
-    // height or a hash.
-    message BlockID {
-        uint64 blockHeight = 1;
-        bytes blockHash = 2;
-    }
+``SendTransaction(RawTransaction)``
+  Submits a transaction to the network. The ``SendResponse`` has ``errorCode`` 0 on
+  success, and otherwise a nonzero ``errorCode`` and an ``errorMessage`` describing the
+  failure.
 
+A ``BlockID`` selects a block by height; servers are not required to support selection by
+hash. The service also provides mempool queries (``GetMempoolTx`` and ``GetMempoolStream``),
+transparent-address queries (``GetTaddressTransactions``, ``GetTaddressBalance``,
+``GetAddressUtxos``, and their streaming variants), and server information
+(``GetLightdInfo``).
 
-    message RangeFilter {
-        BlockID start = 1;
-        BlockID end = 2;
-    }
-
-    // A TxFilter contains the information needed to identify a particular
-    // transaction: either a block and an index, or a direct transaction hash.
-    message TxFilter {
-        BlockID blockID = 1;
-        uint64 txIndex = 2;
-        bytes txHash = 3;
-    }
+Under the security model above, the light client trusts the tree states and subtree roots
+provided by the proxy server, as it trusts the compact blocks. It can check their
+consistency with the compact blocks it receives: the ``hash`` of a ``TreeState`` matches the
+block at the same height, and the size of each note commitment tree matches the
+corresponding size in the ``chainMetadata`` of that block.
 
 
 Client operation
@@ -258,119 +325,152 @@ order from a proxy server, a light client can process it in four ways:
 
 Scanning for relevant transactions
 ``````````````````````````````````
-For every ``CompactOutput`` in the ``CompactBlock``, the light client can trial-decrypt it
-against a set of Sapling incoming viewing keys. The procedure for trial-decrypting a
-``CompactOutput`` $(\mathtt{cmu}, \mathtt{ephemeralKey}, \mathsf{ciphertext})$ with an incoming
-viewing key $\mathsf{ivk}$ is a slight deviation from the standard decryption process
-[#protocol-saplingdecryptivk]_ (all constants and algorithms are as defined there):
+For every ``CompactSaplingOutput``, and every ``CompactOrchardAction`` in ``actions`` or
+``ironwoodActions``, in the ``CompactBlock``, the light client can trial-decrypt it against
+a set of incoming viewing keys for the corresponding shielded protocol (Sapling, or Orchard
+for both the Orchard and Ironwood pools). The procedure is that of the standard decryption
+process [#protocol-saplingdecryptivk]_, as amended for Ironwood notes by ZIP 2005
+[#zip-2005]_, with all constants and algorithms as defined there. Its inputs are taken from
+the compact data: ``ephemeralKey`` and ``ciphertext`` give the ephemeral key and the
+ciphertext, ``cmu`` or ``cmx`` gives the note commitment field, and for an Action
+``nullifier`` gives the nullifier of the input note. The block height is the height of the
+``CompactBlock``, and the pool is the pool of the output. The procedure deviates from the
+standard one only as follows:
 
-- let $\mathsf{epk} = \mathsf{abst}_{\mathbb{J}}(\mathtt{ephemeralKey})$
-- if $\mathsf{epk} = \bot$, return $\bot$
-- let $\mathsf{sharedSecret} = \mathsf{KA^{Sapling}.Agree}(\mathsf{ivk}, \mathsf{epk})$
-- let $K^{\mathsf{enc}} = \mathsf{KDF^{Sapling}}(\mathsf{sharedSecret}, \mathtt{ephemeralKey})$
-- let $P^{\mathsf{enc}} = \mathsf{ChaCha20.Decrypt}_{K^{\mathsf{enc}}}(\mathsf{ciphertext})$
-- extract $\mathbf{np} = (\mathsf{leadByte}, \mathsf{d}, \mathsf{v}, \mathsf{rseed})$ from $P^{\mathsf{enc}}$
-- [Pre-Canopy] if $\mathsf{leadByte} \neq 0x01$, return $\bot$
-- [Pre-Canopy] let $\mathsf{\underline{rcm}} = \mathsf{rseed}$
-- [Canopy onward] if $\mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}$ and $\mathsf{leadByte} \not\in \{ \mathtt{0x01}, \mathtt{0x02} \}$, return $\bot$
-- [Canopy onward] if $\mathsf{height} < \mathsf{CanopyActivationHeight} + \mathsf{ZIP212GracePeriod}$ and $\mathsf{leadByte} \neq \mathtt{0x02}$, return $\bot$
-- [Canopy onward] let $\mathsf{\underline{rcm}} = \begin{cases}\mathsf{rseed}, &\textsf{if } \mathsf{leadByte} = \mathtt{0x01} \\ \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([5])), &\textsf{otherwise}\end{cases}$
-- let $\mathsf{rcm} = \mathsf{LEOS2IP}_{256}(\mathsf{\underline{rcm}})$ and $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$
-- if $\mathsf{rcm} \geq r_{\mathbb{J}}$ or $\mathsf{g_d} = \bot$, return $\bot$
-- [Canopy onward] if $\mathsf{leadByte} \neq \mathtt{0x01}$:
+- The ``ciphertext`` field holds only the first 52 bytes of the note ciphertext, which
+  encrypt the ``leadByte``, ``d``, ``v``, and ``rseed`` fields of the note plaintext. The
+  step that decrypts the ciphertext with $\mathsf{Sym.Decrypt}$ is replaced by
+  $P^{\mathsf{enc}} = \mathsf{ChaCha20.Decrypt}_{K^{\mathsf{enc}}}(\mathtt{ciphertext})$
+  (defined below), which cannot fail.
+- No memo is extracted, and the procedure returns the note without a memo.
+- The transaction version is not available from compact data. The definition of the
+  allowed lead bytes [#protocol-noteptconcept]_ does not currently depend on it.
 
-  * $\mathsf{esk} = \mathsf{ToScalar}(\mathsf{PRF^{expand}_{rseed}}([4]))$
-  * if $\mathsf{repr}_{\mathbb{J}}(\mathsf{KA^{Sapling}.DerivePublic}(\mathsf{esk}, \mathsf{g_d})) \neq \mathtt{ephemeralKey}$, return $\bot$
-
-- let $\mathsf{pk_d} = \mathsf{KA^{Sapling}.DerivePublic}(\mathsf{ivk}, \mathsf{g_d})$
-- let $\mathsf{cm}_u' = \mathsf{Extract}_{\mathbb{J}^{(r)}}(\mathsf{NoteCommit^{Sapling}_{rcm}}(\mathsf{repr}_{\mathbb{J}}(\mathsf{g_d}), \mathsf{repr}_{\mathbb{J}}(\mathsf{pk_d}), \mathsf{v}))$.
-- if $\mathsf{LEBS2OSP}_{256}(\mathsf{cm}_u') \neq \mathtt{cmu}$, return $\bot$
-- return $\mathbf{np}$.
+Here $\mathsf{ChaCha20.Decrypt}_K(C)$ denotes the exclusive-or of $C$ with the ChaCha20
+keystream [#RFC7539]_ generated from key $K$ with the all-zero 96-bit nonce and initial
+block counter 1. This equals the first $\mathsf{length}(C)$ bytes of the plaintext that
+$\mathsf{Sym.Decrypt}$ [#protocol-concretesym]_ would produce from the full ciphertext,
+without verification of the authentication tag. Block 0 of the keystream is skipped because
+the AEAD uses it to derive the Poly1305 key. Since the tag is not checked, the note
+commitment check at the end of the procedure is what ensures the integrity of the decrypted
+note plaintext (see `Output Compression`_).
 
 Creating and updating note witnesses
 ````````````````````````````````````
 As ``CompactBlocks`` are received in height order, and the transactions within them have
-their order preserved, the *cmu* values in each ``CompactOutput`` can be sequentially
-appended to an incremental Merkle tree of depth 32 in order to maintain a local copy of
-the Sapling note commitment tree. [#protocol-merkletree]_ This can then be used to
-create incremental witnesses for each unspent note the light client is tracking.
-[#incremental-witness]_ An incremental witness updated to height ``X`` corresponds to a
-Merkle path from the note to the Sapling commitment tree anchor for block ``X``.
-[#protocol-merklepath]_
+their order preserved, the ``cmu`` values in each ``CompactSaplingOutput`` can be
+sequentially appended to an incremental Merkle tree of depth 32 in order to maintain a local
+copy of the Sapling note commitment tree. [#protocol-merkletree]_ Likewise, the ``cmx``
+values of the ``CompactOrchardAction`` entries in ``actions`` and in ``ironwoodActions``
+can be appended to local copies of the Orchard and Ironwood note commitment trees, which
+also have depth 32. These can then be used to create incremental witnesses for each unspent
+note the light client is tracking. [#incremental-witness]_ An incremental witness updated to
+height ``X`` corresponds to a Merkle path from the note to the anchor of its pool's note
+commitment tree for block ``X``. [#protocol-merklepath]_
 
-Let ``tree`` be the Sapling note commitment tree at height ``X-1``, and ``note_witnesses``
-be the incremental witnesses for unspent notes detected up to height ``X-1``. When the
-``CompactBlock`` at height ``X`` is received:
+For a given pool, let ``tree`` be its note commitment tree at height ``X-1``, and
+``note_witnesses`` be the incremental witnesses for unspent notes of that pool detected up
+to height ``X-1``. When the ``CompactBlock`` at height ``X`` is received:
 
 - For each ``CompactTx`` in ``CompactBlock``:
 
-  - For each ``CompactOutput`` (*cmu*, *epk*, *ciphertext*) in ``CompactBlock``:
+  - For each note commitment ``cm`` of that pool in that ``CompactTx``, in order (the
+    ``cmu`` of each entry in ``outputs`` for Sapling, or the ``cmx`` of each entry in
+    ``actions`` for Orchard or in ``ironwoodActions`` for Ironwood):
 
-    - Append ``cmu`` to ``tree``.
+    - Append ``cm`` to ``tree``.
     - For ``witness`` in ``note_witnesses``:
 
-      - Append ``cmu`` to ``witness``.
+      - Append ``cm`` to ``witness``.
 
-    - If ``ciphertext`` contains a relevant note, create an incremental witness from
-      ``tree`` and append it to ``note_witnesses``.
+    - If the corresponding output contains a relevant note, create an incremental witness
+      from ``tree`` and append it to ``note_witnesses``.
 
-Incremental Merkle trees cannot be rewound, so the light client should cache both the
-Sapling note commitment tree and per-note incremental witnesses for recent block heights.
-Cache management is implementation-dependent, but a cache size of 100 is reasonable, as no
-full Zcash node will roll back the chain by more than 100 blocks.
+The light client can then check that the size of ``tree`` equals the corresponding note
+commitment tree size in the ``chainMetadata`` of the ``CompactBlock``.
+
+Incremental Merkle trees cannot be rewound, so the light client should cache both the note
+commitment trees and per-note incremental witnesses for recent block heights (see
+`Chain reorganisations`_). Cache management is implementation-dependent, but the cache
+should cover at least the maximum rollback depth of the full nodes behind the proxy server
+[#protocol-blockchain]_. That depth is not fixed by consensus. From NU7 activation, ZIP 218
+recommends a depth of at least 600 blocks [#zip-0218]_; Zebra rolls back up to 1000 blocks.
+After a deeper chain reorganisation, the light client has to rebuild its note commitment
+trees, for example from a tree state obtained from the proxy server, before rescanning.
 
 Detecting spends
 ````````````````
 
-The ``CompactSpend`` entries can be checked against known local nullifiers, to for example
+The nullifiers in ``CompactSaplingSpend`` entries (``nf``) and in ``CompactOrchardAction``
+entries (``nullifier``) can be checked against known local nullifiers, for example to
 ensure that a transaction has been received by the network and mined.
 
 Block header validation
 ```````````````````````
 
 *This section describes a proposed enhancement that has been only partially implemented:
-currently only* ``prevHash`` *is checked.*
+currently only* ``prevHash`` *is checked, and deployed proxy servers leave the* ``header``
+*field empty.*
 
-If the ``CompactBlock`` for height ``X`` contains a block header, the light client can
-validate it in a similar way to SPV clients [#spv-clients]_ by performing the following
-checks:
+If the ``header`` field of the ``CompactBlock`` for height ``X`` is present, the light
+client can validate it in a similar way to SPV clients [#spv-clients]_. Let ``h`` be the
+SHA-256d hash of ``header``, that is, of the whole block header including ``solutionSize``
+and ``solution`` [#protocol-difficulty]_. The light client performs the following checks,
+using the block header field names of [#protocol-blockheader]_:
 
-- ``version >= MIN_BLOCK_VERSION``
-- ``prevHash == prevBlock.id.blockHash`` where ``prevBlock`` is the previous
-  ``CompactBlock`` received (at height ``X-1``).
-- ``finalSaplingRoot`` is equal to the root of the Sapling note commitment tree after
-  appending every ``cmu`` in the ``CompactBlock`` in-order.
-- The Equihash solution is valid.
-- ``targetFromBits(bits) != 0 && targetFromBits(bits) <= powLimit``.
-- If the last 27 ``CompactBlocks`` all have block headers, ``bits`` is set correctly
-  according to the difficulty adjustment algorithm.
-- ``toLittleEndian(blockHash) <= targetFromBits(bits)``.
+- The ``header`` field is a valid block header encoding, and ``h`` equals ``hash``.
+- The ``nVersion`` field is at least 4 [#protocol-blockheader]_.
+- The ``hashPrevBlock`` field equals ``prevHash`` and the hash of the block at height
+  ``X-1`` in the light client's chain view.
+- If $\mathsf{SaplingActivationHeight} \leq \mathtt{X} < \mathsf{HeartwoodActivationHeight}$
+  then ``hashFinalSaplingRoot`` is equal to the root of the Sapling note commitment tree
+  after appending every ``cmu`` in the ``CompactBlock`` in order. From Heartwood activation
+  this field holds ``hashLightClientRoot`` [#zip-0221]_, and from NU5 activation
+  ``hashBlockCommitments`` [#zip-0244]_. Neither can be recomputed from ``CompactBlock``
+  data.
+- The Equihash solution is valid [#protocol-equihash]_.
+- The target $\mathsf{ToTarget}(\mathsf{nBits})$ [#protocol-nbits]_ is nonzero and at most
+  $\mathsf{PoWLimit}$ for the network [#protocol-constants]_.
+- If the ``CompactBlocks`` for the preceding
+  $\mathsf{PoWAveragingWindow} + \mathsf{PoWMedianBlockSpan}$ heights all have block
+  headers (heights ``X-28`` to ``X-1`` if NU7 is not active at height ``X``, or ``X-113``
+  to ``X-1`` if it is [#zip-0218]_), ``nBits`` equals
+  $\mathsf{ThresholdBits}(\mathtt{X})$ as specified in [#protocol-diffadjustment]_,
+  including on Testnet the minimum-difficulty rule [#zip-0205]_ [#zip-0208]_ [#zip-0218]_.
+- The hash ``h`` passes the difficulty filter [#protocol-difficulty]_, that is
+  $\mathsf{LEOS2IP}_{256}(\mathtt{h}) \leq \mathsf{ToTarget}(\mathsf{nBits})$ where
+  $\mathsf{LEOS2IP}_{256}$ reads ``h`` as a little-endian integer.
 
 A ``CompactBlock`` that fails any of these checks MUST be discarded. If it was received as
 part of a ``GetBlockRange`` call, the call MUST be aborted.
 
-Block header validation provides light clients with some assurance that the
-``CompactOutputs`` being sent to them are indeed from valid blocks that have been mined.
-The strongest-possible assurance is achieved when all block headers are synchronised; this
-comes at the cost of bandwidth and storage.
+Block header validation provides light clients with some assurance that the compact data
+being sent to them is indeed from valid blocks that have been mined. The strongest-possible
+assurance is achieved when all block headers are synchronised; this comes at the cost of
+bandwidth and storage.
 
-By default, ``CompactBlocks`` only contain ``CompactTxs`` for transactions that contain
-Sapling spends or outputs. Thus they do not contain sufficient information to validate
-that the received transaction IDs correspond to the transaction tree root in the block
-header. This does not have a significant effect on light client security: light clients
-only directly depend on ``CompactOutputs``, which can be authenticated via block header
-validation. If a txid is used in a ``GetTransaction`` call, the returned transaction
-SHOULD be checked against the corresponding ``CompactOutputs``, in addition to verifying
-the transaction signatures.
+By default, ``CompactBlocks`` returned by ``GetBlockRange`` only contain ``CompactTxs`` for
+transactions that have data for the Sapling, Orchard, or Ironwood pools (see
+`Proxy operation`_). Thus they do not contain sufficient information to validate that the
+received transaction IDs correspond to the transaction tree root in the block header. This
+does not have a significant effect on light client security: light clients only directly
+depend on the note commitments, nullifiers, and note ciphertexts in ``CompactBlocks``.
+However, block header validation can authenticate the note commitments only before
+Heartwood activation. From Heartwood activation, the header of the following block commits
+to the final note commitment tree roots of a block only through the history tree
+[#zip-0221]_, and checking them would require inclusion proofs that ``CompactBlocks`` do not
+carry. If a txid is used in a ``GetTransaction`` call, the returned transaction SHOULD be
+checked against the corresponding ``CompactTx``, in addition to verifying the transaction
+signatures.
 
 Potential extensions
 ````````````````````
 
 A trivial extension (with corresponding bandwidth cost) would be to transmit empty
-``CompactTxs`` corresponding to transactions that do not contain Sapling spends or
-outputs. A more complex extension would send the inner nodes within the transaction
-trees corresponding to non-Sapling-relevant subtrees; this would require strictly less
-bandwidth that the trivial extension. These extensions are not currently defined.
+``CompactTxs`` corresponding to transactions that have no data for the requested pools. A
+more complex extension would send the inner nodes within the transaction trees
+corresponding to subtrees that contain no such transactions; this would require strictly
+less bandwidth than the trivial extension. These extensions are not currently defined.
 
 
 Client-server interaction
@@ -386,9 +486,9 @@ We can divide the typical client-server interaction into four distinct phases:
 
             <---------------- BlockID(X)
 
-            GetBlock(X) --------------->
+            GetTreeState(X) ----------->
 
-            <----------- CompactBlock(X)
+            <-------------- TreeState(X)
 
                 ===
 
@@ -407,13 +507,13 @@ We can divide the typical client-server interaction into four distinct phases:
 
                 ===
 
-      C     GetTransaction(X+4, 7) ---->
+      C     GetTransaction(txid1) ----->
 
-            <--- FullTransaction(X+4, 7)
+            <----- RawTransaction(txid1)
 
-            GetTransaction(X+9, 2) ---->
+            GetTransaction(txid2) ----->
 
-            <--- FullTransaction(X+9, 2)
+            <----- RawTransaction(txid2)
 
                 ===
 
@@ -433,10 +533,12 @@ We can divide the typical client-server interaction into four distinct phases:
 **Phase A:** The light client starts up for the first time.
 
 - The light client queries the server to fetch the most recent block ``X``.
-- The light client queries the commitment tree state for block ``X``.
+- The light client fetches the note commitment tree states as of the end of block ``X``
+  using ``GetTreeState``, and records the hash of block ``X``.
 
-  - Or, it has to set ``X`` to the block height at which Sapling activated, so as to be
-    sent the entire commitment tree. [TODO: Decide which to specify.]
+  - If no tree state is available, it instead sets ``X`` to the height immediately before
+    Sapling activation, at which all note commitment trees are empty, and records the hash
+    of that block. It then has to scan every block from Sapling activation onward.
 
 - Shielded addresses created by the light client will not have any relevant transactions
   in this or any prior block.
@@ -446,14 +548,16 @@ We can divide the typical client-server interaction into four distinct phases:
 - The light client queries the server to fetch the most recent block ``Y``.
 - It then executes a block range query to fetch every block between ``X`` (inclusive) and
   ``Y`` (inclusive).
-- The block at height ``X`` is checked to ensure the received ``blockHash`` matches the
+- The block at height ``X`` is checked to ensure the received ``hash`` matches the
   light client's cached copy, and then discards it without further processing.
 
-  - An inconsistency would imply that block ``X`` was orphaned during a chain reorg.
+  - An inconsistency would imply that block ``X`` was orphaned during a chain reorg. The
+    light client then rolls back as described in `Chain reorganisations`_.
 
 - As each subsequent ``CompactBlock`` arrives, the light client:
 
-  - Validates the block header if it is present.
+  - Checks its ``prevHash`` as described in `Chain reorganisations`_, and validates the
+    block header if it is present.
   - Scans the ``CompactBlock`` to find any relevant transactions for addresses generated
     since ``X`` was fetched (likely the first transactions involving those addresses). If
     notes are detected, it:
@@ -461,10 +565,10 @@ We can divide the typical client-server interaction into four distinct phases:
     - Generates incremental witnesses for the notes, and updates them going forward.
     - Scans for their nullifiers from that block onwards.
 
-**Phase C:** The light client has detected some notes and displayed them. User interaction
-has indicated that the corresponding full transactions should be fetched.
+**Phase C:** The light client has detected some notes, and fetches the corresponding full
+transactions (subject to the considerations in `Transaction privacy`_).
 
-- The light client queries the server for each transaction it wishes to fetch.
+- The light client queries the server by txid for each transaction it wishes to fetch.
 
 **Phase D:** The user has spent some notes. The light client updates its local chain view
 some time later.
@@ -472,14 +576,16 @@ some time later.
 - The light client queries the server to fetch the most recent block ``Z``.
 - It then executes a block range query to fetch every block between ``Y`` (inclusive) and
   ``Z`` (inclusive).
-- The block at height ``Y`` is checked to ensure the received ``blockHash`` matches the
+- The block at height ``Y`` is checked to ensure the received ``hash`` matches the
   light client's cached copy, and then discards it without further processing.
 
-  - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg.
+  - An inconsistency would imply that block ``Y`` was orphaned during a chain reorg. The
+    light client then rolls back as described in `Chain reorganisations`_.
 
 - As each subsequent ``CompactBlock`` arrives, the light client:
 
-  - Validates the block header if it is present.
+  - Checks its ``prevHash`` as described in `Chain reorganisations`_, and validates the
+    block header if it is present.
   - Updates the incremental witnesses for known notes.
   - Scans for any known nullifiers. The corresponding notes are marked as spent at that
     height, and excluded from further witness updates.
@@ -495,10 +601,43 @@ In this case, phase A is modified as follows:
 
 **Phase A:** The light client starts up for the first time.
 
-- The light client sets ``X`` to the block height at which Sapling activated.
+- The light client sets ``X`` to the height immediately before Sapling activation, at which
+  all note commitment trees are empty.
 
   - Shielded addresses created by any light client cannot have any relevant transactions
     prior to Sapling activation.
+  - If a height is known before which the seed has no relevant transactions (a wallet
+    birthday), the light client can instead set ``X`` to the height immediately before it
+    and fetch the note commitment tree states for block ``X`` using ``GetTreeState``.
+
+Chain reorganisations
+`````````````````````
+
+The light client retains the block hashes for recent heights, together with checkpoints of
+its note commitment trees and incremental witnesses (see
+`Creating and updating note witnesses`_).
+
+For each ``CompactBlock`` at height ``h`` that it processes, including the first block it
+processes from each requested range, the light client MUST check that ``prevHash`` equals
+the hash it has recorded for height ``h-1``, if it has recorded one (a light client that
+scans out of height order might not have). A mismatch means that a chain reorganisation
+has orphaned the light client's block at height ``h-1``, and possibly earlier blocks. The
+light client MUST NOT assume that its block at height ``h-1`` is still in the best chain.
+
+On a mismatch, the light client MUST roll back to a height ``F`` below ``h`` whose recorded
+block hash is that of the block at height ``F`` in the proxy server's best chain. How ``F``
+is found is implementation-dependent; for example, the light client can rewind a fixed
+number of blocks and request blocks again from there, repeating this while mismatches
+persist. Rolling back discards all local blocks with height greater than ``F`` and rolls
+back the following local state to height ``F``:
+
+- All local transactions (un-mining them as necessary).
+- All tracked nullifiers (unspending or discarding as necessary).
+- The note commitment trees and all incremental witnesses.
+
+If ``F`` is below the oldest cached checkpoint, the light client instead rolls back to a
+lower height for which it can fetch the note commitment tree states using ``GetTreeState``
+(for example its wallet birthday), and rescans from there.
 
 Block privacy via bucketing
 ---------------------------
@@ -551,13 +690,14 @@ follows:
 - The light client queries the server to fetch the most recent block ``Y``.
 - It then executes a block range query to fetch every block between ``⌊X⌋`` (inclusive)
   and ``Y`` (inclusive).
-- Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received ``blockHash``
+- Blocks between ``⌊X⌋`` and ``X`` are checked to ensure that the received ``hash``
   matches the light client's chain view for each height, and are then discarded without
   further processing.
 
-  - If an inconsistency is detected at height ``Q``, the light client sets ``X = Q-1``,
-    discards all local blocks with height ``>= Q``, and rolls back the state of all local
-    transactions to height ``Q-1`` (un-mining them as necessary).
+  - In this phase the light client's chain view starts at the block ``X`` fetched in Phase
+    A, so of these blocks only block ``X`` can be checked.
+  - If an inconsistency is detected, the light client rolls back as described in
+    `Chain reorganisations`_.
 
 - Blocks between ``X+1`` and ``Y`` are processed as before.
 
@@ -567,17 +707,22 @@ some time later.
 - The light client queries the server to fetch the most recent block ``Z``.
 - It then executes a block range query to fetch every block between ``⌊Y⌋`` (inclusive)
   and ``Z`` (inclusive).
-- Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received ``blockHash``
+- Blocks between ``⌊Y⌋`` and ``Y`` are checked to ensure that the received ``hash``
   matches the light client's chain view for each height, and are then discarded without
   further processing.
 
-  - If an inconsistency is detected at height ``R``, the light client sets ``Y = R-1``,
+  - If the lowest height at which an inconsistency is detected is ``R``, and block ``R-1``
+    has been checked (which requires ``R > ⌊Y⌋``), the light client sets ``Y = R-1``,
     discards all local blocks with height ``>= R``, and rolls back the following local
     state to height ``R-1``:
 
     - All local transactions (un-mining them as necessary).
     - All tracked nullifiers (unspending or discarding as necessary).
-    - All incremental witnesses (caching strategies are not covered in this ZIP).
+    - The note commitment trees and all incremental witnesses.
+
+  - Otherwise (in particular, when ``Y`` is a multiple of ``N``, so that block ``Y`` is the
+    only block checked), the light client rolls back as described in
+    `Chain reorganisations`_.
 
 - Blocks between ``Y+1`` and ``Z`` are processed as before.
 
@@ -586,16 +731,43 @@ Transaction privacy
 
 The synchronisation phases give the light client sufficient information to determine
 accurate address balances, show when funds were received or spent, and spend any unspent
-notes. As synchronisation happens via a broadcast medium, it leaks no information about
-which transactions the light client is interested in.
+notes. Provided that the ranges and order of the light client's block range and tree state
+requests are independent of the results of trial decryption, synchronisation leaks no
+information about which transactions the light client is interested in: the server learns
+only the requested heights (see `Block privacy via bucketing`_).
+
+A light client that reorders its scanning according to the notes it detects, for example by
+prioritising the blocks needed to complete the note commitment subtree that contains a newly
+detected note so that the note becomes spendable sooner, reveals to the server that a
+relevant note was found in a given subtree (of $2^{16}$ leaves, for the subtrees whose roots
+``GetSubtreeRoots`` returns). Such a light client SHOULD either convey this reduction in
+privacy to the user or mask it, for example by fixing the scan order in advance or by
+interleaving decoy range requests.
 
 If, however, the light client needs access to other components of a transaction (such as
 the memo fields for received notes, or the outgoing ciphertexts in order to recover spend
 information when importing a wallet seed), it will need to download the full transaction.
-The light client SHOULD obscure the exact transactions of interest by downloading numerous
-uninteresting transactions as well, and SHOULD download all transactions in any block from
-which a single full transaction is fetched (interesting or otherwise). It MUST convey to
-the user that fetching full transactions will reduce their privacy.
+A ``GetTransaction`` request names the txid, and so reveals to the server a transaction that
+the light client is interested in. The light client SHOULD make these requests over a
+privacy-preserving network connection, such as Tor, in a way that prevents the server from
+linking them to each other or to the light client's other requests (for example, by using a
+separate Tor circuit for each request). A light client that downloads compact blocks over a
+connection without such protection SHOULD NOT retrieve full transactions immediately upon
+detecting them, but SHOULD defer retrieval so that it cannot be correlated with the compact
+block requests. The light client MAY also download other transactions, such as all
+transactions in the same block (whose txids are given by the ``CompactBlock`` returned by
+``GetBlock``), to obscure which transactions are of interest. If it fetches full
+transactions without these protections, it MUST convey to the user that this reduces their
+privacy.
+
+Other requests also reveal information to the server. A ``GetTreeState`` request for a
+wallet birthday reveals that height. Transparent-address queries reveal the queried
+addresses and, when several are queried together, that they belong to the same wallet. The
+``exclude_txid_suffixes`` of a ``GetMempoolTx`` request reveal which mempool transactions
+the light client already has, and ``SendTransaction`` reveals that the light client is the
+source of the submitted transaction. A light client should take this into account, for
+example by making such requests over privacy-preserving connections that the server cannot
+link to each other.
 
 
 Reference Implementation
@@ -609,13 +781,34 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol-noteptconcept] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.2.1: Note Plaintexts and Memo Fields <protocol/protocol.pdf#noteptconcept>`_
+.. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-merkletree] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 3.8: Note Commitment Trees <protocol/protocol.pdf#merkletree>`_
 .. [#protocol-merklepath] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.9: Merkle Path Validity <protocol/protocol.pdf#merklepath>`_
-.. [#protocol-saplingdecryptivk] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.20.2: Decryption using an Incoming Viewing Key (Sapling) <protocol/protocol.pdf#saplingdecryptivk>`_
+.. [#protocol-saplingdecryptivk] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.20.2: Decryption using an Incoming Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptivk>`_
+.. [#protocol-constants] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
+.. [#protocol-concretesym] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.3: Symmetric Encryption <protocol/protocol.pdf#concretesym>`_
 .. [#protocol-notept] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.5: Encodings of Note Plaintexts and Memo Fields <protocol/protocol.pdf#notept>`_
+.. [#protocol-txnidentifiers] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.1.1: Transaction Identifiers <protocol/protocol.pdf#txnidentifiers>`_
 .. [#protocol-spendencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.3: Spend Description Encoding and Consensus <protocol/protocol.pdf#spendencodingandconsensus>`_
 .. [#protocol-outputencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.4: Output Description Encoding and Consensus <protocol/protocol.pdf#outputencodingandconsensus>`_
-.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Sapling Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#protocol-actionencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.5: Action Description Encoding and Consensus <protocol/protocol.pdf#actionencodingandconsensus>`_
+.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.6: Block Header Encoding and Consensus <protocol/protocol.pdf#blockheader>`_
+.. [#protocol-equihash] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.7.1: Equihash <protocol/protocol.pdf#equihash>`_
+.. [#protocol-difficulty] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.7.2: Difficulty filter <protocol/protocol.pdf#difficulty>`_
+.. [#protocol-diffadjustment] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.7.3: Difficulty adjustment <protocol/protocol.pdf#diffadjustment>`_
+.. [#protocol-nbits] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 7.7.4: nBits conversion <protocol/protocol.pdf#nbits>`_
+.. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
+.. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
+.. [#zip-0221] `ZIP 221: FlyClient - Consensus-Layer Changes <zip-0221.rst>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
+.. [#lightwallet-protocol] `Zcash Light Wallet Protocol v0.5.0: compact_formats.proto and service.proto <https://github.com/zcash/lightwallet-protocol/tree/v0.5.0/walletrpc>`_
+.. [#RFC7539] `RFC 7539: ChaCha20 and Poly1305 for IETF Protocols <https://www.rfc-editor.org/rfc/rfc7539>`_
+.. [#RFC8446] `RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3 <https://www.rfc-editor.org/rfc/rfc8446>`_
 .. [#protocolbuffers] `Protocol Buffers documentation <https://developers.google.com/protocol-buffers/>`_
-.. [#incremental-witness] `zcash_primitives Rust crate — merkle_tree.rs <https://github.com/zcash/librustzcash/blob/master/zcash_primitives/src/merkle_tree.rs>`_
+.. [#incremental-witness] `zcash_primitives Rust crate — merkle_tree.rs <https://github.com/zcash/librustzcash/blob/main/zcash_primitives/src/merkle_tree.rs>`_
 .. [#spv-clients] `Bitcoin Wiki: Scalability — Simplified payment verification <https://en.bitcoin.it/wiki/Scalability#Simplified_payment_verification>`_

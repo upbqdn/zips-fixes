@@ -16,7 +16,7 @@
 Terminology
 ===========
 
-The key words "MUST" and "SHOULD" in this document is to be interpreted as described in
+The key words "MUST" and "SHOULD" in this document are to be interpreted as described in
 BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 
@@ -24,7 +24,8 @@ Abstract
 ========
 
 This proposal describes a mechanism for creating signatures with Sapling addresses,
-suitable for use by the ``signmessage`` and ``verifymessage`` RPC methods in ``zcashd``.
+suitable for use by message-signing RPC methods (such as ``signmessage`` and
+``verifymessage``) in Zcash wallets.
 
 
 Motivation
@@ -42,7 +43,7 @@ protocol can be repurposed to instead sign a message provided by a third party.
 
 Bitcoin Core's ``bitcoind`` provides a ``signmessage`` RPC method that implements message
 signing for Bitcoin addresses, leveraging the fact that a Bitcoin private key is just a
-``secp256k`` private key, and a Bitcoin transaction authorizes spends with a signature.
+``secp256k1`` private key, and a Bitcoin transaction authorizes spends with a signature.
 ``zcashd`` inherited this RPC method, and it can be used to make signatures for
 transparent Zcash addresses.
 
@@ -73,19 +74,23 @@ specification: [#protocol]_
 - $\mathsf{DiversifyHash}(\mathsf{d})$ [#protocol-concretediversifyhash]_
 - $\mathsf{MixingPedersenHash}(\mathsf{cm}, position)$ [#protocol-concretemixinghash]_
 - $\mathsf{PRF}^\mathsf{nfSapling}_\mathsf{nk}(ρ)$ [#protocol-concreteprfs]_
-- $\mathsf{SpendAuthSig.RandomizePrivate}(α, \mathsf{sk})$,
-  $\mathsf{SpendAuthSig.RandomizePublic}(α, \mathsf{vk})$,
-  $\mathsf{SpendAuthSig.Sign}(\mathsf{sk}, m)$, and
-  $\mathsf{SpendAuthSig.Verify}(\mathsf{vk}, m, σ)$ [#protocol-concretespendauthsig]_
+- $\mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.RandomizePrivate}(α, \mathsf{sk})$,
+  $\mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.RandomizePublic}(α, \mathsf{vk})$,
+  $\mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.Sign}(\mathsf{sk}, m)$, and
+  $\mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.Validate}(\mathsf{vk}, m, σ)$ [#protocol-concretespendauthsig]_
 - $\mathsf{NoteCommit}^\mathsf{Sapling}_\mathsf{rcm}(\mathsf{g_d}, \mathsf{pk_d}, value)$ [#protocol-concretewindowedcommit]_
 - $\mathsf{ValueCommit}_\mathsf{rcv}(value)$ [#protocol-concretehomomorphiccommit]_
+- $\mathsf{Extract}_{\mathbb{J}^{(r)}}(P)$ [#protocol-concreteextractorjubjub]_
 
 We also reproduce some notation and functions here for convenience:
 
 - $a\,||\,b$ means the concatenation of sequences $a$ then $b$.
 
 - $\mathsf{repr}_\mathbb{J}(P)$ is the representation of the Jubjub elliptic curve
-  point $P$ as a bit sequence, defined in [#protocol-jubjub]_.
+  point $P$ as a bit sequence, and $\mathsf{abst}_\mathbb{J}$ is the corresponding
+  decoding function, which returns $\bot$ for an invalid encoding. Both are defined in
+  [#protocol-jubjub]_, together with the Jubjub cofactor $h_\mathbb{J}$ and the identity
+  point $\mathcal{O}_\mathbb{J}$ of the curve.
 
 - $\mathsf{BLAKE2b}\text{-}\mathsf{256}(p, x)$ refers to unkeyed BLAKE2b-256 in
   sequential mode, with an output digest length of 32 bytes, 16-byte personalization
@@ -111,7 +116,7 @@ hold:
 Non-requirements
 ================
 
-Multiple signatures by a single payment addresses are not required to be unlinkable.
+Multiple signatures by a single payment address are not required to be unlinkable.
 
 
 Specification
@@ -143,7 +148,8 @@ The signature is created as follows:
 
 - Let $\mathsf{rt}$ be the root of a Merkle tree with depth
   $\mathsf{MerkleDepth}^\mathsf{Sapling}$ and hashing function
-  $\mathsf{MerkleCRH}^\mathsf{Sapling}$, containing $\mathsf{cm}$ at position 0, and
+  $\mathsf{MerkleCRH}^\mathsf{Sapling}$, containing
+  $\mathsf{cm_u} = \mathsf{Extract}_{\mathbb{J}^{(r)}}(\mathsf{cm})$ at position 0, and
   $\mathsf{Uncommitted}^\mathsf{Sapling}$ at all other positions.
 
 - Let $path$ be the Merkle path from position 0 to $\mathsf{rt}$. [#protocol-merklepath]_
@@ -156,21 +162,21 @@ The signature is created as follows:
 
 - Select a random $α$.
 
-- Let $\mathsf{rk} = \mathsf{SpendAuthSig.RandomizePublic}(α, \mathsf{ak})$.
+- Let $\mathsf{rk} = \mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.RandomizePublic}(α, \mathsf{ak})$.
 
 - Let $zkproof$ be the byte sequence representation of a Sapling spend proof with primary input
   $(\mathsf{rt}, \mathsf{cv}, \mathsf{nf}, \mathsf{rk})$
   and auxiliary input $(path, 0, \mathsf{g_d}, \mathsf{pk_d}, 1, 0, \mathsf{cm}, 0, α, \mathsf{ak}, \mathsf{nsk})$.
   [#protocol-spendstatement]_
 
-- Let $\mathsf{rsk} = \mathsf{SpendAuthSig.RandomizePrivate}(α, \mathsf{ask})$.
+- Let $\mathsf{rsk} = \mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.RandomizePrivate}(α, \mathsf{ask})$.
 
 - Let $coinType$ be the 4-byte little-endian encoding of the coin type in its index
   form, not its hardened form (i.e. 133 for mainnet Zcash).
 
 - Let $digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZIP304Signed”}\,||\,coinType, zkproof\,||\,msg)$.
 
-- Let $spendAuthSig = \mathsf{SpendAuthSig.Sign}(\mathsf{rsk}, digest)$.
+- Let $spendAuthSig = \mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.Sign}(\mathsf{rsk}, digest)$.
 
 - Return $(\mathsf{nf}, \mathsf{rk}, zkproof, spendAuthSig)$.
 
@@ -179,10 +185,14 @@ Verification algorithm
 
 The inputs to the verification algorithm are:
 
-- The payment address $(\mathsf{d}, \mathsf{pk_d})$,
+- The payment address $(\mathsf{d}, \mathsf{pk_d})$, decoded as specified in
+  [#protocol-saplingpaymentaddrencoding]_ (or as the Sapling Receiver of a Unified Address
+  [#zip-0316]_) so that $\mathsf{pk_d}$ is valid (this does not constrain $\mathsf{d}$ in
+  any way),
 - The SLIP-44 [#slip-0044]_ coin type,
 - The message $msg$ that is claimed to be signed, and
-- The ZIP 304 signature $(\mathsf{nf}, \mathsf{rk}, zkproof, spendAuthSig)$.
+- The ZIP 304 signature $(\mathsf{nf}, \underline{\mathsf{rk}}, zkproof, spendAuthSig)$,
+  parsed from its raw form as described in `Signature encoding`_.
 
 The signature MUST be verified as follows:
 
@@ -191,13 +201,26 @@ The signature MUST be verified as follows:
 
 - Let $digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZIP304Signed”}\,||\,coinType, zkproof\,||\,msg)$.
 
-- If $\mathsf{SpendAuthSig.Verify}(\mathsf{rk}, digest, spendAuthSig) = 0$, return false.
+- Let $\mathsf{rk} = \mathsf{abst}_\mathbb{J}(\mathsf{LEOS2BSP}_{256}(\underline{\mathsf{rk}}))$ be the
+  decoded point. If $\mathsf{rk} = \bot$ or $[h_\mathbb{J}]\,\mathsf{rk} = \mathcal{O}_\mathbb{J}$
+  then return false.
 
-- Let $\mathsf{cm} = \mathsf{NoteCommit}^\mathsf{Sapling}_0(\mathsf{repr}_\mathbb{J}(\mathsf{DiversifyHash}(\mathsf{d})), \mathsf{repr}_\mathbb{J}(\mathsf{pk_d}), 1)$.
+  - As for the $\mathsf{rk}$ field of a Spend description [#protocol-spenddesc]_, rejecting
+    $\mathsf{rk}$ of small order also rejects the non-canonical encodings that
+    $\mathsf{abst}_\mathbb{J}$ would accept [#zip-0216]_ (see
+    `Security and Privacy Considerations`_).
+
+- If $\mathsf{SpendAuthSig}^\mathsf{Sapling}\mathsf{.Validate}(\mathsf{rk}, digest, spendAuthSig) = 0$, return false.
+
+- Let $\mathsf{g_d} = \mathsf{DiversifyHash}(\mathsf{d})$ be the diversified base. If
+  $\mathsf{g_d} = \bot$ then return false.
+
+- Let $\mathsf{cm} = \mathsf{NoteCommit}^\mathsf{Sapling}_0(\mathsf{repr}_\mathbb{J}(\mathsf{g_d}), \mathsf{repr}_\mathbb{J}(\mathsf{pk_d}), 1)$.
 
 - Let $\mathsf{rt}$ be the root of a Merkle tree with depth
   $\mathsf{MerkleDepth}^\mathsf{Sapling}$ and hashing function
-  $\mathsf{MerkleCRH}^\mathsf{Sapling}$, containing $\mathsf{cm}$ at position 0, and
+  $\mathsf{MerkleCRH}^\mathsf{Sapling}$, containing
+  $\mathsf{cm_u} = \mathsf{Extract}_{\mathbb{J}^{(r)}}(\mathsf{cm})$ at position 0, and
   $\mathsf{Uncommitted}^\mathsf{Sapling}$ at all other positions.
 
 - Let $path$ be the Merkle path from position 0 to $\mathsf{rt}$. [#protocol-merklepath]_
@@ -216,13 +239,17 @@ Signature encoding
 
 The raw form of a ZIP 304 signature is
 $\mathsf{nf}\,||\,\mathsf{LEBS2OSP}_{256}(\mathsf{repr}_{\mathbb{J}}(\mathsf{rk}))\,||\,zkproof\,||\,spendAuthSig$,
-for a total size of 320 bytes.
+for a total size of 320 bytes. A verifier parses a raw form of this size into
+$\mathsf{nf}$ (bytes 0 to 31), $\underline{\mathsf{rk}}$ (bytes 32 to 63), $zkproof$
+(bytes 64 to 255), and $spendAuthSig$ (bytes 256 to 319), and MUST reject a raw form of any
+other size.
 
 When encoding a ZIP 304 signature in a human-readable format, implementations **SHOULD**
-use standard Base64 for compatibility with the ``signmessage`` and ``verifymessage`` RPC
-methods in ``zcashd``. ZIP 304 signatures in this form are 428 bytes. The encoded form is 
+use standard Base64, matching the encoding used for transparent-address message
+signatures by the ``signmessage`` and ``verifymessage`` RPC methods. The encoded form is
 the string $\texttt{“zip304:”}$ followed by the result of Base64-encoding [#RFC4648]_
-the raw form of the signature.
+the raw form of the signature. The Base64 part is 428 characters long, and the whole
+encoded form is 435 characters long.
 
 Rationale
 =========
@@ -259,6 +286,14 @@ Most of the data within a ZIP 304 signature is inherently non-malleable:
 - $\mathsf{rk}$ is internally bound to $spendAuthSig$ by the design of RedJubjub.
 - RedJubjub signatures are themselves non-malleable.
 
+The last two properties, and the Binding requirement, depend on the verifier rejecting
+$\mathsf{rk}$ of small order. For such $\mathsf{rk}$ the RedJubjub validation equation does
+not depend on the message, so a single signature would verify for every message. An honest
+signer's $\mathsf{rk}$ is of small order only with negligible probability, but a signer can
+choose $α = -\mathsf{ask}$ to obtain $\mathsf{rk} = \mathcal{O}_\mathbb{J}$ deliberately. The
+same check also rejects non-canonical encodings of $\mathsf{rk}$ [#zip-0216]_ as it does for
+Spend descriptions.
+
 The one component that is inherently malleable is $zkproof$. The zero-knowledge
 property of a Groth16 proof implies that anyone can take a valid proof, and re-randomize
 it to obtain another valid proof with a different encoding. We prevent this by binding the
@@ -269,7 +304,8 @@ message digest.
 Reference implementation
 ========================
 
-https://github.com/zcash/librustzcash/pull/210
+No implementation is currently maintained. An earlier implementation for librustzcash
+(https://github.com/zcash/librustzcash/pull/210) was closed without being merged.
 
 
 References
@@ -278,6 +314,7 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#RFC4648] `RFC 4648: The Base16, Base32, and Base64 Data Encodings <https://www.rfc-editor.org/rfc/rfc4648>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2020.1.15 or later <protocol/protocol.pdf>`_
+.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2020.1.15. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
 .. [#protocol-merklepath] `Zcash Protocol Specification, Version 2020.1.15. Section 4.8: Merkle path validity <protocol/protocol.pdf#merklepath>`_
 .. [#protocol-spendstatement] `Zcash Protocol Specification, Version 2020.1.15. Section 4.15.2: Spend Statement (Sapling) <protocol/protocol.pdf#spendstatement>`_
 .. [#protocol-constants] `Zcash Protocol Specification, Version 2020.1.15. Section 5.3: Constants <protocol/protocol.pdf#constants>`_
@@ -289,4 +326,8 @@ References
 .. [#protocol-concretewindowedcommit] `Zcash Protocol Specification, Version 2020.1.15. Section 5.4.7.2: Windowed Pedersen commitments <protocol/protocol.pdf#concretewindowedcommit>`_
 .. [#protocol-concretehomomorphiccommit] `Zcash Protocol Specification, Version 2020.1.15. Section 5.4.7.3: Homomorphic Pedersen commitments <protocol/protocol.pdf#concretehomomorphiccommit>`_
 .. [#protocol-jubjub] `Zcash Protocol Specification, Version 2020.1.15. Section 5.4.8.3: Jubjub <protocol/protocol.pdf#jubjub>`_
+.. [#protocol-concreteextractorjubjub] `Zcash Protocol Specification, Version 2020.1.15. Section 5.4.8.4: Hash Extractor for Jubjub <protocol/protocol.pdf#concreteextractorjubjub>`_
+.. [#protocol-saplingpaymentaddrencoding] `Zcash Protocol Specification, Version 2020.1.15. Section 5.6.4: Sapling Payment Addresses <protocol/protocol.pdf#saplingpaymentaddrencoding>`_
+.. [#zip-0216] `ZIP 216: Require Canonical Jubjub Point Encodings <zip-0216.rst>`_
+.. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#slip-0044] `SLIP-0044 : Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_

@@ -5,7 +5,16 @@
   Owners: Jack Grigg <thestr4d@gmail.com>
   Status: Draft
   Category: Standards / RPC / Wallet
+  Created: 2020-12-11
+  License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/387>
+
+
+Terminology
+===========
+
+The key word "MUST" in this document is to be interpreted as described in BCP 14 [#BCP14]_
+when, and only when, it appears in all capitals.
 
 
 Abstract
@@ -35,14 +44,14 @@ However, if the transaction involves shielded addresses, the blockchain by itsel
 contain enough information to allow a record of the payment to be reconstructed and
 verified:
 
-=========== =========== ====== ========= ====== ==================
-Source      Destination Sender Recipient Amount Payment dislosure?
-=========== =========== ====== ========= ====== ==================
+=========== =========== ====== ========= ====== ===================
+Source      Destination Sender Recipient Amount Payment disclosure?
+=========== =========== ====== ========= ====== ===================
 Transparent Transparent 🔍      🔍        🔍     Not required
 Transparent Shielded    🔍      🔐        🔐*    Required
 Shielded    Transparent 🔒      🔍        🔍     Required
 Shielded    Shielded    🔒      🔐        🔐     Required
-=========== =========== ====== ========= ====== ==================
+=========== =========== ====== ========= ====== ===================
 
 - 🔍 = Visible on the block chain.
 - 🔐 = Cannot be confirmed without information that is not visible on the block chain.
@@ -64,7 +73,7 @@ Alice receives a single payment for half the amount, and wants proof of who it c
 (so she knows which person to follow up with for the remaining amount). Carol can provide
 a payment disclosure that reveals to Alice:
 
-- The correct amount was sent to the Alice's recipient address in the given transaction.
+- The correct amount was sent to Alice's recipient address in the given transaction.
 - Carol was the sender of that transaction (more precisely, Carol controls the spend
   authority used in that transaction).
 
@@ -75,7 +84,7 @@ and does not reveal:
 - Any of Carol's other transactions.
 
 For this use case, it is not necessary (and not necessarily intended) that the payment
-disclosure be publically verifiable.
+disclosure be publicly verifiable.
 
 Donation drive
 --------------
@@ -162,10 +171,25 @@ We reproduce some notation and functions from [#protocol]_ here for convenience:
 
 We also define the following notation here:
 
-- $[a..b]$ means the sequence of values inclusive of $a$ and exclusive of
-  $b$.
-
 - $\mathsf{length}(a)$ means the length of the sequence $a$.
+
+This ZIP supports transactions of version 4 and later [#protocol-txnencoding]_. For such a
+transaction $\mathsf{tx}$:
+
+- $\mathsf{tx.transparentInputs}$ means the sequence of transparent inputs of $\mathsf{tx}$,
+  in the order in which they are encoded in its ``tx_in`` field.
+
+- $\mathsf{tx.saplingSpends}$ means the sequence of Sapling Spend descriptions
+  [#protocol-spenddesc]_ of $\mathsf{tx}$, in the order in which they are encoded in its
+  ``vSpendsSapling`` field. For a Spend description $\mathsf{s}$, $\mathsf{s.rt}$ is its
+  anchor, which is encoded in the ``anchor`` field of the Spend description in a version 4
+  transaction, and in the ``anchorSapling`` field of the transaction in later versions
+  [#protocol-spendencodingandconsensus]_; and $\mathsf{s.nf}$ is its nullifier, encoded in
+  its ``nullifier`` field.
+
+- $\mathsf{tx.saplingOutputs}$ means the sequence of Sapling Output descriptions
+  [#protocol-outputdesc]_ of $\mathsf{tx}$, in the order in which they are encoded in its
+  ``vOutputsSapling`` field.
 
 
 Specification
@@ -178,13 +202,14 @@ A payment disclosure has the following fields:
 
 - `txid`: Transaction id for the transaction `tx` being disclosed.
 
-- `msg`: A message field, which could contain a challenge value from the party to whom
-  the payment disclosure is directed.
+- $\mathsf{msg}$: A message field, which could contain a challenge value from the party to
+  whom the payment disclosure is directed.
 
 - $\mathsf{transparentInputs}$: A sequence of the transparent inputs for which we are
-  proving spend authority $[0..\mathsf{length}(\mathsf{tx.vin})]$
+  proving spend authority:
 
-  - $\mathsf{index}$: An index into $\mathsf{tx.vin}$.
+  - $\mathsf{index}$: An index into $\mathsf{tx.transparentInputs}$, in
+    $\{ 0\,..\, \mathsf{length}(\mathsf{tx.transparentInputs}) - 1 \}$.
   - $\mathsf{sig}$: A BIP 322 signature. [#bip-0322]_
 
     - TODO: `zcashd` currently only supports the legacy format defined in BIP 322. We may
@@ -195,13 +220,14 @@ A payment disclosure has the following fields:
       these for Zcash (which has a different set of script validation consensus rules).
 
 - $\mathsf{saplingSpends}$: A sequence of the Sapling Spends for which we are proving
-  spend authority $[0..\mathsf{length}(\mathsf{tx.shieldedSpends})]$
+  spend authority:
 
-  - $\mathsf{index}$: An index into $\mathsf{tx.shieldedSpends}$.
+  - $\mathsf{index}$: An index into $\mathsf{tx.saplingSpends}$, in
+    $\{ 0\,..\, \mathsf{length}(\mathsf{tx.saplingSpends}) - 1 \}$.
   - $\mathsf{cv}$: A value commitment to the spent note.
   - $\mathsf{rk}$: A randomized public key linked to the spent note.
   - $\mathsf{zkproof_{spend}}$: A Sapling spend proof.
-  - [Optional] A payment address proof `addr_proof`:
+  - [Optional] A payment address proof $\mathsf{addrProof}$:
 
     - Any $(\mathsf{d, pk_d})$ such that
       $\mathsf{pk_d} = [\mathsf{ivk}] \mathsf{DiversifyHash}(\mathsf{d})$
@@ -210,10 +236,10 @@ A payment disclosure has the following fields:
 
   - $\mathsf{spendAuthSig}$
 
-- $\mathsf{saplingOutputs}$: A sequence of the Sapling Outputs that we are disclosing
-  $[0..\mathsf{length}(\mathsf{tx.shieldedOutputs})]$
+- $\mathsf{saplingOutputs}$: A sequence of the Sapling Outputs that we are disclosing:
 
-  - $\mathsf{index}$: An index into $\mathsf{tx.shieldedOutputs}$.
+  - $\mathsf{index}$: An index into $\mathsf{tx.saplingOutputs}$, in
+    $\{ 0\,..\, \mathsf{length}(\mathsf{tx.saplingOutputs}) - 1 \}$.
   - $\mathsf{ock}$: The outgoing cipher key that allows this output to be recovered.
     [#protocol-saplingencrypt]_
 
@@ -230,7 +256,7 @@ The inputs to a payment disclosure are:
 
 - The transaction.
 - The SLIP-44 [#slip-0044]_ coin type.
-- The message $msg$ to be included (which may be empty).
+- The message $\mathsf{msg}$ to be included (which may be empty).
 - A sequence of $(\mathsf{outputIndex}, \mathsf{ock})$ tuples (which may be empty).
 - A sequence of Sapling spend tuples (which may be empty) containing:
 
@@ -240,7 +266,7 @@ The inputs to a payment disclosure are:
 
 - A sequence of transparent input tuples (which may be empty) containing:
 
-  - $\mathsf{index}$: An index into $\mathsf{tx.vin}$.
+  - $\mathsf{index}$: An index into $\mathsf{tx.transparentInputs}$.
   - The inputs to a BIP 322 signature (excluding `message_data`).
 
 The caller MUST provide at least one input tuple of any type (either a Sapling spend tuple
@@ -251,7 +277,7 @@ The payment disclosure is created as follows:
 - For each Sapling spend index:
 
   - Create a Sapling spend proof for the note that was spent in
-    $\mathsf{tx.shieldedSpends[index]}$, using the same anchor, to obtain
+    $\mathsf{tx.saplingSpends[index]}$, using the same anchor, to obtain
     $(\mathsf{cv}, \mathsf{rk}, \mathsf{zkproof_{spend}})$ as well as the random
     $\alpha$ that was generated internally.
 
@@ -262,7 +288,7 @@ The payment disclosure is created as follows:
 
 - For each transparent input index:
 
-  - TODO: Prepare BIP 322 signature inputs using `msg` as the `message_data`.
+  - TODO: Prepare BIP 322 signature inputs using $\mathsf{msg}$ as the `message_data`.
 
 - Construct an unsigned payment disclosure from the disclosed Sapling outputs, and the
   above data for the Sapling spends and transparent inputs. Define the encoding of this as
@@ -277,19 +303,20 @@ The payment disclosure is created as follows:
 
   - Let $digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZIP311Signed”}\,||\,coinType, unsignedPaymentDisclosure)$.
 
-  - Let $spendAuthSig = \mathsf{SpendAuthSig.Sign}(\mathsf{rsk}, digest)$.
+  - Let $\mathsf{spendAuthSig} = \mathsf{SpendAuthSig.Sign}(\mathsf{rsk}, digest)$.
 
 - For each transparent input index:
 
-  - TODO: Create a BIP 322 signature using `msg` as the `message_data`.
+  - TODO: Create a BIP 322 signature using $\mathsf{msg}$ as the `message_data`.
 
 - Return the payment disclosure as the combination of the unsigned payment disclosure and
-  the set of `spendAuthSig` and transparent signature values.
+  the set of $\mathsf{spendAuthSig}$ and transparent signature values.
 
 Verifying a payment disclosure
 ------------------------------
 
-Given a payment disclosure $\mathsf{pd}$, a transaction $\mathsf{tx}$, and the
+Given a payment disclosure $\mathsf{pd}$, a transaction $\mathsf{tx}$, the SLIP-44
+[#slip-0044]_ coin type of the network on which $\mathsf{tx}$ was mined, and the
 `height` of the block in which $\mathsf{tx}$ was mined (which we assume was verified
 by the caller), the verifier proceeds as follows:
 
@@ -299,9 +326,9 @@ by the caller), the verifier proceeds as follows:
 
   - Sequence length correctness:
 
-    - $\mathsf{length}(\mathsf{pd.saplingOutputs}) \leq \mathsf{length}(\mathsf{tx.shieldedOutputs})$
-    - $\mathsf{length}(\mathsf{pd.saplingSpends}) \leq \mathsf{length}(\mathsf{tx.shieldedSpends})$
-    - $\mathsf{length}(\mathsf{pd.transparentInputs}) \leq \mathsf{length}(\mathsf{tx.vin})$
+    - $\mathsf{length}(\mathsf{pd.saplingOutputs}) \leq \mathsf{length}(\mathsf{tx.saplingOutputs})$
+    - $\mathsf{length}(\mathsf{pd.saplingSpends}) \leq \mathsf{length}(\mathsf{tx.saplingSpends})$
+    - $\mathsf{length}(\mathsf{pd.transparentInputs}) \leq \mathsf{length}(\mathsf{tx.transparentInputs})$
 
   - Index uniqueness:
 
@@ -315,18 +342,23 @@ by the caller), the verifier proceeds as follows:
   - Index correctness:
 
     - For every $\mathsf{output}$ in $\mathsf{pd.saplingOutputs}$,
-      $\mathsf{output.index} < \mathsf{length}(\mathsf{tx.shieldedOutputs})$
+      $\mathsf{output.index} < \mathsf{length}(\mathsf{tx.saplingOutputs})$
     - For every $\mathsf{spend}$ in $\mathsf{pd.saplingSpends}$,
-      $\mathsf{spend.index} < \mathsf{length}(\mathsf{tx.shieldedSpends})$
+      $\mathsf{spend.index} < \mathsf{length}(\mathsf{tx.saplingSpends})$
     - For every $\mathsf{input}$ in $\mathsf{pd.transparentInputs}$,
-      $\mathsf{input.index} < \mathsf{length}(\mathsf{tx.vin})$
+      $\mathsf{input.index} < \mathsf{length}(\mathsf{tx.transparentInputs})$
 
   - $\mathsf{length}(\mathsf{pd.saplingSpends}) + \mathsf{length}(\mathsf{pd.transparentInputs}) > 0$
+
+  - Point validity: for every $\mathsf{spend}$ in $\mathsf{pd.saplingSpends}$,
+    $\mathsf{spend.cv}$ and $\mathsf{spend.rk}$ are valid encodings of Jubjub points that
+    are not of small order, as required for the corresponding fields of a Spend
+    description [#protocol-spenddesc]_.
 
 - Let $unsignedPaymentDisclosure$ be the encoding of the payment disclosure without
   signatures.
 
-- Let $coinType$ be the 4-byte little-endian encoding of the coin type in its index
+- Let $coinType$ be the 4-byte little-endian encoding of the SLIP 44 coin type in its index
   form, not its hardened form (i.e. 133 for mainnet Zcash).
 
 - Let $digest = \mathsf{BLAKE2b}\text{-}\mathsf{256}(\texttt{“ZIP311Signed”}\,||\,coinType, unsignedPaymentDisclosure)$.
@@ -343,9 +375,9 @@ by the caller), the verifier proceeds as follows:
   - Decode and verify $\mathsf{zkproof_{spend}}$ as a Sapling spend proof
     [#protocol-spendstatement]_ with primary input:
 
-    - $\mathsf{tx.shieldedSpends[spend.index].rt}$
+    - $\mathsf{tx.saplingSpends[spend.index].rt}$
     - $\mathsf{spend.cv}$
-    - $\mathsf{tx.shieldedSpends[spend.index].nf}$
+    - $\mathsf{tx.saplingSpends[spend.index].nf}$
     - $\mathsf{spend.rk}$
 
     If verification fails, return false.
@@ -356,9 +388,11 @@ by the caller), the verifier proceeds as follows:
 
 - For every $\mathsf{output}$ in $\mathsf{pd.saplingOutputs}$:
 
-  - Recover the Sapling note in $\mathsf{tx.shieldedOutputs}[\mathsf{output.index}]$
-    via the process specified in [#protocol-saplingdecryptovk]_ with inputs
-    $(height, \mathsf{output.ock})$. If recovery returns $\bot$, return false.
+  - Recover the Sapling note in $\mathsf{tx.saplingOutputs}[\mathsf{output.index}]$
+    via the process specified in [#protocol-saplingdecryptovk]_, with $height$ as the
+    block height and the version of $\mathsf{tx}$ as the transaction version, skipping
+    the step that derives $\mathsf{ock}$ from $\mathsf{ovk}$ and using
+    $\mathsf{ock} = \mathsf{output.ock}$ instead. If recovery returns $\bot$, return false.
 
 - Return true.
 
@@ -389,7 +423,7 @@ any of the diversified addresses linked to the spending key. Fundamentally, the 
 of a transaction is anyone who has access to the corresponding spend authority; in the
 case of Sapling, a spend authority corresponds to multiple diversified addresses. In
 situations where a sender address is already known to the verifier of the payment
-disclosure (or publically), it may still be useful to have the option of linking the payment disclosure to
+disclosure (or publicly), it may still be useful to have the option of linking the payment disclosure to
 that address.
 
 
@@ -399,7 +433,7 @@ Security and Privacy Considerations
 When spending Sapling notes normally in transactions, wallets select a recent anchor to
 make the anonymity set of the spent note as large as possible. By contrast, Sapling spend
 authority in a payment disclosure is proven using the same anchor that was used in the
-transaction itself, instead of a recent anchor. We do this for efficency reasons:
+transaction itself, instead of a recent anchor. We do this for efficiency reasons:
 
 - The anchor is already encoded in the transaction, so can be omitted from the payment
   disclosure encoding.
@@ -413,6 +447,16 @@ transaction itself, instead of a recent anchor. We do this for efficency reasons
 There is no privacy benefit to selecting a more recent anchor; the anonymity set of the
 note was "fixed" by the original spend (which revealed that the note existed as of that
 anchor's height).
+
+The Sapling spend statement does not check that $\mathsf{rk}$ is not of small order; this
+is checked outside the statement for Spend descriptions [#protocol-spendstatement]_. If
+$\mathsf{spend.rk}$ were of small order, $\mathsf{SpendAuthSig.Verify}$ could accept the
+same $\mathsf{spendAuthSig}$ for every $digest$, and so a payment disclosure could be
+altered (for example, to change $\mathsf{msg}$) without invalidating it. The point validity
+check on $\mathsf{spend.rk}$ is therefore needed for payment disclosures to be non-malleable
+and to be tied to a challenge. Since only small-order Jubjub points have non-canonical
+encodings, the check also rules out non-canonical encodings [#zip-0216]_. The same check is
+applied to $\mathsf{spend.cv}$ for consistency with Spend descriptions.
 
 We require all payment disclosures to prove spend authority for at least one input, in
 order to simplify the verification UX. In particular, if payment disclosures without
@@ -433,14 +477,18 @@ TBD
 References
 ==========
 
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#RFC4648] `RFC 4648: The Base16, Base32, and Base64 Data Encodings <https://www.rfc-editor.org/rfc/rfc4648>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later <protocol/protocol.pdf>`_
-.. [#protocol-spendstatement] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.15.2: Spend Statement (Sapling) <protocol/protocol.pdf#spendstatement>`_
-.. [#protocol-saplingencrypt] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. 4.19.1: Encryption (Sapling) <protocol/protocol.pdf#saplingencrypt>`_
-.. [#protocol-saplingdecryptovk] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.20.3: Decryption using an Outgoing Viewing Key (Sapling) <protocol/protocol.pdf#saplingdecryptovk>`_
-.. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.1.6: DiversifyHash Hash Function <protocol/protocol.pdf#concretediversifyhash>`_
-.. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.6.1: Spend Authorization Signature <protocol/protocol.pdf#concretespendauthsig>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1] or later <protocol/protocol.pdf>`_
+.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
+.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
+.. [#protocol-spendstatement] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.18.2: Spend Statement (Sapling) <protocol/protocol.pdf#spendstatement>`_
+.. [#protocol-saplingencrypt] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.20.1: Encryption (Sapling and Orchard) <protocol/protocol.pdf#saplingencrypt>`_
+.. [#protocol-saplingdecryptovk] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.20.3: Decryption using an Outgoing Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#saplingdecryptovk>`_
+.. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions <protocol/protocol.pdf#concretediversifyhash>`_
+.. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#protocol-spendencodingandconsensus] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.3: Spend Description Encoding and Consensus <protocol/protocol.pdf#spendencodingandconsensus>`_
 .. [#bip-0322] `BIP 322: Generic Signed Message Format <https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki>`_
 .. [#slip-0044] `SLIP-0044 : Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
+.. [#zip-0216] `ZIP 216: Require Canonical Jubjub Point Encodings <zip-0216.rst>`_
 .. [#zip-0304] `ZIP 304: Sapling Address Signatures <zip-0304.rst>`_

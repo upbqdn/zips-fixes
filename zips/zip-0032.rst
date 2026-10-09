@@ -19,8 +19,9 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this document are to be
-interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+and "MAY" in this document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
+when, they appear in all capitals.
 
 "Jubjub" refers to the elliptic curve defined in [#protocol-jubjub]_.
 
@@ -40,11 +41,11 @@ This proposal defines a mechanism for extending hierarchical deterministic walle
 [#bip-0032]_, to support Zcash's shielded addresses.
 
 The initial parts of the specification define (mostly) equivalent, but independent, systems for deriving a
-tree of key components from a single seed, for the following shielded pools (which have different internal
-key structures):
+tree of key components from a single seed, for the following shielded protocols (which have different
+internal key structures):
 
 - Sapling
-- Orchard
+- Orchard (used by both the Orchard pool and, from NU6.3, the Ironwood pool [#zip-0229]_)
 
 Previous versions of this document also defined a similar derivation system for the Sprout shielded pool.
 This has been removed since it was never used, and is unlikely to be used given that `zcashd` no longer
@@ -141,7 +142,10 @@ specifications), which is the opposite of BIP 32.
 We adapt the path notation of BIP 32 [#bip-0032]_ to describe shielded HD paths, using prime marks $\textsf{(}\kern0.1em{}'\textsf{)}$ to
 indicate hardened derivation ($\!i' = i + 2^{31}$) as in BIP 44 [#bip-0044]_:
 
-- $\mathsf{CKDfvk}(\mathsf{CKDfvk}(\mathsf{CKDfvk}(m_\mathsf{Sapling}, a), b), c)$ is written as $m_\mathsf{Sapling} / a / b / c$.
+- $\mathsf{CKD}(\mathsf{CKD}(\mathsf{CKD}(m_\mathsf{Context}, a), b), c)$ is written as $m_\mathsf{Context} / a / b / c$,
+  where $m_\mathsf{Context}$ is the master extended key for a context (for example $m_\mathsf{Sapling}$,
+  $m_\mathsf{Orchard}$, or $m_\mathsf{Adhoc}$), and $\mathsf{CKD}$ is the child key derivation function
+  for that context ($\mathsf{CKDsk}$ for Sapling and Orchard, $\mathsf{CKDarb}$ for Adhoc).
 
 Note: no corresponding notation is currently defined for the result of
 `Hardened-only child key derivation`_ with non-zero $\mathsf{lead}$ and/or non-empty $\mathsf{tag}$.
@@ -271,7 +275,7 @@ $\mathsf{CKDsk}((\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par}, \ma
     let $I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathtt{0x11}]$ $||\,\mathsf{EncodeExtSKParts}(\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par})$ $||\,\mathsf{I2LEOSP}_{32}(i))$.
   - If not (normal child):
     let $I = \mathsf{PRF^{expand}}(\mathsf{c}_{par}, [\mathtt{0x12}]$ $||\,\mathsf{EncodeExtFVKParts}(\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par}, \mathsf{dk}_{par})$ $||\,\mathsf{I2LEOSP}_{32}(i))$
-    where $(\mathsf{nk}_{par}, \mathsf{ak}_{par}, \mathsf{ovk}_{par})$ is the full viewing key derived from
+    where $(\mathsf{ak}_{par}, \mathsf{nk}_{par}, \mathsf{ovk}_{par})$ is the full viewing key derived from
     $(\mathsf{ask}_{par}, \mathsf{nsk}_{par}, \mathsf{ovk}_{par})$ as described in [#protocol-saplingkeycomponents]_.
 
 - Split $I$ into two 32-byte sequences, $I_L$ and $I_R$.
@@ -342,9 +346,9 @@ Let $(\mathsf{ask}, \mathsf{nsk}, \mathsf{ovk}, \mathsf{dk})$ be the external sp
 - Split $R$ into two 32-byte sequences, $\mathsf{dk_{internal}}$ and $\mathsf{ovk_{internal}}$.
 - Return the internal spending key as $(\mathsf{ask}, \mathsf{nsk_{internal}}, \mathsf{ovk_{internal}}, \mathsf{dk_{internal}})$.
 
-Note that the child extended key is invalid if $\mathsf{ak}$ is the zero point of Jubjub,
-or if the corresponding $\mathsf{ivk}$ derived as specified in [#protocol-saplingkeycomponents]_
-is $0$.
+Note that the internal spending key is invalid if $\mathsf{ak}$ is the zero point of Jubjub,
+or if the corresponding $\mathsf{ivk_{internal}}$ derived as specified in
+[#protocol-saplingkeycomponents]_ is $0$.
 
 Deriving a Sapling internal full viewing key
 ````````````````````````````````````````````
@@ -489,6 +493,10 @@ Let $S$ be a seed byte sequence meeting the requirements in `Specification: Wall
 - Return $\mathsf{MKGh}^\mathsf{Orchard}(S)$ as the master extended spending key
   $m_\mathsf{Orchard}$.
 
+Note that the master spending key $\mathsf{sk}_m$ may produce an invalid external or internal
+FVK, as specified in [#protocol-orchardkeycomponents]_, with small probability, in which case the
+master extended key is invalid.
+
 Orchard child key derivation
 ----------------------------
 
@@ -498,7 +506,8 @@ $\mathsf{CKDsk}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\mathsf
 
 Note that the resulting child spending key may produce an invalid external FVK, as specified
 in [#protocol-orchardkeycomponents]_, with small probability. The corresponding internal FVK
-derived as specified in the next section may also be invalid with small probability.
+derived as specified in the next section may also be invalid with small probability. In either
+case, the child extended key is invalid.
 
 Orchard internal key derivation
 -------------------------------
@@ -516,8 +525,8 @@ viewing key, obtained as specified in [#protocol-orchardkeycomponents]_.
 Define $\mathsf{DeriveInternalFVK^{Orchard}}(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk})$
 as follows:
 
-- Let $K = \mathsf{I2LEBSP}_{256}(\mathsf{rivk})$.
-- Let $\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF}^{\mathsf{expand}}_{K}\big([\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk})\kern-0.1em\big)\kern-0.15em\big)$.
+- Let $K = \mathsf{I2LEOSP}_{256}(\mathsf{rivk})$.
+- Let $\mathsf{rivk_{internal}} = \mathsf{ToScalar^{Orchard}}\big(\mathsf{PRF^{expand}}\big(K, [\mathtt{0x83}] \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{ak}) \,||\, \mathsf{I2LEOSP_{256}}(\mathsf{nk})\kern-0.1em\big)\kern-0.15em\big)$.
 - Return $(\mathsf{ak}, \mathsf{nk}, \mathsf{rivk_{internal}})$.
 
 The result of applying $\mathsf{DeriveInternalFVK^{Orchard}}$ to the external full viewing
@@ -543,11 +552,13 @@ diagram:
 
 $\ast\,$ The derivations of $\mathsf{ask}$ and $\mathsf{rivk}$ shown in the diagram are
 not the only possibility. For further detail see § 4.2.3 ‘Orchard Key Components’ in the
-protocol specification [#protocol-orchardkeycomponents]_. However, if $\mathsf{ask}$,
-$\mathsf{ak}$, $\mathsf{nk}$, $\mathsf{rivk}$, and $\mathsf{rivk_{internal}}$ are not
-generated as in the diagram, then it may not be possible to recover the resulting notes
-as specified in ZIP 2005 [#zip-2005]_ in the event that attacks using quantum computers
-become practical.
+protocol specification [#protocol-orchardkeycomponents]_. In particular, when
+$\mathsf{use\_qsk}$ is true, $\mathsf{ak}$ can be obtained by other methods such as FROST
+distributed key generation, and $\mathsf{rivk}$ is derived from $\mathsf{qk}$, $\mathsf{ak}$,
+and $\mathsf{nk}$. However, if $\mathsf{ask}$, $\mathsf{ak}$, $\mathsf{nk}$, $\mathsf{rivk}$,
+and $\mathsf{rivk_{internal}}$ are not generated as specified in § 4.2.3, then it may not be
+possible to recover the resulting notes as specified in ZIP 2005 [#zip-2005]_ in the event
+that attacks using quantum computers become practical.
 
 This method of deriving internal keys is applied to external keys that are children of the
 Account level. It was implemented in `zcashd` as part of support for ZIP 316 [#zip-0316]_.
@@ -699,7 +710,7 @@ $\mathsf{CKDarb}((\mathsf{sk}_{par}, \mathsf{c}_{par}), i)$ $\rightarrow (\maths
 
 Note: a previous iteration of this ZIP suggested that, if $i$ is the last element of an HD path
 (i.e. no extension of this path is used), then the concatenation $\mathsf{sk}_i\,||\,\mathsf{c}_i$
-could be used as a 64-bit key. This is NOT RECOMMENDED, because it is difficult to define safe APIs
+could be used as a 64-byte key. This is NOT RECOMMENDED, because it is difficult to define safe APIs
 that enforce the restriction that a given node in the key tree must not be used both in this way
 and to derive further child keys. `Full-width child cryptovalue derivation`_ provides a safe way to
 obtain the same functionality for new application protocols.
@@ -719,7 +730,8 @@ Sapling and Orchard key paths have the following three path levels at the top, a
 derivation:
 
 - $purpose$: a constant set to $32'$ (or $\mathtt{0x80000020}$) following the BIP 43
-  recommendation. It indicates that the subtree of this node is used according to this specification.
+  recommendation [#bip-0043]_. It indicates that the subtree of this node is used according to
+  this specification.
 
 - $coin\_type$: a constant identifying the cryptocurrency that this subtree's keys are used with. For
   compatibility with existing BIP 44 implementations, we use the same constants as defined in SLIP 44
@@ -728,6 +740,12 @@ derivation:
 
 - $account$: numbered from index $0$ in sequentially increasing manner. Defined as in
   BIP 44 [#bip-0044]_.
+
+Derivation of the extended key at a path fails if the master extended key, or any extended key
+derived along the path, is invalid as noted in the key derivation sections above. In particular,
+if the master extended key, or the extended key at the $purpose'$ or $coin\_type'$ level, is
+invalid, then derivation fails for every account. These events have negligible probability. This
+specification does not define how a wallet proceeds if derivation fails for an account index.
 
 Unlike BIP 44, none of the shielded key paths have a $change$ path level. The use of change addresses
 in Bitcoin is a (failed) attempt to increase the difficulty of tracking users on the transaction graph, by
@@ -745,7 +763,8 @@ relevant transactions.
 
 The above key path levels include an account identifier, which in all user interfaces is represented as a
 "bucket of funds" under the control of a single spending authority. Therefore, wallets implementing Sapling
-ZIP 32 derivation MUST support the following path for any account in range $\{ 0\,..\, 2^{31} - 1 \}$:
+ZIP 32 derivation MUST support the following path for any account in range $\{ 0\,..\, 2^{31} - 1 \}$
+for which derivation does not fail (see `Key path levels`_):
 
 * $m_\mathsf{Sapling} / purpose' / coin\_type' / account'$.
 
@@ -762,8 +781,9 @@ they MAY additionally support a non-hardened $address\_index$ path level as in [
 
 * $m_\mathsf{Sapling} / purpose' / coin\_type' / account' / address\_index$.
 
-`zcashd` version 4.6.0 and later uses this to derive "legacy" Sapling addresses from a mnemonic seed phrase
-under account $\mathtt{0x7FFFFFFF}$, using hardened derivation for $address\_index$.
+From version 4.7.0, `zcashd` derived "legacy" Sapling addresses from a mnemonic seed phrase at
+$m_\mathsf{Sapling} / purpose' / coin\_type' / \mathtt{0x7FFFFFFF}' / address\_index'$, i.e. like
+the path above but with hardened derivation at the $address\_index$ level.
 
 Orchard key path
 ----------------
@@ -774,7 +794,8 @@ addresses as needed does not increase the cost of scanning the block chain for r
 
 The above key path levels include an account identifier, which in all user interfaces is represented as a
 "bucket of funds" under the control of a single spending authority. Therefore, wallets implementing Orchard
-ZIP 32 derivation MUST support the following path for any account in range $\{ 0\,..\, 2^{31} - 1 \}$:
+ZIP 32 derivation MUST support the following path for any account in range $\{ 0\,..\, 2^{31} - 1 \}$
+for which derivation does not fail (see `Key path levels`_):
 
 * $m_\mathsf{Orchard} / purpose' / coin\_type' / account'$.
 
@@ -827,8 +848,9 @@ A "seed fingerprint" for the master seed $S$ of a hierarchical deterministic wal
 
 It MAY be used to uniquely identify a particular hierarchical deterministic wallet.
 
-The string encoding of a seed fingerprint uses Bech32m with the Human-Readable Part
-``zip32seedfp``, and the fingerprint bytes as the data.
+The string encoding of a seed fingerprint uses Bech32m [#bip-0350]_ with the Human-Readable Part
+``zip32seedfp``, and the fingerprint bytes, converted to 5-bit groups as specified in
+ZIP 173 [#zip-0173]_, as the data.
 
 No corresponding short tag is defined.
 
@@ -841,7 +863,13 @@ Specification: Key Encodings
 
 The following encodings are analogous to the ``xprv`` and ``xpub`` encodings defined
 in BIP 32 for transparent keys and addresses. Each key type has a raw representation
-and a Bech32 [#bip-0173]_ encoding.
+and a string encoding. Sapling keys are encoded as Bech32 as specified in ZIP 173 [#zip-0173]_.
+Orchard keys are encoded as Bech32m [#bip-0350]_, ignoring any length restrictions, with the raw
+representation converted to 5-bit groups as specified in ZIP 173.
+
+For the extended keys encoded below, the master extended key has depth $0$, and a child extended
+key has the depth of its parent plus $1$. Since $depth$ is encoded in one byte, child key
+derivation that would produce such a key at a depth greater than $255$ MUST fail.
 
 
 Sapling extended spending keys
@@ -857,7 +885,7 @@ For the master extended spending key, $depth$ is $0$, $parent\_fvk\_tag$ is
 4 zero bytes, and $i$ is $0$.
 
 When encoded as Bech32, the Human-Readable Part is ``secret-extended-key-main``
-for the production network, or ``secret-extended-key-test`` for the test network.
+for Mainnet, or ``secret-extended-key-test`` for Testnet.
 
 Sapling extended full viewing keys
 ----------------------------------
@@ -871,8 +899,8 @@ represented as a byte sequence:
 For the master extended full viewing key, $depth$ is $0$, $parent\_fvk\_tag$
 is 4 zero bytes, and $i$ is $0$.
 
-When encoded as Bech32, the Human-Readable Part is ``zxviews`` for the production
-network, or ``zxviewtestsapling`` for the test network.
+When encoded as Bech32, the Human-Readable Part is ``zxviews`` for Mainnet, or
+``zxviewtestsapling`` for Testnet.
 
 Orchard extended spending keys
 ------------------------------
@@ -885,7 +913,7 @@ key tag $parent\_fvk\_tag$ and child number $i$, is represented as a byte sequen
 For the master extended spending key, $depth$ is $0$, $parent\_fvk\_tag$ is
 4 zero bytes, and $i$ is $0$.
 
-When encoded as Bech32, the Human-Readable Part is ``secret-orchard-extsk-main``
+When encoded as Bech32m, the Human-Readable Part is ``secret-orchard-extsk-main``
 for Mainnet, or ``secret-orchard-extsk-test`` for Testnet.
 
 We define this encoding for completeness, however given that it includes the capability to derive child
@@ -920,7 +948,14 @@ Test vectors are available at <https://github.com/zcash/zcash-test-vectors> in t
 Reference Implementation
 ========================
 
-* https://github.com/zcash-hackworks/zip32
+* https://github.com/zcash/zip32 (hardened-only, registered, and ad-hoc (deprecated) key
+  derivation, and seed fingerprints)
+* https://github.com/zcash/sapling-crypto (Sapling key derivation)
+* https://github.com/zcash/orchard (Orchard key derivation)
+
+Historical implementations of Sapling key derivation (2018):
+
+* https://github.com/zcash/zip32
 * https://github.com/zcash/librustzcash/pull/29
 * https://github.com/zcash/zcash/pull/3447
 * https://github.com/zcash/zcash/pull/3492
@@ -936,18 +971,15 @@ References
 .. [#bip-0043] `BIP 43: Purpose Field for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#slip-0044] `SLIP 44: Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
-.. [#bip-0173] `BIP 173: Base32 address format for native v0-16 witness outputs <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2022.2.19 or later [NU5 proposal] <protocol/protocol.pdf>`_
+.. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
+.. [#protocol] `Zcash Protocol Specification, Version 2026.7.0 [NU6.2] or later <protocol/protocol.pdf>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2022.2.19. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
 .. [#protocol-saplingkeycomponents] `Zcash Protocol Specification, Version 2022.2.19. Section 4.2.2: Sapling Key Components <protocol/protocol.pdf#saplingkeycomponents>`_
-.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2022.2.19. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
+.. [#protocol-orchardkeycomponents] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3] or later. Section 4.2.3: Orchard Key Components <protocol/protocol.pdf#orchardkeycomponents>`_
 .. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2022.2.19. Section 5.4.1.6: DiversifyHash^Sapling and DiversifyHash^Orchard Hash Functions <protocol/protocol.pdf#concretediversifyhash>`_
-.. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2022.2.19. Section 5.4.6.1: Spend Authorization Signature <protocol/protocol.pdf#concretespendauthsig>`_
+.. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2022.2.19. Section 5.4.7.1: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#concretespendauthsig>`_
 .. [#protocol-jubjub] `Zcash Protocol Specification, Version 2022.2.19. Section 5.4.9.3: Jubjub <protocol/protocol.pdf#jubjub>`_
-.. [#protocol-sproutpaymentaddrencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.2.1: Sprout Payment Addresses <protocol/protocol.pdf#sproutpaymentaddrencoding>`_
-.. [#protocol-sproutspendingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.2.3: Sprout Spending Keys <protocol/protocol.pdf#sproutspendingkeyencoding>`_
 .. [#protocol-saplingfullviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.3.3: Sapling Full Viewing Keys <protocol/protocol.pdf#saplingfullviewingkeyencoding>`_
-.. [#protocol-saplingspendingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.3.4: Sapling Spending Keys <protocol/protocol.pdf#saplingspendingkeyencoding>`_
 .. [#protocol-orchardfullviewingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.4: Orchard Raw Full Viewing Keys <protocol/protocol.pdf#orchardfullviewingkeyencoding>`_
 .. [#protocol-orchardspendingkeyencoding] `Zcash Protocol Specification, Version 2022.2.19. Section 5.6.4.5: Orchard Spending Keys <protocol/protocol.pdf#orchardspendingkeyencoding>`_
 .. [#NIST-SP-800-38G] `NIST Special Publication 800-38G — Recommendation for Block Cipher Modes of Operation: Methods for Format-Preserving Encryption <https://dx.doi.org/10.6028/NIST.SP.800-38G>`_
@@ -955,7 +987,9 @@ References
 .. [#Bernstein2005] `Understanding brute force. Daniel Bernstein, 2005. <https://cr.yp.to/papers.html#bruteforce>`_
 .. [#Zaverucha2012] `Hybrid Encryption in the Multi-User Setting. Gregory M. Zaverucha, 2012. <https://eprint.iacr.org/2012/159>`_
 .. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#zip-0173] `ZIP 173: Bech32 Format <zip-0173.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0315-wallet-seeds] `ZIP 315: Best Practices for Wallet Implementations — Specification: Wallet seeds <zip-0315.rst#wallet-seeds>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#zip-0316-usage-of-outgoing-viewing-keys] `ZIP 316: Unified Addresses and Unified Viewing Keys — Usage of Outgoing Viewing Keys <zip-0316.rst#usage-of-outgoing-viewing-keys>`_
-.. [#zip-2005] `ZIP 2005: Orchard Quantum Recoverability <zip-2005.md>`_
+.. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_

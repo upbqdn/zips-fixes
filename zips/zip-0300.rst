@@ -54,7 +54,7 @@ be named "Alice", and the buyer agreeing to complete the exchange will be
 named "Bob".
 
 Alice wishes to initiate an XCAT exchange from Bitcoin to Zcash. She
-chooses a random number R, hashes it, and creates a P2SH address on the
+chooses a random 32-byte string R, hashes it, and creates a P2SH address on the
 Zcash blockchain using her and Bob's public keys, that she will wait for
 Bob to fund with the amount he wants to trade. (Agreement on the amount
 to trade and exchange rate is outside the scope of this protocol, and
@@ -66,12 +66,26 @@ The script in the P2SH address takes the following form:
 ::
 
     OP_IF
-        [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Alice's pubkey hash>
+        OP_SIZE 32 OP_EQUALVERIFY [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Alice's pubkey hash>
     OP_ELSE
-        <time-out duration (24 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Bob's pubkey hash>
+        <lock time (24 hours after funding)> OP_CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Bob's pubkey hash>
     OP_ENDIF
     OP_EQUALVERIFY
     OP_CHECKSIG
+
+The placeholder [HASHOP] is ``OP_SHA256``, so <hash digest of R> is the
+32-byte SHA-256 digest of R. The ``OP_SIZE`` check accepts only a 32-byte R,
+so that a value of R that one chain accepts cannot be rejected by the other
+(for example, because of a different limit on the size of stack elements).
+
+The opcode ``OP_CHECKLOCKTIMEVERIFY`` [#bip-0065]_ checks an absolute lock
+time, not a duration: the spending transaction's ``nLockTime`` must be of the
+same kind as the pushed value (a block height if it is below 500000000,
+otherwise a Unix time) and at least that value, and the spending input's
+``nSequence`` must be less than 0xFFFFFFFF. Zcash has no relative lock-time
+opcode (ZIP 68 [#zip-0068]_ and ZIP 112 [#zip-0112]_ are drafts), so Alice
+computes each lock time, as a block height or Unix time, when she creates the
+scripts.
 
 There are two scenarios for spending funds from this P2SH address. The
 first is a successful atomic swap which gives Alice the money she asked
@@ -80,10 +94,14 @@ funds on the other blockchain. The second is a fail case which refunds
 Bob's money if Alice does not follow through.
 
 1. Success case: Alice spends the funds sent to the address, revealing
-   the random number R she hashed to create the script in the process.
+   the random value R she hashed to create the script in the process.
+   Her scriptSig is ``<Alice's signature> <Alice's pubkey> <R> OP_TRUE``,
+   followed by the redeem script as for any P2SH spend.
 2. Fail case: Alice does not spend the funds sent to the address within
    the timeout period, so Bob sends his funds back to himself, canceling
-   the transaction.
+   the transaction. His scriptSig is ``<Bob's signature> <Bob's pubkey>
+   OP_FALSE``, followed by the redeem script, and his transaction's
+   ``nLockTime`` is at least the lock time in the script.
 
 At the same time that Alice creates this P2SH address on the Zcash
 blockchain, she must also create a P2SH address on the Bitcoin
@@ -95,9 +113,9 @@ The script for this second transaction takes the following form:
 ::
 
     OP_IF
-        [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Bob's pubkey hash>
+        OP_SIZE 32 OP_EQUALVERIFY [HASHOP] <hash digest of R> OP_EQUALVERIFY OP_DUP OP_HASH160 <Bob's pubkey hash>
     OP_ELSE
-        <time-out duration (48 hours)> CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Alice's pubkey hash>
+        <lock time (48 hours after funding)> OP_CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_HASH160 <Alice's pubkey hash>
     OP_ENDIF
     OP_EQUALVERIFY
     OP_CHECKSIG
@@ -153,7 +171,10 @@ Block times
 '''''''''''
 
 The protection provided by the timeout period must take into account
-relative block times between the two blockchains.
+relative block times between the two blockchains. A lock time given as a
+block height converts to wall-clock time through the chain's block target
+spacing, which network upgrades can change (on Zcash it has been 75 seconds
+since Blossom [#zip-0208]_).
 
 
 Rationale
@@ -162,3 +183,12 @@ Rationale
 Users are free to come up with their own protocols for cross-chain atomic
 transactions, but having a well-defined protocol would aid adoption and
 support third-party services wishing to provide such functionality.
+
+
+References
+==========
+
+.. [#bip-0065] `BIP 65: OP_CHECKLOCKTIMEVERIFY <https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki>`_
+.. [#zip-0068] `ZIP 68: Relative lock-time using consensus-enforced sequence numbers <zip-0068.rst>`_
+.. [#zip-0112] `ZIP 112: CHECKSEQUENCEVERIFY <zip-0112.rst>`_
+.. [#zip-0208] `ZIP 208: Shorter Block Target Spacing <zip-0208.rst>`_

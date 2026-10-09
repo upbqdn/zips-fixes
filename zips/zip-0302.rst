@@ -7,6 +7,7 @@
   Status: Draft
   Category: Standards / RPC / Wallet
   Created: 2017-02-08
+  License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/366>
   Pull-Request: <https://github.com/zcash/zips/pull/105>
 
@@ -27,15 +28,22 @@ standardized formatting rules that define the type and length of the data contai
 Specification
 =============
 
-Section 5.5 of the Zcash protocol specification [#protocol]_ defines three cases
-for the encoding of a memo field:
+The memo field of a note is a sequence of 512 bytes [#protocol-noteptconcept]_. Its usage is by
+agreement between the sender and recipient of the note; this ZIP specifies constraints on its
+contents.
 
-* a UTF-8 human-readable string [#UTF-8]_, padded by appending zero bytes; or
+The following specification constrains a party, called the "writer", that creates the contents
+of a memo. It does not define consensus requirements.
+
+The writer SHOULD encode the memo as one of:
+
+* a UTF-8 human-readable string [#UTF-8]_, padded to 512 bytes by appending ``0x00`` bytes
+  (the first byte of such a memo has a value of ``0xF4`` or smaller); or
 * the byte ``0xF6`` followed by 511 ``0x00`` bytes, indicating "no memo"; or
-* any other sequence of 512 bytes starting with a byte value ``0xF5`` or greater (which is
-  therefore not a valid UTF-8 string), as specified in ZIP 302.
+* the byte ``0xFF`` followed by 511 bytes of arbitrary data.
 
-This ZIP refines the specification of the third case.
+The writer SHOULD NOT create a memo whose first byte has a value of ``0xF5``, or that matches
+one of the patterns reserved below for future updates to this specification.
 
 The following specification constrains a party, called the "reader", that interprets the
 contents of a memo. It does not define consensus requirements.
@@ -67,8 +75,8 @@ contents of a memo. It does not define consensus requirements.
 Rationale
 =========
 
-The new protocol specification is an improvement over the current memo field content
-specification that was in the protocol spec up to version 2020.1.0, which stated:
+This specification improves on the memo field content specification that was in the
+protocol spec up to version 2020.1.0, which stated:
 
     The usage of the memo field is by agreement between the sender and recipient of the
     note. The memo field SHOULD be encoded either as:
@@ -87,9 +95,9 @@ specification that was in the protocol spec up to version 2020.1.0, which stated
     start byte of ``0xF6`` or greater is reserved for use in future Zcash protocol
     extensions.
 
-See issue `#1849`_ for further discussion.
+See issue `#366`_ for further discussion.
 
-.. _`#1849`: https://github.com/zcash/zcash/issues/1849
+.. _`#366`: https://github.com/zcash/zips/issues/366
 
 Backwards Compatibility
 =======================
@@ -100,6 +108,5 @@ interpreted according to the specification set out in older versions of the prot
 References
 ==========
 
-.. [#protocol] `Zcash Protocol Specification, Version 2021.1.19 <protocol/protocol.pdf>`_
+.. [#protocol-noteptconcept] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 3.2.1: Note Plaintexts and Memo Fields <protocol/protocol.pdf#noteptconcept>`_
 .. [#UTF-8] `UTF-8, a transformation format of ISO 10646 <https://www.rfc-editor.org/rfc/rfc3629.html>`_
-.. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
