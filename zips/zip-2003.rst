@@ -3,7 +3,7 @@
   ZIP: 2003
   Title: Disallow version 4 transactions
   Owners: Daira-Emma Hopwood <daira@jacaranda.org>
-  Status: Draft
+  Status: Implemented (zebra)
   Category: Consensus
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/825>
