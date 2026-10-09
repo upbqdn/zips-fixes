@@ -24,30 +24,52 @@ interpreted as described in ZIP 200. [#zip-0200]_
 Abstract
 ========
 
-This proposal defines changes to ZIP 244 [#zip-0244]_ transaction id and signature digest 
-algorithms to accommodate the inclusion of transparent Zcash extensions (TZEs) 
-as defined in ZIP 222 [#zip-0222]_. 
+This proposal defines changes to ZIP 244 [#zip-0244]_ transaction id and signature digest
+algorithms to accommodate the inclusion of transparent Zcash extensions (TZEs)
+as defined in ZIP 222 [#zip-0222]_.
 
 
 Specification
 =============
 
+Scope
+-----
+
+The digests in this specification apply only to transactions of the version <TBD> format
+defined in ZIP 222 [#zip-0222]_. That format adds TZE inputs and outputs to an existing
+transaction format, referred to here as the base format. The digests of the base format
+are specified in ZIP 244 [#zip-0244]_ for version 5, and in ZIP 229 [#zip-0229]_ for
+version 6. The digests of all other transaction versions are unchanged.
+
+For a transaction of the ZIP 222 version, the transaction identifier digest, the signature
+digest, and the authorizing data commitment are computed as for the base format, except
+that the top hash of each has one additional child, appended after all children of the
+base format: ``tze_digest``, ``tze_sig_digest``, and ``tze_witnesses_digest``
+respectively. For a signature over a TZE input, ``hash_type`` and ``txin_sig_digest``
+in ``transparent_sig_digest`` (ZIP 244 S.2) are set as described in `Signature Digest`_.
+The personalization fields of the top hashes are unchanged.
+
+The trees and labels below show the case of a version 5 base format. For a version 6 base
+format, each TZE child likewise follows the last child specified in ZIP 229.
+
+As in ZIP 244, ``BLAKE2b-256(personalization_string, [])`` denotes a personalized hash of
+the empty byte array.
+
 TxId Digest
 -----------
 
-The tree of hashes defined by ZIP 244 [#zip-0244]_ is re-structured to include a new
-branch for TZE hashes. The ``tze_digest`` branch is the only new addition to the
-tree; ``header_digest``, ``transparent_digest``, ``sprout_digest``, and ``sapling_digest``
+The tree of hashes defined by ZIP 244 [#zip-0244]_ is extended with a new branch for TZE
+hashes. The ``tze_digest`` branch is the only new addition to the tree; all other nodes
 are as in ZIP 244::
 
    txid_digest
    ├── header_digest
    ├── transparent_digest
-   ├── tze_digest
-   │   ├── tzein_digest
-   │   └── tzeout_digest
-   ├── sprout_digest
-   └── sapling_digest
+   ├── sapling_digest
+   ├── orchard_digest
+   └── tze_digest
+       ├── tzein_digest
+       └── tzeout_digest
 
 txid_digest
 ```````````
@@ -56,70 +78,95 @@ to be a BLAKE2b-256 hash of the following values ::
 
    T.1: header_digest      (32-byte hash output)
    T.2: transparent_digest (32-byte hash output)
-   T.3: tze_digest         (32-byte hash output)
-   T.4: sprout_digest      (32-byte hash output)
-   T.5: sapling_digest     (32-byte hash output)
+   T.3: sapling_digest     (32-byte hash output)
+   T.4: orchard_digest     (32-byte hash output)
+   T.5: tze_digest         (32-byte hash output)
 
-The personalization field of this hash is unmodified from ZIP 244.
- 
-2: ``tze_digest``
-'''''''''''''''''
-A BLAKE2b-256 hash of the following values ::
+T.1 to T.4 are as in ZIP 244. The personalization field of this hash is unmodified from
+ZIP 244.
 
-   T.2a: tzein_digest  (32-byte hash)
-   T.2b: tzeout_digest (32-byte hash)
+T.5: tze_digest
+'''''''''''''''
+In the case that TZE inputs or outputs are present, this digest is a BLAKE2b-256 hash of
+the following values ::
+
+   T.5a: tzein_digest  (32-byte hash)
+   T.5b: tzeout_digest (32-byte hash)
 
 The personalization field of this hash is set to::
 
   "ZTxIdTZE____Hash" (4 underscore characters)
 
-2a: tzein_digest
-................
-A BLAKE2b-256 hash of all TZE inputs to the transaction, excluding witness data.
+In the case that the transaction has no TZE inputs or outputs, ``tze_digest`` is ::
+
+  BLAKE2b-256("ZTxIdTZE____Hash", [])
+
+T.5a: tzein_digest
+..................
+A BLAKE2b-256 hash of all TZE inputs to the transaction, excluding the witness payloads.
 For each TZE input, the following values are appended to this hash::
 
-   2a.i:  extension_id (CompactSize field encoding)
-   2a.ii: mode         (CompactSize field encoding)
+   T.5a.i:   prevout      (field encoding)
+   T.5a.ii:  extension_id (CompactSize field encoding)
+   T.5a.iii: mode         (CompactSize field encoding)
+
+``prevout`` is the outpoint of the TZE input: its 32-byte ``prevout_hash`` followed by its
+4-byte little-endian ``prevout_in``. ``extension_id`` and ``mode`` are the ``tze_id`` and
+``tze_mode`` fields of its ``witness``.
 
 The personalization field of this hash is set to::
 
   "ZTxIdTZEIns_Hash" (1 underscore character)
 
-2a: tzeout_digest
-.................
-A BLAKE2b-256 hash of the field encoding of all TZE outputs 
-belonging to the transaction.
+In the case that the transaction has TZE outputs but no TZE inputs, ``tzein_digest`` is ::
+
+  BLAKE2b-256("ZTxIdTZEIns_Hash", [])
+
+T.5b: tzeout_digest
+...................
+A BLAKE2b-256 hash of the field encoding (the TZE Output Encoding of ZIP 222) of all TZE
+outputs belonging to the transaction.
 
 The personalization field of this hash is set to::
 
-  "ZTxIdTzeOutsHash"
+  "ZTxIdTZEOutsHash"
+
+In the case that the transaction has TZE inputs but no TZE outputs, ``tzeout_digest`` is ::
+
+  BLAKE2b-256("ZTxIdTZEOutsHash", [])
 
 Signature Digest
 ----------------
 
 The signature digest creation algorithm defined by ZIP 244 [#zip-0244]_ is modified to
-include a new branch for TZE hashes.  The ``tze_digest`` branch is the only new addition
-to the tree; ``header_digest``, ``transparent_digest``, ``sprout_digest``, and
-``sapling_digest`` are as in ZIP 244::
+include a new branch for TZE hashes. The ``tze_sig_digest`` branch is the only new
+addition to the tree; all other nodes are as in ZIP 244::
 
     signature_digest
     ├── header_digest
-    ├── transparent_digest
-    ├── tze_digest
-    │   ├── tzein_digest
-    │   └── tzeout_digest
-    ├── sprout_digest
-    └── sapling_digest
+    ├── transparent_sig_digest
+    ├── sapling_digest
+    ├── orchard_digest
+    └── tze_sig_digest
+        ├── tzein_digest
+        ├── tzeout_digest
+        └── tzein_sig_digest
 
 signature_digest
 ````````````````
 A BLAKE2b-256 hash of the following values ::
 
-   S.1: header_digest      (32-byte hash output)
-   S.2: transparent_digest (32-byte hash output)
-   S.3: tze_digest         (32-byte hash output)
-   S.4: sprout_digest      (32-byte hash output)
-   S.5: sapling_digest     (32-byte hash output)
+   S.1: header_digest          (32-byte hash output)
+   S.2: transparent_sig_digest (32-byte hash output)
+   S.3: sapling_digest         (32-byte hash output)
+   S.4: orchard_digest         (32-byte hash output)
+   S.5: tze_sig_digest         (32-byte hash output)
+
+S.1 to S.4 are as in ZIP 244, except that if we are producing a hash for the signature
+over a TZE input, ``hash_type`` (S.2a) is set to ``SIGHASH_ALL`` and ``txin_sig_digest``
+(S.2g) is::
+
+  BLAKE2b-256("Zcash___TxInHash", [])
 
 The personalization field of this hash is set to::
 
@@ -127,38 +174,63 @@ The personalization field of this hash is set to::
 
 ``ZcashTxHash_`` has 1 underscore character.
 
-This value must have the same personalization as the top hash of the transaction
-identifier digest tree, in order to make it possible to sign the transaction id
-in the case that there are no transparent inputs.
+This value has the same personalization as the top hash of the transaction identifier
+digest tree, so that what is signed for a transaction with no transparent inputs and no
+TZE inputs or outputs is just the transaction id. If TZE inputs or outputs are present,
+``tze_sig_digest`` differs from ``tze_digest`` for every signature, so the transaction id
+cannot be signed directly even when there are no transparent inputs.
 
-S.3: tze_digest
-'''''''''''''''
-This digest is a BLAKE2b-256 hash of the following values of the TZE
-input being signed::
+S.5: tze_sig_digest
+'''''''''''''''''''
+In the case that the transaction has no TZE inputs or outputs, ``tze_sig_digest`` is
+identical to ``tze_digest`` (T.5).
 
-   S.3a: prevout_digest (field encoding bytes)
-   S.3b: extension_id   (CompactSize field encoding)
-   S.3c: mode           (CompactSize field encoding)
-   S.3d: payload        (arbitrary bytes)
-   S.3e: value          (8-byte little endian value of the output spent by this input) 
+Otherwise, this digest is a BLAKE2b-256 hash of the following values ::
+
+   S.5a: tzein_digest     (32-byte hash, as in T.5a)
+   S.5b: tzeout_digest    (32-byte hash, as in T.5b)
+   S.5c: tzein_sig_digest (32-byte hash)
 
 The personalization field of this hash is set to::
 
-   "Zcash__TzeInHash" (2 underscore characters)
+  "ZTxIdTZE____Hash" (4 underscore characters)
+
+S.5c: tzein_sig_digest
+......................
+If we are producing a hash for the signature over a TZE input, this digest is a
+BLAKE2b-256 hash of the following values ::
+
+   S.5c.i:   prevout      (field encoding)
+   S.5c.ii:  extension_id (CompactSize field encoding)
+   S.5c.iii: mode         (CompactSize field encoding)
+   S.5c.iv:  payload      (field encoding, including a leading CompactSize length)
+   S.5c.v:   value        (8-byte signed little-endian)
+
+``prevout`` is the outpoint of the TZE input being signed, encoded as in T.5a.
+``extension_id``, ``mode`` and ``payload`` are the ``tze_id``, ``tze_mode`` and
+``tze_data_payload`` fields of the ``precondition`` of the TZE output spent by this input,
+and ``value`` is the ``amount`` of that output.
+
+The personalization field of this hash is set to::
+
+  "Zcash__TzeInHash" (2 underscore characters)
+
+If we are producing a hash for any other signature, ``tzein_sig_digest`` is::
+
+  BLAKE2b-256("Zcash__TzeInHash", [])
 
 Authorizing Data Commitment
 ---------------------------
 
 The tree of hashes defined by ZIP 244 [#zip-0244]_ for authorizing data commitments is
-re-structured to include a new branch for TZE hashes. The ``tze_witnesses_digest`` branch
-is the only new addition to the tree; ``transparent_auth_digest``, ``sprout_auth_digest``,
-and ``sapling_auth_digest`` are as in ZIP 244::
+extended with a new branch for TZE hashes. The ``tze_witnesses_digest`` branch is the only
+new addition to the tree; all other nodes are as in ZIP 244::
 
    auth_digest
    ├── transparent_scripts_digest
-   ├── tze_witnesses_digest
-   ├── sprout_auth_digest
-   └── sapling_auth_digest
+   ├── sapling_auth_digest
+   ├── orchard_auth_digest
+   └── tze_witnesses_digest
 
 auth_digest
 ```````````
@@ -166,26 +238,36 @@ The top hash of the ``auth_digest`` tree is modified from the ZIP 244 structure
 to be a BLAKE2b-256 hash of the following values ::
 
    A.1: transparent_scripts_digest (32-byte hash output)
-   A.2: tze_witnesses_digest       (32-byte hash output)
-   A.3: sprout_auth_digest         (32-byte hash output)
-   A.4: sapling_auth_digest        (32-byte hash output)
+   A.2: sapling_auth_digest        (32-byte hash output)
+   A.3: orchard_auth_digest        (32-byte hash output)
+   A.4: tze_witnesses_digest       (32-byte hash output)
 
-The personalization field of this hash is unmodified from ZIP 244.
+A.1 to A.3 are as in ZIP 244. The personalization field of this hash is unmodified from
+ZIP 244.
 
-2: tze_witnesses_digest
-```````````````````````
-A BLAKE2b-256 hash of the field encoding of the witness ``payload`` data associated
-with each TZE input belonging to the transaction.
+A.4: tze_witnesses_digest
+'''''''''''''''''''''''''
+A BLAKE2b-256 hash of the concatenation, for each TZE input of the transaction in order,
+of the field encodings of ``tze_data_payload_len`` (CompactSize) and ``tze_data_payload``
+of its ``witness``.
 
 The personalization field of this hash is set to::
 
   "ZTxAuthTZE__Hash" (2 underscore characters)
 
+In the case that the transaction has no TZE inputs, ``tze_witnesses_digest`` is ::
+
+  BLAKE2b-256("ZTxAuthTZE__Hash", [])
+
 
 Reference implementation
 ========================
 
-- https://github.com/zcash/librustzcash/pull/319/files
+- librustzcash implemented these digests under its ``zfuture`` configuration, until TZE
+  support was removed in commit fc81de1b14 (`source before removal
+  <https://github.com/zcash/librustzcash/tree/03cedf938101ed7957c19a4c589de12ab308561f/zcash_primitives/src/transaction>`_).
+  Unlike this specification, it hashes each witness payload in ``tze_witnesses_digest``
+  without its length prefix.
 
 
 References
@@ -194,4 +276,5 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0222] `ZIP 222: Transparent Zcash Extensions <zip-0222.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_

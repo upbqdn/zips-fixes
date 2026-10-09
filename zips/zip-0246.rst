@@ -132,9 +132,6 @@ v0 Digests
 The v0 digests are based on the v5 transaction digest algorithm defined in
 ZIP 244 [#zip-0244]_.
 
-TODO: Update the Authorizing Data Commitment below for the ``sighashInfo``
-changes to the tx format.
-
 TxId Digest
 ===========
 
@@ -220,6 +217,11 @@ The personalization field of this hash is set to::
 
   "ZTxIdHeadersHash"
 
+T.3: sapling_digest
+```````````````````
+As in ZIP 244 [#zip-0244]_, except that ``sapling_outputs_digest`` (T.3b) is defined
+below.
+
 T.3b: sapling_outputs_digest
 ''''''''''''''''''''''''''''
 In the case that Sapling outputs are present, this digest is a BLAKE2b-256 hash of the
@@ -262,7 +264,7 @@ Sapling shielded outputs belonging to the transaction. For each output, the foll
 elements are included in the hash::
 
    T.3b.ii.1: cv                    (field encoding bytes)
-   T.3b.ii.3: out_ciphertext        (field encoding bytes)
+   T.3b.ii.2: out_ciphertext        (field encoding bytes)
 
 The personalization field of this hash is set to::
 
@@ -295,7 +297,7 @@ For each Action Group, the following elements are included in the hash::
     T.4a.ii  : orchard_actions_noncompact_digest   (32-byte hash output)
     T.4a.iii : flagsOrchard                        (1 byte)
     T.4a.iv  : anchorOrchard                       (32 bytes)
-    T.4a.v   : nAGExpiryHeight                     (4 bytes)
+    T.4a.v   : nAGExpiryHeight                     (4-byte little-endian block height)
     T.4a.vi  : orchard_burn_digest                 (32-byte hash output)
 
 The personalization field of this hash is set to::
@@ -341,13 +343,13 @@ The field encodings are specified in ZIP 230 [#zip-0230-orchardzsa-action-descri
 
 
 T.4a.vi: orchard_burn_digest
-''''''''''''''''''''''''''''
+............................
 
 A BLAKE2b-256 hash of the data from the burn fields of the transaction. For each tuple in
 the $\mathsf{assetBurn}$ set, the following elements are included in the hash::
 
-    T.4b.i : assetBase    (field encoding bytes)
-    T.4b.ii: valueBurn    (64-bit unsigned little-endian)
+    T.4a.vi.1: assetBase    (field encoding bytes)
+    T.4a.vi.2: valueBurn    (64-bit unsigned little-endian)
 
 The personalization field of this hash is set to::
 
@@ -373,19 +375,20 @@ The personalization field of this hash is set to::
 
   "ZTxIdSAIssueHash"
 
-In case the transaction has no issuance components, ``issuance_digest`` is::
+In case the transaction has no Issuance Actions (i.e. ``nIssueActions`` is 0),
+``issuance_digest`` is::
 
     BLAKE2b-256("ZTxIdSAIssueHash", [])
 
 The field encodings are specified in ZIP 230 [#zip-0230-transaction-format]_.
 
-T.5a: issue_actions_digest
+T.5c: issue_actions_digest
 ''''''''''''''''''''''''''
 A BLAKE2b-256 hash of Issue Action information for all Issuance Actions belonging to the transaction. For each Action, the following elements are included in the hash::
 
-   T.5a.i  : assetDescHash           (field encoding bytes)
-   T.5a.ii : issue_notes_digest      (32-byte hash output)
-   T.5a.iii: flagsIssuance           (1 byte)
+   T.5c.i  : assetDescHash           (field encoding bytes)
+   T.5c.ii : issue_notes_digest      (32-byte hash output)
+   T.5c.iii: flagsIssuance           (1 byte)
 
 The personalization field of this hash is set to::
 
@@ -393,20 +396,21 @@ The personalization field of this hash is set to::
 
 The field encodings are specified in ZIP 230 [#zip-0230-issuance-action-description-issueaction]_.
 
-T.5a.i: issue_notes_digest
-..........................
+T.5c.ii: issue_notes_digest
+...........................
 A BLAKE2b-256 hash of Note information for all Issue Note Descriptions belonging to the Issuance Action. For each Note, the following elements are included in the hash::
 
-   T.5a.i.1: recipient                    (field encoding bytes)
-   T.5a.i.2: value                        (field encoding bytes)
-   T.5a.i.3: rho                          (field encoding bytes)
-   T.5a.i.4: rseed                        (field encoding bytes)
+   T.5c.ii.1: recipient                   (field encoding bytes)
+   T.5c.ii.2: value                       (field encoding bytes)
+   T.5c.ii.3: rho                         (field encoding bytes)
+   T.5c.ii.4: rseed                       (field encoding bytes)
 
 The personalization field of this hash is set to::
 
   "ZTxIdIAcNoteHash"
 
-In case the transaction has no Issue Notes, ``issue_notes_digest`` is::
+In case the Issuance Action has no Issue Notes (i.e. ``nNotes`` is 0),
+``issue_notes_digest`` for that Issuance Action is::
 
     BLAKE2b-256("ZTxIdIAcNoteHash", [])
 
@@ -598,7 +602,7 @@ The encoding of ``OrchardSignature`` is specified in ZIP 230 [#zip-0230-orchard-
 Note that this means the encoding of ``spendAuthSigsOrchard`` differs from that used in ZIP 244.
 
 A.4: issuance_auth_digest
--------------------------
+`````````````````````````
 
 In the case that Issuance Actions are present, this is a BLAKE2b-256 hash of the field encoding of the ``issueAuthSig`` field of the transaction::
 
@@ -608,7 +612,8 @@ The personalization field of this hash is set to::
 
   "ZTxAuthZSAOrHash"
 
-In the case that the transaction has no Orchard Actions, ``issuance_auth_digest`` is ::
+In the case that the transaction has no Issuance Actions (i.e. ``nIssueActions`` is 0),
+``issuance_auth_digest`` is ::
 
   BLAKE2b-256("ZTxAuthZSAOrHash", [])
 
@@ -641,22 +646,18 @@ References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
-.. [#protocol] `Zcash Protocol Specification, Version 2025.6.2 or later [NU6.1] <protocol/protocol.pdf>`_
-.. [#protocol-spenddesc] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.4: Spend Descriptions <protocol/protocol.pdf#spenddesc>`_
-.. [#protocol-outputdesc] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.5: Output Descriptions <protocol/protocol.pdf#outputdesc>`_
-.. [#protocol-actiondesc] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 4.6: Action Descriptions <protocol/protocol.pdf#actiondesc>`_
 .. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2022.3.8. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
-.. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format — Specification: Transaction Format <zip-0230.rst#transaction-format>`_
-.. [#zip-0230-orchardzsa-action-group-description] `ZIP 230: Version 6 Transaction Format — Specification: OrchardZSA Action Group Description  <zip-0230.rst#orchardzsa-action-group-description>`_
-.. [#zip-0230-orchardzsa-action-description-orchardzsaaction] `ZIP 230: Version 6 Transaction Format — Specification: OrchardZSA Action Description <zip-0230.rst#orchardzsa-action-description-orchardzsaaction>`_
-.. [#zip-0230-orchardzsa-asset-burn-description] `ZIP 230: Version 6 Transaction Format — Specification: OrchardZSA Asset Burn Description <zip-0230.rst#orchardzsa-asset-burn-description>`_
-.. [#zip-0230-sapling-output-field-encodings] `ZIP 230: Version 6 Transaction Format — Specification: Sapling Output Description (OutputDescriptionV6) <zip-0230.rst#sapling-output-description-outputdescriptionv6>`_
-.. [#zip-0230-transparent-sighash-info-field-encodings] `ZIP 230: Version 6 Transaction Format — Specification: Transparent Sighash Information <zip-0230.rst#transparent-sighash-information-transparentsighashinfo>`_
-.. [#zip-0230-orchard-signature-orchardsignature] `ZIP 230: Version 6 Transaction Format — Specification: Orchard Signature <zip-0230.rst#orchard-signature-orchardsignature>`_
-.. [#zip-0230-issuance-action-description-issueaction] `ZIP 230: Version 6 Transaction Format — Specification: Issuance Action Description <zip-0230.rst#issuance-action-description-issueaction>`_
-.. [#zip-0230-issue-note-description-issuenotedescription] `ZIP 230: Version 6 Transaction Format — Specification: Issue Note Description <zip-0230.rst#issue-note-description-issuenotedescription>`_
+.. [#zip-0230-transaction-format] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: Transaction Format <zip-0230.rst#transaction-format>`_
+.. [#zip-0230-orchardzsa-action-group-description] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: OrchardZSA Action Group Description  <zip-0230.rst#orchardzsa-action-group-description>`_
+.. [#zip-0230-orchardzsa-action-description-orchardzsaaction] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: OrchardZSA Action Description <zip-0230.rst#orchardzsa-action-description-orchardzsaaction>`_
+.. [#zip-0230-orchardzsa-asset-burn-description] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: OrchardZSA Asset Burn Description <zip-0230.rst#orchardzsa-asset-burn-description>`_
+.. [#zip-0230-sapling-output-field-encodings] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: Sapling Output Description (OutputDescriptionV6) <zip-0230.rst#sapling-output-description-outputdescriptionv6>`_
+.. [#zip-0230-transparent-sighash-info-field-encodings] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: Transparent Sighash Information <zip-0230.rst#transparent-sighash-information-transparentsighashinfo>`_
+.. [#zip-0230-orchard-signature-orchardsignature] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: Orchard Signature <zip-0230.rst#orchard-signature-orchardsignature>`_
+.. [#zip-0230-issuance-action-description-issueaction] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: Issuance Action Description <zip-0230.rst#issuance-action-description-issueaction>`_
+.. [#zip-0230-issue-note-description-issuenotedescription] `ZIP 230: Withdrawn Version 6 Transaction Format — Specification: Issue Note Description <zip-0230.rst#issue-note-description-issuenotedescription>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0244-sigdigest] `ZIP 244: Transaction Identifier Non-Malleability: Signature Digest <zip-0244.rst#signature-digest>`_
 .. [#zip-0244-authcommitment] `ZIP 244: Transaction Identifier Non-Malleability: Authorizing Data Commitment <zip-0244.rst#authorizing-data-commitment>`_

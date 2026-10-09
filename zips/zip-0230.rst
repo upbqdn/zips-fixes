@@ -44,9 +44,9 @@ Abstract
     value, and to avoid confusion with the different specification of lead byte $\mathtt{0x03}$ in
     ZIP 2005 [#zip-2005]_.
 
-This proposal defines a new Zcash peer-to-peer transaction format, which supports the
-changes being deployed in Network Upgrade 7 [#draft-arya-deploy-nu7]_. It follows the same design
-pattern as the v5 transaction format [#zip-0225]_.
+This proposal defines a new Zcash peer-to-peer transaction format, which was proposed to
+support changes in Network Upgrade 7. It follows the same design pattern as the v5
+transaction format [#zip-0225]_.
 
 
 Motivation
@@ -77,7 +77,7 @@ all newly incorporated elements that attest to transaction validity.
 Non-requirements
 ================
 
-More general forms of extensibility, such as definining a key/value format that
+More general forms of extensibility, such as defining a key/value format that
 allows for parsers that are unaware of some components, are not required.
 
 
@@ -134,7 +134,7 @@ Transaction Format
 | 96 × ``nSpendsSapling``     |``vSpendsSapling``            |``SpendDescriptionV5[nSpendsSapling]``          |A sequence of Sapling Spend descriptions, encoded per                |
 |                             |                              |                                                |§7.3 ‘Spend Description Encoding and Consensus’ (unchanged from V5). |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| varies                      |``nOutputsSapling``           |``compactSize``                                 |Number of Sapling Output Decriptions in ``vOutputsSapling``.         |
+| varies                      |``nOutputsSapling``           |``compactSize``                                 |Number of Sapling Output Descriptions in ``vOutputsSapling``.        |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | 276 × ``nOutputsSapling``   |``vOutputsSapling``           |``OutputDescriptionV6[nOutputsSapling]``        |A sequence of Sapling Output descriptions, encoded per               |
 |                             |                              |                                                |§7.4 ‘Output Description Encoding and Consensus’.                    |
@@ -201,7 +201,7 @@ Transaction Format
 
 * The elements of ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` have a 1:1
   correspondence to the elements of ``vSpendsSapling`` and MUST be ordered such that the
-  proof or signature at a given index corresponds to the ``SpendDescriptionV6`` at the
+  proof or signature at a given index corresponds to the ``SpendDescriptionV5`` at the
   same index.
 
 * The elements of ``vOutputProofsSapling`` have a 1:1 correspondence to the elements of
@@ -212,7 +212,7 @@ Transaction Format
   only if $\mathtt{nActionGroupsOrchard} > 0$. If ``valueBalanceOrchard`` is not present,
   then $\mathsf{v^{balanceOrchard}}$ is defined to be $0$.
 
-* The fields ``issueAuthSigLength`` and ``issueAuthSig`` are present if and only if $\mathtt{nIssueActions} > 0$.
+* The field ``issueAuthSig`` is present if and only if $\mathtt{nIssueActions} > 0$.
   The fields ``issuerLength``, ``issuer``, ``nIssueActions``, and ``vIssueActions`` are always present.
   If $\mathtt{nIssueActions} = 0$ then ``issuerLength`` MUST be set to $0$ (``issuer`` and ``vIssueActions`` will be empty in this case).
 
@@ -241,7 +241,7 @@ Transaction Format
 The encodings of ``tx_in``, and ``tx_out`` are as in prior transaction versions (i.e.
 unchanged since Zcash launch). [#protocol-txnencoding]_ [#zip-0225-transaction-format]_
 
-The encodings of ``SpendDescriptionV6``, ``OutputDescriptionV6``, ``ActionGroupDescription``,
+The encodings of ``OutputDescriptionV6``, ``ActionGroupDescription``,
 ``AssetBurn`` and ``IssueAction`` are described below.
 
 The encoding of Sapling Spends and Outputs has changed relative to prior versions in order
@@ -312,21 +312,21 @@ The OrchardZSA Action Group Description is encoded in a transaction as an instan
 
 The encodings of ``OrchardZSAAction`` and ``AssetBurn`` are described below.
 
-* The proofs aggregated in ``proofsOrchardZSA``, and the elements of
+* The proofs aggregated in ``proofsOrchard``, and the elements of
   ``vSpendAuthSigsOrchard``, each have a 1:1 correspondence to the elements of
   ``vActionsOrchard`` and MUST be ordered such that the proof or signature at a given
   index corresponds to the ``OrchardZSAAction`` at the same index.
 * If the value of ``nAGExpiryHeight`` is nonzero, it MUST be consistent with
-  the ``nExpiryHeight`` of the overall transaction. 
-* In NU7, ``nExpiryHeight`` MUST be set to ``0``; this restriction is expected
-  to be lifted in a future network upgrade.
+  the ``nExpiryHeight`` of the overall transaction.
+* In the deployment proposed for NU7, ``nAGExpiryHeight`` MUST be set to ``0``;
+  this restriction was expected to be lifted in a later network upgrade.
 
 Rationale for nAGExpiryHeight
 `````````````````````````````
 
 We introduce the ``nAGExpiryHeight`` field in this transaction format in order to be forward compatible with Swaps over ZSAs, as proposed in ZIP 228 [#zip-0228]_.
 For the OrchardZSA protocol, which does not make use of an additional expiry height for transactions, we set the value of ``nAGExpiryHeight`` to be ``0`` by consensus.
-This serves as a default value to represent the situation where there is no expiry, analogous to the convention adopted for ``nExpiryHeight`` in ZIP 203 [#zip-0203].
+This serves as a default value to represent the situation where there is no expiry, analogous to the convention adopted for ``nExpiryHeight`` in ZIP 203 [#zip-0203]_.
 
 Rationale for including Burn fields inside OrchardZSA Action Groups
 ```````````````````````````````````````````````````````````````````
@@ -349,7 +349,7 @@ OrchardZSA Action Description (``OrchardZSAAction``)
 | 32                          |``nullifier``                 |``byte[32]``                                    |The nullifier of the input note.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | 32                          |``rk``                        |``byte[32]``                                    |The randomized validating key for the element of                     |
-|                             |                              |                                                |``spendAuthSigsOrchard`` corresponding to this Action.               |
+|                             |                              |                                                |``vSpendAuthSigsOrchard`` corresponding to this Action.              |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | 32                          |``cmx``                       |``byte[32]``                                    |The :math:`x\!`-coordinate of the note commitment for the output     |
 |                             |                              |                                                |note.                                                                |
@@ -376,7 +376,7 @@ An OrchardZSA Asset Burn description is encoded in a transaction as an instance 
 |                             |                              |                                                |:math:`\mathsf{AssetBase^{Orchard}}\!`.                              |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | 8                           |``valueBurn``                 |``uint64``                                      |The amount being burnt. The value is checked by consensus to be      |
-|                             |                              |                                                |non-zero, and less than :math:`\mathsf{MAX\_BURN\_VALUE}`            |
+|                             |                              |                                                |non-zero, and at most :math:`\mathsf{MAX\_BURN\_VALUE}`              |
 |                             |                              |                                                |[#zip-0226-burn-mechanism]_.                                         |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
@@ -508,7 +508,7 @@ Sapling Note Plaintext
 
 In order to accommodate the change needed for memo bundles
 [#zip-0231-memo-encryption]_, a v6-onward Sapling note plaintext must include a
-32-byte memo key $\mathsf{K^{memo}} : \mathbb{B}^{\mathbb{Y}[32]$, rather than a
+32-byte memo key $\mathsf{K^{memo}} : \mathbb{B}^{\mathbb{Y}[32]}$, rather than a
 512-byte plaintext memo.
 
 The corresponding changes to the Zcash Protocol Specification are specified in
@@ -589,10 +589,6 @@ justifies changing the lead byte for both Sapling and Orchard.
 Implications for Mining
 -----------------------
 
-ZIP 235 [#zip-0235]_ requires that from activation of that ZIP, which is
-scheduled for NU7, all coinbase transactions created by miners and mining pools
-are v6 transactions.
-
 The specification of the Stratum protocol in [#zip-0301]_ does not need any
 updates for v6 transactions, but implementations might need to be updated.
 
@@ -640,7 +636,7 @@ Support for receiving funds in v6 transactions
 ``````````````````````````````````````````````
 
 Zcash wallets MUST support parsing and processing v6 transactions by the time
-they are allowed on the network (scheduled for NU7 activation). This includes
+they are allowed on the network. This includes
 detecting and decrypting lead-byte {{LEADBYTE}} note plaintexts and memo
 bundles.
 
@@ -686,8 +682,8 @@ allowed, and so *all* wallets need to be ready to receive them at that point.
 Deployment
 ==========
 
-Version 6 transactions are proposed to be allowed on the network starting from
-Network Upgrade 7. [#draft-arya-deploy-nu7]_
+This ZIP has been withdrawn and will not be deployed; version 6 transactions are
+defined by ZIP 229 [#zip-0229]_.
 
 Reference implementation
 ========================
@@ -713,7 +709,7 @@ References
 .. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`_
 .. [#zip-0226-burn-mechanism] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Burn Mechanism <zip-0226.rst#burn-mechanism>`_
 .. [#zip-0226-orchardzsa-transaction-structure] `ZIP 226: Transfer and Burn of Zcash Shielded Assets — OrchardZSA Transaction Structure <zip-0226.rst#orchardzsa-transaction-structure>`_
-.. [#zip-0226-note-structure-and-commitment] `ZIP 226: Transfer and Burn of Zcash Shielded Assets — Note Structure and Commitment <zip-0226#note-structure-and-commitment>`_
+.. [#zip-0226-note-structure-and-commitment] `ZIP 226: Transfer and Burn of Zcash Shielded Assets — Note Structure and Commitment <zip-0226.rst#note-structure-and-commitment>`_
 .. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`_
 .. [#zip-0227-issuance-auth-sig] `ZIP 227: Issuance of Zcash Shielded Assets — Issuance Authorization Signature Scheme <zip-0227.rst#issuance-authorization-signature-scheme>`_
 .. [#zip-0227-issuer-identifier] `ZIP 227: Issuance of Zcash Shielded Assets — Issuer Identifier <zip-0227.rst#issuer-identifier>`_
@@ -721,14 +717,12 @@ References
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.md>`_
 .. [#zip-0231-motivation] `ZIP 231: Memo Bundles — Motivation <zip-0231.md#motivation>`_
-.. [#zip-0231-memo-encryption] `ZIP 231: Memo Bundles — Memo Encryption <zip-0231.md#memo-encryption>`_
-.. [#zip-0231-sapling-note-plaintext] `ZIP 231: Memo Bundles — Changes to the Zcash Protocol Specification <zip-0231.md#changes-to-the-zcash-protocol-specification>`_
+.. [#zip-0231-memo-encryption] `ZIP 231: Memo Bundles — Memo Encryption <zip-0231.md#memoencryption>`_
+.. [#zip-0231-sapling-note-plaintext] `ZIP 231: Memo Bundles — Changes to the Zcash Protocol Specification <zip-0231.md#changestothezcashprotocolspecification>`_
 .. [#zip-0233] `ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation <zip-0233.md>`_
-.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
-.. [#zip-0246-sighash-info] `ZIP 246: Digests for the Withdrawn Version 6 Transaction Format <zip-0246.rst#zip-0246-sighash-info>`_
+.. [#zip-0246-sighash-info] `ZIP 246: Digests for the Withdrawn Version 6 Transaction Format — Sighash versioning <zip-0246.rst#sighash-versioning>`_
 .. [#zip-0301] `ZIP 301: Zcash Stratum Protocol <zip-0301.rst>`_
-.. [#zip-2002-motivation] `ZIP 231: Explicit Fees — Motivation <zip-2002.rst#motivation>`_
-.. [#zip-2005] `ZIP 2005: Quantum Recoverability <zip-2005.md>`_
-.. [#zip-2005-security-analysis] `ZIP 2005: Quantum Recoverability — Security Analysis <zip-2005.md#securityanalysis>`_
-.. [#draft-arya-deploy-nu7] `draft-arya-deploy-nu7: Deployment of the NU7 Network Upgrade <draft-arya-deploy-nu7.md>`_
+.. [#zip-2002-motivation] `ZIP 2002: Explicit Fees — Motivation <zip-2002.rst#motivation>`_
+.. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
+.. [#zip-2005-security-analysis] `ZIP 2005: Ironwood Quantum Recoverability — Security Analysis <zip-2005.md#securityanalysis>`_

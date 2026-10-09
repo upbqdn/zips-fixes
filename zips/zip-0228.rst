@@ -12,7 +12,7 @@
   Credits: Daniel Benarroch
            Aurelien Nicolas
   Status: Draft
-  Created: TBD
+  Created: 2024-02-06
   License: MIT
   Category: Consensus
   Discussions-To: <https://github.com/zcash/zips/issues/776>
@@ -21,13 +21,15 @@
 Terminology
 ===========
 
-The key word "MUST" in this document is to be interpreted as described in RFC 2119 [#RFC2119]_.
+The key words "MUST" and "SHOULD NOT" in this document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when, they appear in all capitals.
 
 The term "network upgrade" in this document is to be interpreted as described in ZIP 200 [#zip-0200]_.
 
 The terms "Orchard" and "Action" in this document are to be interpreted as described in ZIP 224 [#zip-0224]_.
 
-The terms "Asset", "Custom Asset" and "Asset Base” in this document are to be interpreted as described in ZIP 227 [#zip-0227]_.
+The term "OrchardZSA" in this document is to be interpreted as described in ZIP 226 [#zip-0226]_.
+
+The terms "Asset", "Custom Asset" and "Asset Base" in this document are to be interpreted as described in ZIP 227 [#zip-0227]_.
 
 We define the following additional terms:
 
@@ -35,7 +37,7 @@ We define the following additional terms:
 - Swap Order: a Swap Order (or Order) is a unilateral intent to exchange a quantity (q) of asset A for a quantity (q') of asset B. See `Specification: Swap Orders`_ for more details. In this document, Swap Orders are abbreviated SO, and we use subscripts to differentiate between them, for example, $\mathsf{SO}_i$, $\mathsf{SO}_j$ and so on.
 - Matching: we say that two Orders match, when the “bid” of one Order is the “offer” of the other Order. The process of Matching Orders together consists of grouping Orders into pairs that match. See `CLOB and Matching Policies`_ for more details.
 - Swap Bundle: a Swap Bundle (or Bundle) is the association of two or more matching Swap Orders, i.e. a Bundle is the result of the Matching operation. Swap Bundles represent the execution of Swap Orders by the Matcher, to be sent to the blockchain for settlement. See `Specification: Protocol Changes`_ for more information.
-- Action Group: an Action Group is a group of OrchardZSA Actions (as defined in [#zip-0224]_) which share the same tuple $(\mathsf{rt}, \mathsf{enableSpends}, \mathsf{enableOutputs}, \mathsf{enableZSA}, \mathsf{nAGExpiryHeight})$. In this ZIP, we denote the above shared tuple by "Orchard Commons". See `Specification: Protocol Changes`_ for more information.
+- Action Group: an Action Group is a group of OrchardZSA Actions (as defined in ZIP 226 [#zip-0226]_) which share the same ``anchorOrchard``, ``flagsOrchard`` (carrying the flags ``enableSpendsOrchard``, ``enableOutputsOrchard`` and ``enableZSAs``) and ``nAGExpiryHeight``. See `Specification: Protocol Changes`_ for more information.
 
 Abstract
 ========
@@ -67,7 +69,7 @@ If the Orders of the parties match, they can be included together in Swap Bundle
 
 
 A key challenge is that Swap Orders that match may contain Actions and Zero Knowledge Proofs generated using different blockchain states and roots of note commitment trees.
-In the current (NU5) protocol, each Orchard bundle contains a set of Actions and Proofs generated using a single anchor/Merkle root.
+In the Orchard protocol as deployed since NU5, each Orchard bundle contains a set of Actions and a proof generated using a single anchor.
 
 To enable combining Actions and Proofs from different blockchain states, the concept of an Action Group is introduced in this ZIP. An Action Group groups together Actions and Proofs generated using a common commitment tree root.
 This allows for creating a single Zcash transaction from different sets of Actions and Proofs generated using different anchors and blockchain states.
@@ -84,12 +86,17 @@ v1 Signature Digest
 -------------------
 
 ZIP 246 [#zip-0246]_ introduces versioning for SIGHASH algorithms.
-We define the **v1 Signature Digest** for an Action Group as the output of the ``orchard_action_groups_digest`` for that Action Group.
+We define the **v1 Signature Digest** for an Action Group $\mathsf{AG}$ as ``orchard_action_groups_digest`` (T.4a in ZIP 246) computed over a list of Action Groups that contains only $\mathsf{AG}$ itself.
+That is, it is a BLAKE2b-256 hash with personalization ``"ZTxIdOrcActGHash"`` of the values T.4a.i to T.4a.vi for $\mathsf{AG}$ alone, where ``orchard_burn_digest`` (T.4a.vi) covers only the entries of the ``vAssetBurn`` field of $\mathsf{AG}$ (see `Asset Burns`_).
+
+The v1 Signature Digest is sighash version 1, in the sense of ZIP 246, for spend authorization signatures in OrchardZSA Action Groups.
+Its ``associatedData`` is empty, so the ``sighashInfo`` of such a signature is the single byte ``0x01``.
 
 Spend Authorization Signature Changes
 -------------------------------------
 
-The spend authorization signature is computed in the manner specified in Section 4.15 of the protocol specification [#protocol-spendauthsig]_, except that the signature is generated over a v1 Signature Digest as defined above.
+The spend authorization signature is computed in the manner specified in Section 4.15 of the protocol specification [#protocol-spendauthsig]_, except that a signature with sighash version 1 is generated over the v1 Signature Digest of the Action Group containing the Action, instead of the v0 SIGHASH.
+The sender of a Swap Order signs the Actions of the Order in this way, because it cannot compute the v0 SIGHASH (see `Rationale for v1 Signature Digests and Spend Authorization Signature Changes`_).
 
 Binding Signature Changes
 -------------------------
@@ -97,18 +104,19 @@ Binding Signature Changes
 The binding signature is generated using the Orchard Binding Signature scheme, by signing the v0 Signature Digest as defined in ZIP 246 [#zip-0246]_, using the signing key $\mathsf{bsk}$ computed as described below.
 
 The party performing the matching has some Swap Orders $\mathsf{SO}_i$, each of which contains a $\mathsf{bsk}_i$.
-The party generates the $\mathsf{bsk}$ for the binding signature by summing up the $\mathsf{bsk}_i$ values of the Swap Orders that are matched into the Swap Bundle.
-For example, if Swap Orders $\mathsf{SO}_i$ and $\mathsf{SO}_j$ are matched, then the $\mathsf{bsk} = \mathsf{bsk}_i + \mathsf{bsk}_j$.
+The party generates the $\mathsf{bsk}$ for the binding signature by summing up the $\mathsf{bsk}_i$ values of the Swap Orders that are matched into the Swap Bundle, and the $\mathsf{rcv}$ values of the Actions in any Action Group that the party creates itself, such as the Action Group that transfers the Matcher Fees (see `Matcher Fees`_).
+That is, $\mathsf{bsk}$ is the sum of the $\mathsf{rcv}$ values of all Actions in all Action Groups of the Swap Bundle, as ZIP 226 requires [#zip-0226]_.
+For example, if Swap Orders $\mathsf{SO}_i$ and $\mathsf{SO}_j$ are matched, then $\mathsf{bsk} = \mathsf{bsk}_i + \mathsf{bsk}_j$ when the party adds no Action Group, and $\mathsf{bsk} = \mathsf{bsk}_i + \mathsf{bsk}_j + \sum_{a \in \mathsf{AG}_M} \mathsf{rcv}_a$ when it adds an Action Group $\mathsf{AG}_M$ of its own.
 The consensus check remains the same, using these updated values.
-The binding signature is verified against the value commitments of all Actions in all Action Groups.
+The binding signature is verified against the value commitments of all Actions in all Action Groups, and the Asset burns of all Action Groups (see `Asset Burns`_).
 
 Swap Bundle 
 -----------
 
-The V6 transaction format [#zip-0230-transaction-format]_ groups Actions [#protocol-actions]_ into **Action Groups** characterized by anchors, ``flagsOrchard`` and ``nAGExpiryHeight``. 
+The V6 transaction format [#zip-0230-transaction-format]_ groups Actions [#protocol-actions]_ into **Action Groups**, each with its own ``anchorOrchard``, ``flagsOrchard`` and ``nAGExpiryHeight``.
 We continue to use the same transaction format. 
-The consensus rules are updated to remove the requirement that there be only one Action Group per transaction.
-The Spend Authorization Signatures for Action Group in the Swap Bundle signs a `v1 Signature Digest`_, as specified above.
+The consensus rule of ZIP 227 [#zip-0227-consensus]_ that "The ``nActionGroupsOrchard`` field MUST have a value of either ``0`` or ``1`` and the ``nAGExpiryHeight`` field MUST have a value of ``0``" is replaced by the rules in `Consensus Rule Changes`_, which allow any number of Action Groups and a nonzero ``nAGExpiryHeight``.
+The Spend Authorization Signatures for the Actions of a Swap Order sign the `v1 Signature Digest`_ of its Action Group, as specified above.
 A Swap Bundle then consists of two or more Action Groups, as illustrated in the figure below.
 
 
@@ -123,18 +131,35 @@ Consensus Rule Changes
 ----------------------
 
 The transaction verification iterates over all Action Groups and verifies the Actions they contain. 
-The spend authorization signature for each Action MUST be a valid $\mathsf{SpendAuthSig^{Orchard}}$ signature over the v1 Signature Digest for the Action Group containing that Action, using $\mathsf{rk}$ as the validating key. 
-The time limit also needs to be checked during verification. 
+The spend authorization signature for each Action MUST be a valid $\mathsf{SpendAuthSig^{Orchard}}$ signature, using $\mathsf{rk}$ as the validating key, over the digest selected by its sighash version: the v0 SIGHASH for version 0, or the v1 Signature Digest for the Action Group containing that Action for version 1.
+The expiry height of each Action Group also needs to be checked during verification.
+A nonzero ``nAGExpiryHeight`` is the greatest block height at which a transaction containing that Action Group can be mined, and the value 0 means that the Action Group places no expiry constraint.
 Specifically, the consensus rule becomes (if any checks fail, the transaction MUST be rejected):
 
     - for all $\mathsf{AG}$ in ``vActionGroupsOrchard`` do:
 
-        - check that $\mathsf{AG}.\mathtt{nAGExpiryHeight} \leq \mathsf{current\ block\ height}$ 
-        - compute $\mathtt{v1\_sig\_digest} := \mathtt{orchard\_action\_groups\_digest}(\mathsf{AG})$.
-        - for ($i = 0$; $i < \mathsf{AG}.\mathtt{nActionsOrchard}; $i++$):
+        - check that $\mathsf{AG}.\mathtt{nAGExpiryHeight} \leq 499999999$
+        - if $\mathsf{AG}.\mathtt{nAGExpiryHeight} \neq 0$ then check that $\mathsf{current\ block\ height} \leq \mathsf{AG}.\mathtt{nAGExpiryHeight}$
+        - check that $\mathsf{AG}.\mathtt{anchorOrchard}$ refers to some earlier block's final Orchard treestate [#protocol-actions]_
+        - compute $\mathtt{v1\_sig\_digest} := \mathtt{orchard\_action\_groups\_digest}(\mathsf{AG})$ as specified in `v1 Signature Digest`_
+        - for each $i$ in $\{0 .. \mathsf{AG}.\mathtt{nActionsOrchard} - 1\}$ do:
 
-            - check the result of ZKAction.Verify on the proof $\mathsf{AG}.\mathtt{proofsOrchard}[i]$
-            - check $\mathsf{SpendAuthSig.Validate}(\mathsf{AG}.\mathtt{vActionsOrchard}[i].\mathsf{rk}, \mathtt{v1\_sig\_digest}, \mathsf{AG}.\mathtt{vSpendAuthSigsOrchard}[i])$
+            - let $\pi_i$ be the proof for $\mathsf{AG}.\mathtt{vActionsOrchard}[i]$ aggregated in $\mathsf{AG}.\mathtt{proofsOrchard}$ [#zip-0230-transaction-format]_
+            - check the result of ZKAction.Verify on $\pi_i$ for the OrchardZSA Action statement [#zip-0226-circuit-statement]_, with the primary input formed from the ``cv``, ``nullifier``, ``rk`` and ``cmx`` fields of $\mathsf{AG}.\mathtt{vActionsOrchard}[i]$ together with $\mathsf{rt^{Orchard}} = \mathsf{AG}.\mathtt{anchorOrchard}$ and the ``enableSpendsOrchard``, ``enableOutputsOrchard`` and ``enableZSAs`` flags of $\mathsf{AG}.\mathtt{flagsOrchard}$
+            - check $\mathsf{SpendAuthSig.Validate}(\mathsf{AG}.\mathtt{vActionsOrchard}[i].\mathsf{rk}, \mathtt{sig\_digest}_i, \mathsf{AG}.\mathtt{vSpendAuthSigsOrchard}[i])$ where $\mathtt{sig\_digest}_i$ is the v0 SIGHASH if the sighash version of $\mathsf{AG}.\mathtt{vSpendAuthSigsOrchard}[i]$ is 0, or $\mathtt{v1\_sig\_digest}$ if it is 1 (no other sighash version is valid)
+
+These checks are in addition to the rules on ``nExpiryHeight`` in §7.1 of the protocol specification [#protocol-txnencoding]_. A nonzero ``nAGExpiryHeight`` places no constraint on ``nExpiryHeight``.
+
+Asset Burns
+-----------
+
+Each Action Group carries its own burn fields, ``nAssetBurn`` and ``vAssetBurn`` [#zip-0230-transaction-format]_.
+The $\mathsf{assetBurn}$ set of a transaction, as used by ZIP 226 [#zip-0226-burn-mechanism]_ and ZIP 227 [#zip-0227-consensus]_, consists of the ``vAssetBurn`` entries of all its Action Groups, in Action Group order.
+The consensus rules of ZIP 226 for the $\mathsf{assetBurn}$ set, its value balance verification, and the issuance state rules of ZIP 227 apply to this set unchanged.
+In particular, two Action Groups of a transaction cannot burn the same Asset, since ZIP 226 allows at most one entry per $\mathsf{AssetBase}$ in the $\mathsf{assetBurn}$ set.
+This narrows the rationale of ZIP 230 [#zip-0230]_ for placing the burn fields in each Action Group: each party can burn Assets in its own Action Group, but not an Asset that another Action Group of the same transaction also burns.
+
+In ``orchard_action_groups_digest`` (T.4a in ZIP 246 [#zip-0246]_), the ``orchard_burn_digest`` (T.4a.vi) for each Action Group covers only the ``vAssetBurn`` entries of that Action Group.
 
 Fees
 ----
@@ -148,7 +173,8 @@ Matcher Fees
 
 These are the fees paid to the party performing the matching.
 A party that creates a Swap Order includes a Fee Action inside the Action Group Description of that Swap Order in addition to the details of the desired Swap operation (see `Specification: Swap Orders`_).
-The Matcher creates an additional Action Group to transfer a portion of the fees in the Fees Action to an address they control during the creation of the Swap Bundle.
+The Matcher creates an additional Action Group to transfer a portion of the fees in the Fee Actions, as given by the ``fee`` fields of the matched Swap Orders, to an address they control during the creation of the Swap Bundle.
+The $\mathsf{rcv}$ values of the Actions in this Action Group contribute to $\mathsf{bsk}$ (see `Binding Signature Changes`_).
 Thus, when the Swap Bundle is settled on the chain, the two parties swap Assets and the Matcher Fees are transferred to the Matcher.
 The Matcher is free to extract any amount of such fees, however, if the remaining fees (which are Miner Fees) are too low, then the transaction might not get mined.
 
@@ -174,7 +200,7 @@ In the Zcash protocol deployed in NU5, the anchor is not included in the Action 
 When bundling together two Orders whose Actions are generated by two traders, it is possible that these two traders may use different anchors $\mathsf{rt}^{\mathsf{Orchard}}$ (among others) to generate the ZK proofs in their Orders.
 As a result, to create Swap Bundles from matched Swap Orders, it is necessary to provide the anchors of both Swap Orders in the transaction for nodes to be able to verify the transaction completely on-chain.
 
-The Action Groups abstraction achieves the same function as including the tuple (Merkle Root ($\mathsf{rt}$), ``enableSpend``, ``enableOutputs``) to each Action object - but more efficiently.
+The Action Groups abstraction achieves the same function as including the tuple (``anchorOrchard``, ``flagsOrchard``) to each Action object - but more efficiently.
 It allows for the binding of multiple actions, along with an expiration height, in an inseparable manner.
 It reduces information duplication within the transaction object, and thus is more bandwidth efficient.
 
@@ -185,9 +211,9 @@ Rationale for Expiry Height
 Adding a ``nAGExpiryHeight`` parameter to the Action Group object (or to the Action object) allows senders of Orders to set some expiry parameters on their orders to avoid granting trading counterparties an indefinite option on their trade intents. 
 If an order cannot expire, it may stay on the Matcher's order book for a very long time. 
 This could provide the rest of the market with a great trading opportunity based on the changing market values of the Assets present in an Order that has yet to be matched. 
-Setting a expiry height for the Swap Orders helps alleviate this issue and provides a protection to the senders of Swap Orders.
+Setting an expiry height for the Swap Orders helps alleviate this issue and provides a protection to the senders of Swap Orders.
 
-The ``nAGExpiryHeight`` is an integer that represents the max block height in which a given Action Group can be included on the chain.
+The ``nAGExpiryHeight`` is an integer that represents the max block height in which a given Action Group can be included on the chain, or 0 if the Action Group places no expiry constraint.
 As such, the expiry height truly represents a time limit for settlement, not for execution.
 This distinction is important because in our example, execution is happening offchain on the Matcher and settlement happens on the chain 
 (i.e. introducing the Matcher to create bundles and match SO's together adds a step to the lifecycle of the trade and decouples execution and settlement, which otherwise happen at the same time, on-chain). 
@@ -201,8 +227,9 @@ In the OrchardZSA protocol, each Action includes a Spend Authorization Signature
 However, in the context of Asset Swaps, there are two problems that prevent this mechanism from being carried over unchanged.
 
 - The SIGHASH represents a hash over a full consensus-compliant transaction object. Since a Swap Order is a trade intent to be used by the party performing the matching to form a valid bundle/transaction, the sender of the Swap Order cannot compute a v0 SIGHASH as per ZIP 246. This trader doesn't know all the transaction fields in advance, as they are set when the full bundle transaction is formed and sent to the chain.
+- The ``nAGExpiryHeight`` field of an Action Group is not covered by a signature that the sender of the Order can produce in advance. Swap Orders need to be non-malleable so that the party performing the matching cannot change the expiry height unilaterally.
 
-To make sure the time limit isn't malleable, the sender signs the information in the Action Group of the Order. 
+To make sure the expiry height isn't malleable, the sender signs the information in the Action Group of the Order. 
 The ``orchard_action_groups_digest`` contains all the information that is in a Swap Order, which is why we use this for the v1 Signature Digest. 
 The non-malleability of the expiry height and other fields of received orders during order matching is guaranteed by the unforgeability of the sender's Spend Authorization Signature.
 
@@ -219,7 +246,7 @@ In this case, the matcher would relay on chain the “fee paying instructions”
 By including $\mathsf{bsk}$ values in each Swap Order, and building the transaction $\mathsf{bsk}$ from these values as described in the `Binding Signature Changes`_ section, we prevent this malicious behavior.
 To be able to spend a subset of the Actions in a Swap Order, the matcher would have to be able to extract the individual $\mathsf{rcv}$ values of specific commitments used in the Order's Actions.
 Given that $\mathsf{bsk}$ is a modular addition of random field elements, extracting specific values without additional context isn't possible.
-Hence, $\mathsf{bsk}$ “binds together" the Action Groups in the transaction, preventing selective extraction of specific Actions in a Swap Order by a malicious matcher.
+Hence, $\mathsf{bsk}$ “binds together” the Action Groups in the transaction, preventing selective extraction of specific Actions in a Swap Order by a malicious matcher.
 
 Rationale for Matcher Fees
 ``````````````````````````
@@ -240,12 +267,19 @@ We specify here the structure of a Swap Order. Note that this is not a change to
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 |``40``                       |``DesiredOutput``         |``SwapIO``                                 |The output of the Swap Order.                                        |  
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
+|``8``                        |``fee``                   |``uint64``                                 |The amount of ZEC, in zatoshi, that the Order pays in fees: its net  |
+|                             |                          |                                           |ZEC contribution to the Swap Bundle, excluding any ZEC in            |
+|                             |                          |                                           |``ProposedInput`` and ``DesiredOutput``.                             |
++-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 |``32``                       |``bsk``                   |``byte[32]``                               |The binding signature key, corresponding to the sum of all the       |  
 |                             |                          |                                           |:math:`\mathsf{rcv}` values of commitments in the Order.             |  
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
-|``varies``                   |``SwapActionGroup``       |``ActionGroupDescription``                 |The description of the Action Group corresponding to the desired     |  
-|                             |                          |                                           |Swap operation. It must contain at least two Actions, the Swap       |  
-|                             |                          |                                           |Action and the Fee Action.                                           |  
+|``varies``                   |``SwapActionGroup``       |``ActionGroupDescription``                 |The description of the Action Group corresponding to the desired     |
+|                             |                          |                                           |Swap operation. It contains at least one Action spending the         |
+|                             |                          |                                           |proposed Asset (``ProposedInput.asset_base``), at least one Action   |
+|                             |                          |                                           |whose output pays the desired Asset (``DesiredOutput.asset_base``)   |
+|                             |                          |                                           |to the sender of the Order, and optionally a Fee Action paying       |
+|                             |                          |                                           |``fee`` in ZEC (see `Fees`_).                                        |
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 
 The ``SwapIO`` data type is used to represent the input and output of a Swap Order.
@@ -260,6 +294,12 @@ The ``SwapIO`` data type is used to represent the input and output of a Swap Ord
 |                             |                          |                                           |the Swap Order.                                                      |  
 +-----------------------------+--------------------------+-------------------------------------------+---------------------------------------------------------------------+
 
+An Action whose output note pays the desired Asset to the sender of the Order has an input note of the same Asset Base, as every OrchardZSA Action does [#zip-0226-circuit-statement]_.
+Unless the sender spends one of its own notes of the desired Asset in that Action, this input is a Split Input [#zip-0226-split-notes]_.
+If the sender holds no note of the desired Asset, the Split Input is a copy of the reference note of that Asset [#zip-0227-reference-notes]_.
+The address of a reference note is derived from the all-zero Orchard spending key, so anyone can use it: the sender proves and signs the Action with the keys derived from that spending key.
+The sender SHOULD NOT instead spend the reference note as a regular input with $\mathsf{split\_flag} = 0$ because its nullifier is then fixed, and only one such spend can ever be mined.
+
 Rationale for Swap Orders
 -------------------------
 
@@ -273,17 +313,17 @@ The Order senders do not know in advance with whom their orders will be matched,
 As such, they cannot create notes for a recipient other than themself. 
 To form an Order, the sender must generate Actions with output notes and associated commitments, that use their own diversifier $\mathsf{d}$ and diversified transmission key $\mathsf{pk_d}$ [#protocol-notes]_.
 
-Each Order can be seen as an “incomplete" OrchardZSA transaction to oneself, which is unbalanced w.r.t each ZSA AssetBase. 
+Each Order can be seen as an “incomplete” OrchardZSA transaction to oneself, which is unbalanced w.r.t each ZSA AssetBase. 
 Each Order only “becomes valid” in the context of a Swap Bundle, whose overall value is balanced across Asset Bases (i.e. the two Orders balance each other).
 
 ZIP 226 [#zip-0226]_, that this ZIP builds on, introduces changes to the NU5 circuit to include support for different Assets. 
-The structure there requires that the input and output notes of the OrchardZSA Action must have the same Asset Base.
+The structure there requires that the input and output notes of the OrchardZSA Action must have the same Asset Base [#zip-0226-circuit-statement]_.
 This ZIP continues with the same idea, i.e. the manipulation of a single Asset Base per Action.
-Therefore, Swap Orders are expected to generally have at least three Actions:
+Therefore, Swap Orders are expected to generally have the following Actions:
 
-- One Action for the Proposed Asset.
-- One Action for the Desired Asset.
-- One Action for the fees ($\mathsf{ZEC}$).
+- One or more Actions for the Proposed Asset.
+- One or more Actions for the Desired Asset.
+- Optionally, a Fee Action for the fees ($\mathsf{ZEC}$).
 
 Security and Privacy Considerations
 ===================================
@@ -296,7 +336,11 @@ We consider whether our change from signing the v0 SIGHASH in the spend authoriz
 This is prevented by the use of the v0 SIGHASH in the binding signature. 
 If an adversary tries to extract an Action Group and associated Spend Authorization Signature from a transaction on the network to replay it within another transaction - which would potentially be detrimental to the matcher as it could make their bundle invalid (if the replayed Action Group gets included first on-chain) - the adversary will also need to be able to generate a binding signature on their replayed transaction, which is not possible without knowing the $\mathsf{bsk}$ associated with the Action Group being replayed.
 The $\mathsf{bsk}$ is sent within the Swap Order. The Swap Order is assumed to be communicated over a secure channel off-chain between the parties. 
-This precludes the possibility of replay attacks. 
+This precludes replay by any party that does not know the $\mathsf{bsk}_i$ values involved.
+
+A party that knows the $\mathsf{bsk}_i$ of a Swap Order, such as the Matcher, can include its Action Group in any transaction.
+On a single chain this allows no replay, because every such transaction reveals the same nullifiers and at most one of them can be mined.
+However, unlike the v0 SIGHASH, the v1 Signature Digest does not commit to the consensus branch ID, so after a chain split such a party can include the Action Group in a transaction on each branch.
 
 Non-Malleability of the Expiry Height
 -------------------------------------
@@ -392,7 +436,7 @@ All of these proposals have their pros and cons, and warrant further study and d
 Denial-of-Service (DoS) Prevention
 ----------------------------------
 
-The implementation of a fee mechanism is not enough to provide DOS prevention. 
+The implementation of a fee mechanism is not enough to provide DoS prevention. 
 In fact, the presence of a fee in a Swap Order doesn't ensure this fee is payable. 
 A trader, Alice, can promise to pay 1000 ZEC, but this promise has no value unless it can be verified. The same applies to fees. 
 The Matcher must be able to carry out quick validity checks on Swap Orders to assess their probability to form valid Swap Bundles when matched. 
@@ -403,9 +447,9 @@ Some helpful checks in this regard will be:
 
 - Verifying the nullifiers: “Does the order spend notes that have already been spent?” (This might require querying the chain.)
 - Verifying the ZKPs: “Does the order contain valid Actions?”
-- Verifying the $\mathsf{rcv}$ values and other extra data attached to the Swap Order.
+- Verifying the $\mathsf{bsk}$ of the Order: “Does $[\mathsf{bsk}]\,\mathcal{R}^{\mathsf{Orchard}} = \sum \mathsf{cv^{net}} - [q]\,\mathsf{AssetBase}_{\mathsf{A}_1} + [q']\,\mathsf{AssetBase}_{\mathsf{A}_2} - [\mathsf{fee}]\,\mathcal{V}^{\mathsf{Orchard}}$ hold?” Here the sum is over the Actions of the Order, $q$ and $q'$ are the ``qty`` fields of ``ProposedInput`` and ``DesiredOutput``, and the value commitments of any Asset burns in the Order are also subtracted, as in ZIP 226 [#zip-0226-burn-mechanism]_.
 - Verifying the expiry height: “Has the order expired?”
-- Verifying the fee payment: “Does the Order contain a valid amount for fees?”
+- Verifying the fee payment: “Is the ``fee`` of the Order sufficient for the Matcher Fees and Miner Fees?”
 
 
 Test Vectors
@@ -428,19 +472,22 @@ This ZIP is proposed to activate in a future Network Upgrade.
 References
 ==========
 
-.. [#RFC2119] `RFC 2119: Key words for use in RFCs to Indicate Requirement Levels <https://www.rfc-editor.org/rfc/rfc2119.html>`_
-.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.html>`_
-.. [#zip-0224] `ZIP 224: Orchard <zip-0224.html>`_
-.. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.html>`_
-.. [#zip-0226-circuit-statement] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Circuit Statement <zip-0226.html#circuit-statement>`_
-.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.html>`_
-.. [#zip-0227-assetbase] `ZIP 227: Issuance of Zcash Shielded Assets - Specification: Asset Identifier <zip-0227.html#specification-asset-identifier>`_
-.. [#zip-0230] `ZIP 230: Version 6 Transaction Format <zip-0230.html>`_
-.. [#zip-0230-transaction-format] `ZIP 230: Version 6 Transaction Format - Transaction Format <zip-0230.html#transaction-format>`_
-.. [#zip-0244-orchard-digest] `ZIP 244: Transaction Identifier Non-Malleability: T4. orchard_digest <zip-0244.html#t-4-orchard-digest>`_
-.. [#zip-0246] `ZIP 246: Digests for the Version 6 Transaction Format <zip-0246.html>`_
-.. [#protocol-notes] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.2: Notes <protocol/protocol.pdf#notes>`_
-.. [#protocol-actions] `Zcash Protocol Specification, Version 2024.5.1 [NU6]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
-.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2024.5.1. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
-.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2024.5.1. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
+.. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words" <https://www.rfc-editor.org/info/bcp14>`_
+.. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0224] `ZIP 224: Orchard Shielded Protocol <zip-0224.rst>`_
+.. [#zip-0226] `ZIP 226: Transfer and Burn of Zcash Shielded Assets <zip-0226.rst>`_
+.. [#zip-0226-burn-mechanism] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Burn Mechanism <zip-0226.rst#burn-mechanism>`_
+.. [#zip-0226-split-notes] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Split Notes <zip-0226.rst#split-notes>`_
+.. [#zip-0226-circuit-statement] `ZIP 226: Transfer and Burn of Zcash Shielded Assets - Circuit Statement <zip-0226.rst#circuit-statement>`_
+.. [#zip-0227] `ZIP 227: Issuance of Zcash Shielded Assets <zip-0227.rst>`_
+.. [#zip-0227-assetbase] `ZIP 227: Issuance of Zcash Shielded Assets - Asset Bases <zip-0227.rst#asset-bases>`_
+.. [#zip-0227-reference-notes] `ZIP 227: Issuance of Zcash Shielded Assets - Reference Notes <zip-0227.rst#reference-notes>`_
+.. [#zip-0227-consensus] `ZIP 227: Issuance of Zcash Shielded Assets - Specification: Consensus Rule Changes <zip-0227.rst#specification-consensus-rule-changes>`_
+.. [#zip-0230] `ZIP 230: Withdrawn Version 6 Transaction Format <zip-0230.rst>`_
+.. [#zip-0230-transaction-format] `ZIP 230: Withdrawn Version 6 Transaction Format - Transaction Format <zip-0230.rst#transaction-format>`_
+.. [#zip-0246] `ZIP 246: Digests for the Withdrawn Version 6 Transaction Format <zip-0246.rst>`_
+.. [#protocol-notes] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.2: Shielded Pools and Notes <protocol/protocol.pdf#notes>`_
+.. [#protocol-actions] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.7: Action Transfers and their Descriptions <protocol/protocol.pdf#actions>`_
+.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
+.. [#protocol-txnencoding] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1: Transaction Encoding and Consensus <protocol/protocol.pdf#txnencoding>`_
 .. [#clob] `Central Limit Order Book Definition - Risk.net <https://www.risk.net/definition/central-limit-order-book-clob>`_
