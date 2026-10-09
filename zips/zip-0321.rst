@@ -5,7 +5,7 @@
   Owners: Kris Nuttycombe <kris@nutty.land>
           Daira-Emma Hopwood <daira@jacaranda.org>
   Credits: Francisco Gindre
-  Status: Active
+  Status: [Revision 0] Active, [Revision 1] Proposed
   Category: Standards / Wallet
   Created: 2020-08-28
   Discussions-To: <https://github.com/zcash/zips/issues/347>
