@@ -2048,8 +2048,8 @@ synchronization procedure MUST obey the following rules.
 - **Reorganization margin.** Commitment-based authentication MUST NOT be
   applied within 601 blocks of the node's view of the network chain tip; the
   chain near the tip is synchronized headers-first. The margin is one block
-  more than the 600-block rollback depth that ZIP 218 [^zip-0218] recommends
-  supporting from NU7 activation. The responder-side
+  more than the minimum rollback depth of 600 blocks that ZIP 218
+  [^zip-0218] recommends supporting from NU7 activation. The responder-side
   margin of [`get-hashes`](#get-hashes) is the same depth, measured the same
   way, so that a responder's hints and a requester's authentication agree
   about which blocks are near enough to the tip to be unsettled.

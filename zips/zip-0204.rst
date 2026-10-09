@@ -601,33 +601,33 @@ before disconnecting.
 
 The following protocol versions are associated with network upgrades on Mainnet:
 
-+-------------------+------------------+-------------------+
-| Network Upgrade   | Protocol Version | Activation Height |
-+===================+==================+===================+
-| Sprout            | 170002           | (always active)   |
-+-------------------+------------------+-------------------+
-| Overwinter        | 170005           | 347,500           |
-+-------------------+------------------+-------------------+
-| Sapling           | 170007           | 419,200           |
-+-------------------+------------------+-------------------+
-| Blossom           | 170009           | 653,600           |
-+-------------------+------------------+-------------------+
-| Heartwood         | 170011           | 903,000           |
-+-------------------+------------------+-------------------+
-| Canopy            | 170013           | 1,046,400         |
-+-------------------+------------------+-------------------+
-| NU5               | 170100           | 1,687,104         |
-+-------------------+------------------+-------------------+
-| NU6               | 170120           | 2,726,400         |
-+-------------------+------------------+-------------------+
-| NU6.1             | 170140           | 3,146,400         |
-+-------------------+------------------+-------------------+
-| NU6.2             | 170150           | 3,364,600         |
-+-------------------+------------------+-------------------+
-| NU6.3             | 170160           | 3,428,143         |
-+-------------------+------------------+-------------------+
-| NU7               | 170190           | TBD               |
-+-------------------+------------------+-------------------+
++-------------------+------------------+-------------------------------+
+| Network Upgrade   | Protocol Version | Activation Height             |
++===================+==================+===============================+
+| Sprout            | 170002           | (always active)               |
++-------------------+------------------+-------------------------------+
+| Overwinter        | 170005           | 347,500                       |
++-------------------+------------------+-------------------------------+
+| Sapling           | 170007           | 419,200                       |
++-------------------+------------------+-------------------------------+
+| Blossom           | 170009           | 653,600                       |
++-------------------+------------------+-------------------------------+
+| Heartwood         | 170011           | 903,000                       |
++-------------------+------------------+-------------------------------+
+| Canopy            | 170013           | 1,046,400                     |
++-------------------+------------------+-------------------------------+
+| NU5               | 170100           | 1,687,104                     |
++-------------------+------------------+-------------------------------+
+| NU6               | 170120           | 2,726,400                     |
++-------------------+------------------+-------------------------------+
+| NU6.1             | 170140           | 3,146,400                     |
++-------------------+------------------+-------------------------------+
+| NU6.2             | 170150           | 3,364,600                     |
++-------------------+------------------+-------------------------------+
+| NU6.3             | 170160           | 3,428,143                     |
++-------------------+------------------+-------------------------------+
+| NU7               | 170190           | NU7_MAINNET_ACTIVATION_HEIGHT |
++-------------------+------------------+-------------------------------+
 
 The following protocol versions are associated with network upgrades on Testnet:
 
@@ -659,8 +659,7 @@ The following protocol versions are associated with network upgrades on Testnet:
 | NU7               | 170180           | 4,465,026         |
 +-------------------+------------------+-------------------+
 
-The NU7 values are those assigned by ZIP 259 [#zip-0259]_, which has not yet set the
-Mainnet activation height.
+The NU7 values are those specified in ZIP 259 [#zip-0259]_.
 
 Note that Testnet protocol versions differ from Mainnet for several upgrades
 (Overwinter, Blossom, Heartwood, Canopy, NU5, NU6, NU6.1, and NU7), but coincide for
@@ -1371,7 +1370,7 @@ Zebra implementation uses a limit of 0 (as did the zcashd implementation by defa
 it neither accepts into its mempool nor relays a transaction that pays less than the
 conventional fee. Under ZIP 317 the conventional fee is at least 10,000 zatoshis; the
 Zebra implementation computes it with a marginal fee of 1000 zatoshis per logical action,
-as proposed in ZIP 2009 [#zip-2009]_, giving at least 2,000 zatoshis.
+as specified in ZIP 2009 [#zip-2009]_, giving at least 2,000 zatoshis.
 
 Transactions are also subject to a minimum relay fee. Both the zcashd and Zebra
 implementations use a base rate of 100 zatoshis per 1000 bytes

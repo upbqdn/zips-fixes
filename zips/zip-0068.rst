@@ -91,9 +91,9 @@ So when using block-based or time-based, roughly the same amount of time can be 
 with the available number of bits. Converting from a sequence number to seconds is
 performed by multiplying by 64.
 
-If the block target spacing is reduced to 25 seconds as proposed in ZIP 218 [#zip-0218]_, the
-block-based range falls to about 3.3 years while the time-based range remains about 8.5 years, so
-this choice of granularity would need to be reconsidered.
+From NU7 activation the block target spacing is 25 seconds [#zip-0218]_, so the block-based range
+falls to about 3.3 years while the time-based range remains about 8.5 years. The time-based
+granularity therefore needs to be reconsidered before this ZIP is deployed.
 
 When the relative lock-time is time-based, it is interpreted as a minimum block-time
 constraint over the input's age. A relative time-based lock-time of zero indicates an
