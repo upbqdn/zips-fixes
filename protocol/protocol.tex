@@ -2240,6 +2240,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\SlowStartRate}{\mathsf{SlowStartRate}}
 \newcommand{\PreBlossomHalvingInterval}{\mathsf{\notbeforeblossom{PreBlossom}HalvingInterval}}
 \newcommand{\PostBlossomHalvingInterval}{\mathsf{PostBlossomHalvingInterval}}
+\newcommand{\PostNUSevenHalvingInterval}{\mathsf{PostNU7HalvingInterval}}
 \newcommand{\MaxBlockSubsidy}{\mathsf{MaxBlockSubsidy}}
 \newcommand{\NumFounderAddresses}{\mathsf{NumFounderAddresses}}
 \newcommand{\FounderAddressChangeInterval}{\mathsf{FounderAddressChangeInterval}}
@@ -2280,6 +2281,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\BlossomActivationHeight}{\mathsf{BlossomActivationHeight}}
 \newcommand{\IsBlossomActivated}{\mathsf{IsBlossomActivated}}
 \newcommand{\CanopyActivationHeight}{\mathsf{CanopyActivationHeight}}
+\newcommand{\NUSevenActivationHeight}{\mathsf{NU7ActivationHeight}}
+\newcommand{\IsNUSevenActivated}{\mathsf{IsNU7Activated}}
 \newcommand{\ZIPTwoOneTwoGracePeriod}{\mathsf{ZIP212GracePeriod}}
 \newcommand{\ZIPTwoSevenOneActivationHeight}{\mathsf{ZIP271ActivationHeight}}
 \newcommand{\ZIPTwoSevenOneDisbursementAmount}{\mathsf{ZIP271DisbursementAmount}}
@@ -2288,6 +2291,8 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 
 \newcommand{\PoWLimit}{\mathsf{PoWLimit}}
 \newcommand{\PoWAveragingWindow}{\mathsf{PoWAveragingWindow}}
+\newcommand{\PreNUSevenPoWAveragingWindow}{\mathsf{\notbeforenuseven{PreNU7}PoWAveragingWindow}}
+\newcommand{\PostNUSevenPoWAveragingWindow}{\mathsf{PostNU7PoWAveragingWindow}}
 \newcommand{\PoWMedianBlockSpan}{\mathsf{PoWMedianBlockSpan}}
 \newcommand{\PoWMaxAdjustDown}{\mathsf{PoWMaxAdjustDown}}
 \newcommand{\PoWMaxAdjustUp}{\mathsf{PoWMaxAdjustUp}}
@@ -2295,6 +2300,12 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\PreBlossomPoWTargetSpacing}{\mathsf{\notbeforeblossom{PreBlossom}PoWTargetSpacing}}
 \newcommand{\PostBlossomPoWTargetSpacing}{\mathsf{PostBlossomPoWTargetSpacing}}
 \newcommand{\BlossomPoWTargetSpacingRatio}{\mathsf{BlossomPoWTargetSpacingRatio}}
+\newcommand{\PostNUSevenPoWTargetSpacing}{\mathsf{PostNU7PoWTargetSpacing}}
+\newcommand{\NUSevenPoWTargetSpacingRatio}{\mathsf{NU7PoWTargetSpacingRatio}}
+\newcommand{\GlobalShieldedBudget}{\mathsf{GlobalShieldedBudget}}
+\newcommand{\OrchardProtocolBlockActionLimit}{\mathsf{OrchardProtocolBlockActionLimit}}
+\newcommand{\SaplingBlockIOLimit}{\mathsf{SaplingBlockIOLimit}}
+\newcommand{\SproutBlockJoinSplitLimit}{\mathsf{SproutBlockJoinSplitLimit}}
 \newcommand{\PoWTargetSpacingFunc}{\mathsf{PoWTargetSpacing}}
 \newcommand{\MeanTarget}{\mathsf{MeanTarget}}
 \newcommand{\MedianTime}{\mathsf{MedianTime}}
@@ -2925,6 +2936,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\prenusixthreeitem}[1]{\item \prenusixthree{#1}}
 \newcommand{\nusixthreeonlyitem}[1]{\nusixthree{\item {[\NUSixThree only\notbeforenuseven{, pre-\NUSeven}]}\, {#1}}}
 \newcommand{\nusixthreeonwarditem}[1]{\nusixthree{\item {[\NUSixThree onward]}\, {#1}}}
+\newcommand{\nusixthreeprenusevenitem}[1]{\nusixthree{\item {[\NUSixThree onward\notbeforenuseven{, pre-\NUSeven}]}\, {#1}}}
 \newcommand{\prenusixtwoitem}[1]{\item \prenusixtwo{#1}}
 \newcommand{\nusixtwoonlyitem}[1]{\nusixtwo{\item {[\NUSixTwo only\notbeforenusixthree{, pre-\NUSixThree}]}\, {#1}}}
 \newcommand{\nusixtwoonwarditem}[1]{\nusixtwo{\item {[\NUSixTwo onward]}\, {#1}}}
@@ -3550,10 +3562,12 @@ The following integer constants will be instantiated in \crossref{constants}:
     $\PRFOutputLengthNfSapling$,} $\NoteCommitRandLengthSprout$, $\RandomSeedLength$, $\AuthPrivateLength$,
     $\NoteUniquePreRandLength$,\sapling{ $\SpendingKeyLength$, $\DiversifierLength$,\nufive{ $\DiversifierKeyLength$,}\nusixthree{ $\QuantumSpendingKeyLength$, $\QuantumIntermediateKeyLength$,}
     $\InViewingKeyLength{Sapling}$, $\OutViewingKeyLength$, $\ScalarLength{Sapling}$,\nufive{ $\ScalarLength{Orchard}$, $\BaseLength{Orchard}$,}}
-    $\MAXMONEY$,\blossom{ $\BlossomActivationHeight$,}\strut\canopy{ $\CanopyActivationHeight$, $\ZIPTwoOneTwoGracePeriod$,}
+    $\MAXMONEY$,\blossom{ $\BlossomActivationHeight$,}\strut\canopy{ $\CanopyActivationHeight$, $\ZIPTwoOneTwoGracePeriod$,}\nuseven{ $\NUSevenActivationHeight$,}
     $\SlowStartInterval$, $\PreBlossomHalvingInterval$, $\MaxBlockSubsidy$, $\NumFounderAddresses$,
-    $\PoWLimit$, $\PoWAveragingWindow$, $\PoWMedianBlockSpan$, $\PoWDampingFactor$,
-    \notblossom{and }$\PreBlossomPoWTargetSpacing$\blossom{, and $\PostBlossomPoWTargetSpacing$}.
+    $\PoWLimit$, $\PreNUSevenPoWAveragingWindow$,\nuseven{ $\PostNUSevenPoWAveragingWindow$,} $\PoWMedianBlockSpan$, $\PoWDampingFactor$,
+    \notblossom{and }$\PreBlossomPoWTargetSpacing$\blossom{,\notnuseven{ and} $\PostBlossomPoWTargetSpacing$}\nuseven{,
+    $\PostNUSevenPoWTargetSpacing$, $\GlobalShieldedBudget$, $\OrchardProtocolBlockActionLimit$, $\SaplingBlockIOLimit$,
+    and $\SproutBlockJoinSplitLimit$}.
   \end{flushleft}
 \end{formulae}
 
@@ -9466,6 +9480,12 @@ Define:
         \end{cases}$
   \item $\ZIPTwoOneTwoGracePeriod \typecolon \Nat := 32256$
 } %canopy
+\nuseven{
+  \item $\NUSevenActivationHeight \typecolon \Nat := \begin{cases}
+          \mathrm{\detokenize{NU7_MAINNET_ACTIVATION_HEIGHT}},&\squash\text{for \Mainnet} \\
+          4465026,&\squash\text{for \Testnet}
+        \end{cases}$
+} %nuseven
   \item $\SlowStartInterval \typecolon \Nat := 20000$
   \item $\PreBlossomHalvingInterval \typecolon \Nat := 840000$
   \item $\MaxBlockSubsidy \typecolon \Nat := 1.25 \smult 10^9$ (\zatoshi)
@@ -9475,15 +9495,25 @@ Define:
           2^{243} - 1,&\squash\text{for \Mainnet} \\
           2^{251} - 1,&\squash\text{for \Testnet}
         \end{cases}$
-  \item $\PoWAveragingWindow \typecolon \Nat := 17$
+  \item $\PreNUSevenPoWAveragingWindow \typecolon \Nat := 17$
+\nuseven{
+  \item $\PostNUSevenPoWAveragingWindow \typecolon \Nat := 102$
+} %nuseven
   \item $\PoWMedianBlockSpan \typecolon \Nat := 11$
   \item $\PoWMaxAdjustDown \typecolon \Rat := \frac{32}{100}$
   \item $\PoWMaxAdjustUp \typecolon \Rat := \frac{16}{100}$
   \item $\PoWDampingFactor \typecolon \Nat := 4$
-  \item $\PreBlossomPoWTargetSpacing \typecolon \Nat := 150$ (seconds).
+  \item $\PreBlossomPoWTargetSpacing \typecolon \Nat := 150$ (seconds)\notblossom{.}
 \blossom{
-  \item $\PostBlossomPoWTargetSpacing \typecolon \Nat := 75$ (seconds).
+  \item $\PostBlossomPoWTargetSpacing \typecolon \Nat := 75$ (seconds)\notnuseven{.}
 } %blossom
+\nuseven{
+  \item $\PostNUSevenPoWTargetSpacing \typecolon \Nat := 25$ (seconds)
+  \item $\GlobalShieldedBudget \typecolon \Nat := 330$
+  \item $\OrchardProtocolBlockActionLimit \typecolon \Nat := 330$
+  \item $\SaplingBlockIOLimit \typecolon \Nat := 300$
+  \item $\SproutBlockJoinSplitLimit \typecolon \Nat := 0$.
+} %nuseven
 \end{formulae}
 
 
@@ -14284,7 +14314,8 @@ of the \transaction encoding in the \notbeforenufive{pre-v5} format described ab
         be $\hexint{03C48270}$.}
   \saplingprenufiveitem{The \transactionVersionNumber{} \MUST be $4$.}
   \nufiveprenusixthreeitem{The \transactionVersionNumber \MUST be $4$ or $5$.}
-  \nusixthreeonwarditem{The \transactionVersionNumber \MUST be $4$ or $5$ or $6$.}
+  \nusixthreeprenusevenitem{The \transactionVersionNumber \MUST be $4$ or $5$ or $6$.}
+  \nusevenonwarditem{The \transactionVersionNumber \MUST be $5$ or $6$ \cite{ZIP-2003}.}
   \saplingonwarditem{If the \transactionVersionNumber{} is $4$ then the \versionGroupID \MUST be $\hexint{892F2085}$.}
   \nufiveonwarditem{If the \transactionVersionNumber{} is $5$ then the \versionGroupID \MUST be $\hexint{26A7270A}$.}
   \nusixthreeonwarditem{If the \transactionVersionNumber{} is $6$ then the \versionGroupID \MUST be $\hexint{D884B698}$.}
@@ -14974,14 +15005,15 @@ $\scriptPubKey$ is a P2SH script, of the accurate-mode count of the input's rede
 \end{itemize}
 
 \vspace{1ex}
-Let $\ThresholdBits$\blossom{, $\PoWTargetSpacingFunc$,} and $\nTime$ be as defined in
+Let $\ThresholdBits$\blossom{, $\PoWTargetSpacingFunc$,}\nuseven{ $\IsNUSevenActivated$,} and $\nTime$ be as defined in
 \crossref{diffadjustment}.
 
 \vspace{-0.5ex}
 Let $\ToCompact$ be as defined in \crossref{nbits}.
 
 \vspace{-0.5ex}
-Let $\PoWLimit$\notblossom{, $\PreBlossomPoWTargetSpacing$,} and $\PoWMedianBlockSpan$ be the constants
+Let $\PoWLimit$\notblossom{, $\PreBlossomPoWTargetSpacing$,}\nuseven{, $\OrchardProtocolBlockActionLimit$,
+$\SaplingBlockIOLimit$, $\SproutBlockJoinSplitLimit$, $\GlobalShieldedBudget$,} and $\PoWMedianBlockSpan$ be the constants
 defined in \crossref{constants}.
 
 \defining{Define the \medianTimePast of a \block to be the median (as defined in \crossref{diffadjustment})
@@ -14995,9 +15027,11 @@ preceding \blocks if there are fewer than $\PoWMedianBlockSpan$). The \medianTim
   \item For a \block at \blockHeight $\BlockHeight$, $\nBitsField$ \MUST be equal to
         $\ThresholdBits(\BlockHeight)$, except that on \Testnet, if $\BlockHeight \geq 299188$ and
         the $\nTimeField$ field of the \block is greater than
-        $\nTime(\BlockHeight - 1) + 6 \mult \notblossom{\PreBlossomPoWTargetSpacing}\blossom{\PoWTargetSpacingFunc(\BlockHeight)}$,
+        $\nTime(\BlockHeight - 1) + 6 \mult \notblossom{\PreBlossomPoWTargetSpacing}\blossom{\PoWTargetSpacingFunc(\BlockHeight)}$\nuseven{
+        (or, if $\IsNUSevenActivated(\BlockHeight)$, greater than
+        $\nTime(\BlockHeight - 1) + 18 \mult \PoWTargetSpacingFunc(\BlockHeight)$)},
         then $\nBitsField$ \MUST instead be equal to $\ToCompact(\PoWLimit)$
-        \cite{ZIP-205}\blossom{ \cite{ZIP-208}}.
+        \cite{ZIP-205}\blossom{ \cite{ZIP-208}}\nuseven{ \cite{ZIP-218}}.
   \item The \block \MUST pass the difficulty filter defined in \crossref{difficulty}.
   \item $\solution$ \MUST represent a \validEquihashSolution as defined in \crossref{equihash}.
   \item For each \block other than the \genesisBlock, $\nTimeField$ \MUST be strictly greater
@@ -15010,6 +15044,17 @@ preceding \blocks if there are fewer than $\PoWMedianBlockSpan$). The \medianTim
   \item A \block \MUSTNOT contain two \transactions with the same \transactionID.
   \item The sum, over all \transactions in the \block, of their legacy and P2SH
         signature operation counts \MUST be less than or equal to $20000$.
+  \nusevenonwarditem{The sum over all \transactions in the \block of each of the following
+        quantities \MUST be less than or equal to the given limit, where a field is taken as $0$
+        for a \transaction that does not have it \cite{ZIP-218}:
+        \begin{itemize}
+          \item $\nActionsField{Orchard}$, limit $\OrchardProtocolBlockActionLimit$;
+          \item $\nActionsField{Ironwood}$, limit $\OrchardProtocolBlockActionLimit$;
+          \item $\nSpendsSapling + \nOutputsSapling$, limit $\SaplingBlockIOLimit$;
+          \item $\nJoinSplit$, limit $\SproutBlockJoinSplitLimit$;
+          \item $\nActionsField{Orchard} + \nActionsField{Ironwood} + \nSpendsSapling + \nOutputsSapling
+                + 2 \mult \nJoinSplit$, limit $\GlobalShieldedBudget$.
+        \end{itemize}}
 \notheartwood{
   \saplingonwarditem{$\hashFinalSaplingRoot$ \MUST be $\LEBStoOSPOf{256}{\rt{\SaplingPoolId}}$ where
         $\rt{\SaplingPoolId}$ is the \merkleRoot of the \SaplingPoolAdj \noteCommitmentTree for the final
@@ -15324,9 +15369,10 @@ the desired \blockTargetSpacing. Unlike \Bitcoin, the difficulty adjustment occu
 after every \block.
 
 {\raggedright
-\notbeforeblossom{The constants }$\PoWLimit$, $\PreBlossomHalvingInterval$, $\PoWAveragingWindow$,
-$\PoWMaxAdjustDown$, $\PoWMaxAdjustUp$, $\PoWDampingFactor$, $\PoWMedianBlockSpan$,\notblossom{ and}
-$\PreBlossomPoWTargetSpacing$\blossom{, $\PostBlossomPoWTargetSpacing$, and $\BlossomActivationHeight$}
+\notbeforeblossom{The constants }$\PoWLimit$, $\PreBlossomHalvingInterval$, $\PreNUSevenPoWAveragingWindow$,\nuseven{
+$\PostNUSevenPoWAveragingWindow$,} $\PoWMaxAdjustDown$, $\PoWMaxAdjustUp$, $\PoWDampingFactor$, $\PoWMedianBlockSpan$,\notblossom{ and}
+$\PreBlossomPoWTargetSpacing$\blossom{, $\PostBlossomPoWTargetSpacing$,\nuseven{ $\PostNUSevenPoWTargetSpacing$,
+$\BlossomActivationHeight$,}\notnuseven{ and $\BlossomActivationHeight$}}\nuseven{ and $\NUSevenActivationHeight$}
 are specified in \crossref{constants}.\par}
 
 Let $\ToCompact$ and $\ToTarget$ be as defined in \crossref{nbits}.
@@ -15356,26 +15402,45 @@ Define:
   \item $\IsBlossomActivated(\BlockHeight \typecolon \Nat) := (\BlockHeight \geq \BlossomActivationHeight)$
   \item $\BlossomPoWTargetSpacingRatio := \hfrac{\PreBlossomPoWTargetSpacing}{\PostBlossomPoWTargetSpacing}$
   \item $\PostBlossomHalvingInterval := \floor{\PreBlossomHalvingInterval \mult \BlossomPoWTargetSpacingRatio}$
+\nuseven{
+  \item $\IsNUSevenActivated(\BlockHeight \typecolon \Nat) := (\BlockHeight \geq \NUSevenActivationHeight)$
+  \item $\NUSevenPoWTargetSpacingRatio := \hfrac{\PostBlossomPoWTargetSpacing}{\PostNUSevenPoWTargetSpacing}$
+  \item $\PostNUSevenHalvingInterval := \floor{\PostBlossomHalvingInterval \mult \NUSevenPoWTargetSpacingRatio}$
+} %nuseven
   \item $\PoWTargetSpacingFunc(\BlockHeight \typecolon \Nat) := \begin{cases}
           \PreBlossomPoWTargetSpacing,&\caseif \text{not } \IsBlossomActivated(\BlockHeight) \\
-          \PostBlossomPoWTargetSpacing,&\caseotherwise
+          \PostBlossomPoWTargetSpacing,&\notnuseven{\caseotherwise}\nuseven{\caseif \IsBlossomActivated(\BlockHeight)}\notbeforenuseven{ \\[-0.8ex]
+                                       &\nuseven{\text{ and not } \IsNUSevenActivated(\BlockHeight)} \\
+          \nuseven{\PostNUSevenPoWTargetSpacing,}&\nuseven{\caseotherwise}}
         \end{cases}$
 } %blossom
+\nuseven{
+  \item $\PoWAveragingWindow(\BlockHeight \typecolon \Nat) := \begin{cases}
+          \PreNUSevenPoWAveragingWindow,&\caseif \text{not } \IsNUSevenActivated(\BlockHeight) \\
+          \PostNUSevenPoWAveragingWindow,&\caseotherwise
+        \end{cases}$
+} %nuseven
 
-  \item $\AveragingWindowTimespan\blossom{(\BlockHeight \typecolon \Nat)} := \PoWAveragingWindow \mult \PoWTargetSpacingFunc\blossom{(\BlockHeight)}$
+  \item $\AveragingWindowTimespan\blossom{(\BlockHeight \typecolon \Nat)} := \PoWAveragingWindow\nuseven{(\BlockHeight)} \mult \PoWTargetSpacingFunc\blossom{(\BlockHeight)}$
   \item $\MinActualTimespan\blossom{(\BlockHeight \typecolon \Nat)} := \floor{\AveragingWindowTimespan\blossom{(\BlockHeight)} \mult (1 - \PoWMaxAdjustUp)}$
   \item $\MaxActualTimespan\blossom{(\BlockHeight \typecolon \Nat)} := \floor{\AveragingWindowTimespan\blossom{(\BlockHeight)} \mult (1 + \PoWMaxAdjustDown)}$
   \item $\MedianTime(\BlockHeight \typecolon \Nat) :=
           \median(\listcomp{\nTime(i) \for i \from \maximum(0, \BlockHeight - \PoWMedianBlockSpan) \upto \BlockHeight - 1})$
-  \item $\ActualTimespan(\BlockHeight \typecolon \Nat) := \MedianTime(\BlockHeight) - \MedianTime(\BlockHeight - \PoWAveragingWindow)$
+  \item $\ActualTimespan(\BlockHeight \typecolon \Nat) := \MedianTime(\BlockHeight) - \MedianTime(\BlockHeight - \PoWAveragingWindow\nuseven{(\BlockHeight)})$
   \item $\ActualTimespanDamped(\BlockHeight \typecolon \Nat) :=$
         \vspace{-0.8ex}
   \item \tab $\AveragingWindowTimespan\blossom{(\BlockHeight)} + \trunc{\hfrac{\ActualTimespan(\BlockHeight) - \AveragingWindowTimespan\blossom{(\BlockHeight)}}{\PoWDampingFactor}}$
   \item $\ActualTimespanBounded(\BlockHeight \typecolon \Nat) := \bound{\MinActualTimespan\blossom{(\BlockHeight)}}{\MaxActualTimespan\blossom{(\BlockHeight)}}(\ActualTimespanDamped(\BlockHeight))$
   \item $\MeanTarget(\BlockHeight \typecolon \Nat) := \!\begin{cases}
-          \PoWLimit, \hspace{16em}\text{if } \BlockHeight \leq \PoWAveragingWindow \\
+          \PoWLimit, \hspace{\iftoggle{isnuseven}{13.3em}{16em}}\text{if } \BlockHeight \leq \PoWAveragingWindow\nuseven{(\BlockHeight)} \\
+\notnuseven{
           \mean(\listcomp{\!\ToTarget(\nBits(i)\kern-0.1em) \for i \from \BlockHeight\!-\!\PoWAveragingWindow \upto \BlockHeight\!-\!1\!}),\\
-                     \hspace{20.7em}\text{otherwise.}
+} %notnuseven
+\notbeforenuseven{
+          \mean(\overlap{0.06em}{\ensuremath{[}}~\!\ToTarget(\nBits(i)\kern-0.1em) \for i \from \BlockHeight\!-\!\PoWAveragingWindow\nuseven{(\BlockHeight)} \\
+          \hspace{6.5em}\upto \BlockHeight\!-\!1\!~\overlap{0.06em}{\ensuremath{]}}),\\
+} %notbeforenuseven
+                     \hspace{\iftoggle{isnuseven}{18em}{20.7em}}\text{otherwise.}
         \end{cases}$
 \end{formulae}
 
@@ -15384,10 +15449,10 @@ The \targetThreshold for a given \blockHeight $\BlockHeight$ is then calculated 
 
 \begin{formulae}
   \item $\Threshold(\BlockHeight \typecolon \Nat) \hspace{0.43em} := \hspace{0.3em} \begin{cases}
-               \PoWLimit, \hspace{16em}\text{if } \BlockHeight \leq \PoWAveragingWindow \\
+               \PoWLimit, \hspace{\iftoggle{isnuseven}{13.3em}{16em}}\text{if } \BlockHeight \leq \PoWAveragingWindow\nuseven{(\BlockHeight)} \\
                \minimum(\PoWLimit, \floor{\hfrac{\MeanTarget(\BlockHeight)}{\AveragingWindowTimespan\blossom{(\BlockHeight)}}}\\
                \hspace{1.5em}{} \mult \ActualTimespanBounded(\BlockHeight)),\\
-                          \hspace{20.7em}\text{otherwise}
+                          \hspace{\iftoggle{isnuseven}{18em}{20.7em}}\text{otherwise}
              \end{cases}$
   \item $\ThresholdBits(\BlockHeight \typecolon \Nat) := \ToCompact(\Threshold(\BlockHeight))$.
 \end{formulae}
@@ -15402,16 +15467,23 @@ The \targetThreshold for a given \blockHeight $\BlockHeight$ is then calculated 
         in the definition of $\MedianTime(\BlockHeight)$ for $\BlockHeight < \PoWMedianBlockSpan$,
         and so affects the \medianTimePast of \blocks below that \blockHeight and, via
         $\ActualTimespan$, the difficulty adjustment for \blocks below \blockHeight
-        $\PoWAveragingWindow + \PoWMedianBlockSpan$), the element that begins the second half
+        $\PreNUSevenPoWAveragingWindow + \PoWMedianBlockSpan$), the element that begins the second half
         of the sequence is taken.
         This corresponds to the \zcashd implementation, but was not specified correctly in versions
         of this specification prior to \historyref{2019.0.0}.
+\nuseven{
+  \item On \Testnet, $\PostNUSevenPoWAveragingWindow \mult \PoWLimit > 2^{256}$, so from \NUSeven the
+        sum of targets in $\MeanTarget$ can exceed $2^{256}$. Implementations that compute it with
+        $256$-bit integers need to avoid overflow.
+} %nuseven
 \end{pnotes}
 
 On \Testnet from \blockHeight $299188$ onward, the difficulty adjustment algorithm
 is changed to allow minimum-difficulty \blocks, as described in \cite{ZIP-205}.
 \blossom{The \NUBlossom \networkUpgrade changes the minimum-difficulty time threshold to $6$ times
 the \blockTargetSpacing, as described in \cite{ZIP-208}.}
+\nuseven{The \NUSeven \networkUpgrade changes it to $18$ times the \blockTargetSpacing, which keeps
+the threshold at $450$ seconds \cite{ZIP-218}.}
 \notbeforeblossom{These changes do}\notblossom{This change does} not apply to \Mainnet.
 
 
@@ -15465,8 +15537,11 @@ Let $\SlowStartInterval$,\, $\PreBlossomHalvingInterval$,\,
 \blossom{$\BlossomActivationHeight$,\, }\canopy{$\CanopyActivationHeight$,\, }$\MaxBlockSubsidy$,
 and $\FoundersFraction$ be as defined in \crossref{constants}.
 
-\blossom{Let $\IsBlossomActivated$, $\BlossomPoWTargetSpacingRatio$, and $\PostBlossomHalvingInterval$
-be as defined in \shortcrossref{diffadjustment}.}
+\blossom{{\raggedright Let $\IsBlossomActivated$, $\BlossomPoWTargetSpacingRatio$,\notnuseven{ and} $\PostBlossomHalvingInterval$\nuseven{,
+$\IsNUSevenActivated$, $\NUSevenPoWTargetSpacingRatio$, and $\PostNUSevenHalvingInterval$}
+be as defined in \shortcrossref{diffadjustment}.\par}}
+
+\nuseven{Let $\NUSevenActivationHeight$ be as defined in \crossref{constants}.}
 
 \canopy{Let $\FundingStreams$ be as specified in \crossref{zip214fundingstreams}.}
 
@@ -15485,7 +15560,14 @@ be as defined in \shortcrossref{diffadjustment}.}
         \notbeforeblossom{
           \floor{\hfrac{\BlockHeight - \SlowStartShift}{\PreBlossomHalvingInterval}}\kern-0.25em,&\blossom{\caseif \text{not } \IsBlossomActivated(\BlockHeight)} \\[1.6ex]
           \multicolumn{2}{@{}l}{\blossom{\floor{\hfrac{\BlossomActivationHeight - \SlowStartShift}{\PreBlossomHalvingInterval} +
-                                                \hfrac{\BlockHeight - \BlossomActivationHeight}{\PostBlossomHalvingInterval}}\kern-0.3em,\hspace{0.85em}\caseotherwise}}
+                                                \hfrac{\BlockHeight - \BlossomActivationHeight}{\PostBlossomHalvingInterval}}\kern-0.3em,\notnuseven{\hspace{0.85em}\caseotherwise}}}
+        \notbeforenuseven{ \\
+          &\nuseven{\caseif \IsBlossomActivated(\BlockHeight)} \\[-0.8ex]
+          &\nuseven{\text{ and not } \IsNUSevenActivated(\BlockHeight)} \\[1.6ex]
+          \multicolumn{2}{@{}l}{\nuseven{\mathsf{floor}\!\left(\hfrac{\BlossomActivationHeight - \SlowStartShift}{\PreBlossomHalvingInterval} +
+                                                \hfrac{\NUSevenActivationHeight - \BlossomActivationHeight}{\PostBlossomHalvingInterval}\right.}} \\[1.2ex]
+          \multicolumn{2}{@{}l}{\nuseven{\hspace{2.5em}\left.{} + \hfrac{\BlockHeight - \NUSevenActivationHeight}{\PostNUSevenHalvingInterval}\right)\kern-0.3em,\hspace{0.85em}\caseotherwise}}
+        } %notbeforenuseven
         } %notbeforeblossom
         \end{cases}$
         \vspace{1ex}
@@ -15499,8 +15581,13 @@ be as defined in \shortcrossref{diffadjustment}.}
           \floor{\hfrac{\MaxBlockSubsidy}{2^{\Halving(\BlockHeight)}}}\kern-0.25em,&\notblossom{\caseotherwise}\notbeforeblossom{\caseif \SlowStartInterval \leq \BlockHeight} \\[-1.4ex]
 \notbeforeblossom {
                                                                                    &\blossom{\text{ and not } \IsBlossomActivated(\BlockHeight)}\! \\[1.2ex]
-          \blossom{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}}\kern-0.25em,}&\blossom{\caseotherwise}
+          \blossom{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}}\kern-0.25em,}&\blossom{\notnuseven{\caseotherwise}\nuseven{\caseif \SlowStartInterval \leq \BlockHeight}}
 } %notbeforeblossom
+\notbeforenuseven{ \\[-1.4ex]
+                                                                                   &\nuseven{\text{ and } \IsBlossomActivated(\BlockHeight)} \\[-0.8ex]
+                                                                                   &\nuseven{\text{ and not } \IsNUSevenActivated(\BlockHeight)} \\[1.2ex]
+          \multicolumn{2}{@{}l}{\nuseven{\floor{\hfrac{\MaxBlockSubsidy}{\BlossomPoWTargetSpacingRatio \mult \NUSevenPoWTargetSpacingRatio \mult 2^{\Halving(\BlockHeight)}}}\kern-0.25em,\hspace{0.85em}\caseotherwise}}
+} %notbeforenuseven
         \end{cases}$
         \vspace{0.5ex}
   \item $\FoundersReward(\BlockHeight \typecolon \Nat) := \begin{cases}
@@ -16761,6 +16848,15 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
     \item Add boilerplate support for \NUSeven.
     \item Describe \NUSeven and the documents that specify it in \crossref{networkupgrades}, and
           add the \NUSeven \consensusBranchID in \crossref{sighash}.
+    \item Apply the \NUSeven changes described in \cite{ZIP-218}: a \blockTargetSpacing of $25$
+          seconds with a difficulty averaging window of $102$ \blocks (\shortcrossref{diffadjustment});
+          a \Testnet minimum-difficulty threshold of $18$ times the \blockTargetSpacing, and per-\block
+          limits on \shielded components (\shortcrossref{blockheader}); and the corresponding changes
+          to the \halving schedule and \blockSubsidy (\shortcrossref{subsidies}). Add the constants
+          they use to \shortcrossref{constants}, renaming $\PoWAveragingWindow$ to
+          $\PreNUSevenPoWAveragingWindow$.
+    \item In \crossref{txnconsensus}, require the \transactionVersionNumber to be $5$ or $6$ from
+          \NUSeven, as described in \cite{ZIP-2003}.
 } %nuseven
 \nusixthree{
     \item Apply the \NUSixThree changes described in \cite{ZIP-258}, \cite{ZIP-229}, and
