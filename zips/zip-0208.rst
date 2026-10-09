@@ -65,13 +65,13 @@ Specification
 =============
 
 The changes described in this section are to be made in the Zcash Protocol Specification
-[#protocol]_, relative to the pre-Blossom specification in [#preblossom-protocol].
+[#protocol]_, relative to the pre-Blossom specification in [#preblossom-protocol]_.
 
 Consensus changes
 -----------------
 
 Throughout the specification, rename $\mathsf{HalvingInterval}$ to $\mathsf{PreBlossomHalvingInterval}$,
-and rename $\mathsf{PoWTargetSpacing}$ to $\mathsf{PreBlossomTargetSpacing}$. These constants retain
+and rename $\mathsf{PoWTargetSpacing}$ to $\mathsf{PreBlossomPoWTargetSpacing}$. These constants retain
 their values from [#preblossom-protocol]_ of $840000$ (blocks) and $150$ (seconds) respectively.
 
 In section 2 (Notation), add $\mathsf{BlossomActivationHeight}$ and $\mathsf{PostBlossomPoWTargetSpacing}$
@@ -95,7 +95,7 @@ Define:
 - $\mathsf{BlossomPoWTargetSpacingRatio} := \mathsf{PreBlossomPoWTargetSpacing} / \mathsf{PostBlossomPoWTargetSpacing}$
 - $\mathsf{PostBlossomHalvingInterval} := \mathsf{floor}(\mathsf{PreBlossomHalvingInterval} \cdot \mathsf{BlossomPoWTargetSpacingRatio})$.
 
-In the same section, redefine $\mathsf{PoWTargetSpacing} as a function taking a
+In the same section, redefine $\mathsf{PoWTargetSpacing}$ as a function taking a
 $\mathsf{height}$ parameter, as follows:
 
 .. math::
@@ -124,6 +124,10 @@ to section 7.8], redefine the $\mathsf{Halving}$ and $\mathsf{BlockSubsidy}$ fun
         \hspace{1em}+\; (\mathsf{height} - \mathsf{BlossomActivationHeight}) / \mathsf{PostBlossomHalvingInterval}) &\!\!\textsf{otherwise}
       \end{cases}
 
+Note: version 2020.1.13 of the protocol specification added the case
+$\mathsf{Halving}(\mathsf{height}) := 0$ if $\mathsf{height} < \mathsf{SlowStartShift}$
+(where the formula above gives $-1$ instead). This has no effect on consensus.
+
 .. math::
     \mathsf{BlockSubsidy}(\mathsf{height}) :=
       \begin{cases}
@@ -134,7 +138,7 @@ to section 7.8], redefine the $\mathsf{Halving}$ and $\mathsf{BlockSubsidy}$ fun
         \hspace{1em}(\mathsf{BlossomPoWTargetSpacingRatio} \cdot 2^{\mathsf{Halving}(\mathsf{height})})) &\!\!\textsf{otherwise}
       \end{cases}
 
-Note: $\mathsf{BlossomActivationHeight}$, $\mathsf{PostBlossomHalvingInterval}$, and $\mathsf{PostBlossomTargetSpacing}$ are chosen so that:
+Note: $\mathsf{BlossomActivationHeight}$, $\mathsf{PostBlossomHalvingInterval}$, and $\mathsf{PostBlossomPoWTargetSpacing}$ are chosen so that:
 
 - $(\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}) / \mathsf{PreBlossomHalvingInterval}\hspace{-3em}$
   $\hspace{3em}+\; (\mathsf{height} - \mathsf{BlossomActivationHeight}) / \mathsf{PostBlossomHalvingInterval}$
@@ -181,7 +185,7 @@ spacing to adjust to the new target, at the normal rate for a difficulty
 adjustment. The results of simulations are consistent with this expected
 behaviour.
 
-Note that the change in $\mathsf{AveragingWindowTimespan(\mathsf{height})$ takes effect
+Note that the change in $\mathsf{AveragingWindowTimespan}(\mathsf{height})$ takes effect
 immediately when calculating the target difficulty starting from the block at
 the Blossom activation height, even though the difficulty of the preceding
 $\mathsf{PoWAveragingWindow}$ blocks will have been adjusted using the pre-Blossom target
@@ -214,9 +218,10 @@ for subsequent blocks.
 
 This change does not affect Mainnet.
 
-At the Testnet NU7 activation height, ZIP 218 [#zip-0218]_ changes the
-minimum-difficulty threshold to 18 times the block target spacing. The
-six-spacing threshold specified here continues to apply before NU7.
+From the Testnet NU7 activation height [#zip-0259]_, ZIP 218 [#zip-0218]_
+changes this threshold to $18 \cdot \mathsf{PoWTargetSpacing}(\mathsf{height})$
+seconds, which is 450 seconds at the 25-second target spacing. The six-spacing
+threshold specified here applies before NU7 activation.
 
 
 Non-consensus node behaviour
@@ -236,12 +241,14 @@ Default expiry delta
 
 When not overridden by the ``-txexpirydelta`` option, `zcashd` RPC calls that
 create transactions use a default value for the number of blocks after which a
-transaction will expire. The default in recent versions of `zcashd` is
+transaction will expire, counted from the height of the next block to be mined
+(the chain tip height plus one). The default in recent versions of `zcashd` is
 20 blocks, which at the pre-Blossom block target spacing corresponds to roughly
 50 minutes.
 
-This default SHOULD change to BlossomPoWTargetSpacingRatio · 20 blocks after
-Blossom activation, to maintain the approximate expiry time of 50 minutes.
+This default SHOULD change to BlossomPoWTargetSpacingRatio · 20 blocks when the
+height of the next block to be mined is at or above the Blossom activation
+height, to maintain the approximate expiry time of 50 minutes.
 
 If the ``-txexpirydelta`` option is set, then the set value SHOULD be used both
 before and after Blossom activation.
@@ -387,7 +394,7 @@ decision was made not to change them::
 Deployment
 ==========
 
-This proposal will be deployed with the Blossom network upgrade. [#zip-0206]_
+This proposal was deployed with the Blossom network upgrade. [#zip-0206]_
 
 
 Backward compatibility
@@ -421,5 +428,6 @@ References
 .. [#zip-0205] `ZIP 205: Deployment of the Sapling Network Upgrade <zip-0205.rst>`_
 .. [#zip-0206] `ZIP 206: Deployment of the Blossom Network Upgrade <zip-0206.rst>`_
 .. [#zip-0218] `ZIP 218: 25-second Block Target Spacing <zip-0218.md>`_
+.. [#zip-0259] `ZIP 259: Deployment of the NU7 Network Upgrade <zip-0259.md>`_
 .. [#zip-0308] `ZIP 308: Sprout to Sapling Migration <zip-0308.rst>`_
 .. [#slowfastblocks] `On Slow and Fast Block Times <https://blog.ethereum.org/2015/09/14/on-slow-and-fast-block-times/>`_
